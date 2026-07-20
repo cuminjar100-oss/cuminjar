@@ -1,0 +1,46 @@
+/* App.css - intentionally minimal; global styles live in index.css */
+.App { min-height: 100vh; }
+
+/* ============ Print styles (Recipe Detail) ============ */
+@media print {
+  @page { margin: 14mm 16mm; }
+  html, body { background: #fff !important; }
+
+  /* Hide everything by default... */
+  body * { visibility: hidden !important; }
+  /* ...then show only the printable region and its descendants */
+  [data-print-area="recipe"], [data-print-area="recipe"] * { visibility: visible !important; }
+  [data-print-area="recipe"] {
+    position: absolute; inset: 0; padding: 0; margin: 0;
+    color: #1c1c1c !important;
+    background: #fff !important;
+    font-family: 'Nunito', system-ui, sans-serif;
+  }
+
+  /* Hide chrome elements inside the recipe area */
+  [data-print-hide], [data-print-hide] * { display: none !important; }
+
+  /* Reset bg colors of pills & cards so they print cleanly without ink-eating fills */
+  [data-print-area="recipe"] .bg-\[\#F6F3EB\],
+  [data-print-area="recipe"] .bg-\[\#FDFBF7\],
+  [data-print-area="recipe"] .bg-\[\#D9A05B\]\/20 { background: transparent !important; }
+  [data-print-area="recipe"] .border, [data-print-area="recipe"] .border-2 { border-color: #d9d3c5 !important; }
+
+  /* Big readable typography for the page */
+  [data-print-area="recipe"] h1 { font-size: 36pt !important; line-height: 1.05 !important; margin: 0 0 8pt !important; }
+  [data-print-area="recipe"] h2 { font-size: 16pt !important; margin: 14pt 0 6pt !important; }
+  [data-print-area="recipe"] p, [data-print-area="recipe"] li { font-size: 11.5pt !important; line-height: 1.5 !important; }
+
+  /* Big hero image, but cap height so it never eats the whole page */
+  [data-print-area="recipe"] [data-print-hero] {
+    max-height: 90mm !important; overflow: hidden !important;
+    border-radius: 4mm !important; margin-bottom: 8mm !important;
+  }
+  [data-print-area="recipe"] [data-print-hero] img { object-fit: cover !important; width: 100% !important; height: 100% !important; }
+
+  /* Avoid awkward page breaks inside steps */
+  [data-print-area="recipe"] li { page-break-inside: avoid; break-inside: avoid; }
+
+  /* Force the two-column ingredients + steps layout when wide enough */
+  [data-print-grid] { display: grid !important; grid-template-columns: 1fr 1.6fr !important; gap: 10mm !important; }
+}

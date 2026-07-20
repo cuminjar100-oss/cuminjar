@@ -1,0 +1,39 @@
+{
+  "name": "Mamascript",
+  "short_name": "Mamascript",
+  "description": "Your family's living vault — record recipes, rituals, songs and stories in any language. Mamascript transcribes, translates and preserves them for the next generation.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FDFBF7",
+  "theme_color": "#D8744C",
+  "lang": "en",
+  "categories": ["lifestyle", "food", "books", "social"],
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
