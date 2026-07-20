@@ -149,7 +149,7 @@ export default function EntryDetail() {
     }
     const base = entryImageSrc(entry) || resolveImageUrl(entry.image_url);
     setResolvedImgSrc(`${base}${base.includes("?") ? "&" : "?"}_=${imgVersion}`);
-  }, [entry?.image_url, entry?.entry_id, imgVersion]);
+  }, [entry, imgVersion]);
 
   const imgSrc = resolvedImgSrc ?? (entry ? placeholderFor(entry.entry_id) : null);
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import * as appData from "@/lib/appData";
@@ -11,16 +11,16 @@ export default function Header() {
   const [open, setOpen] = useState(false);
   const popRef = useRef(null);
 
-  const fetchNotifs = async () => {
+  const fetchNotifs = useCallback(async () => {
     try { setNotifs(await appData.listNotifications(user)); } catch {}
-  };
+  }, [user]);
 
   useEffect(() => {
     if (!user) return;
     fetchNotifs();
     const t = setInterval(fetchNotifs, 30000);
     return () => clearInterval(t);
-  }, [user]);
+  }, [user, fetchNotifs]);
 
   useEffect(() => {
     const onClick = (e) => {
