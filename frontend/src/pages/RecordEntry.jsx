@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { api } from "@/lib/api";
 import { useAuth, formatApiError } from "@/context/AuthContext";
@@ -82,21 +82,21 @@ export default function RecordEntry() {
   // Mirror audioUrl into a ref so unmount cleanup can always reach the latest value
   useEffect(() => { audioUrlRef.current = audioUrl; }, [audioUrl]);
 
-  useEffect(() => () => { cleanupOnUnmount(); /* eslint-disable-next-line */ }, []);
-
-  const cleanup = () => {
+  const cleanup = useCallback(() => {
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
     if (meterRafRef.current) { cancelAnimationFrame(meterRafRef.current); meterRafRef.current = null; }
     if (streamRef.current) { streamRef.current.getTracks().forEach((t) => t.stop()); streamRef.current = null; }
     if (audioCtxRef.current) { try { audioCtxRef.current.close(); } catch {} audioCtxRef.current = null; }
     // NOTE: do NOT revoke audioUrl here — it's still needed for the preview <audio> element
     // after the recorder stops. The unmount-only revoke lives in cleanupOnUnmount() below.
-  };
+  }, []);
 
-  const cleanupOnUnmount = () => {
+  const cleanupOnUnmount = useCallback(() => {
     cleanup();
     if (audioUrlRef.current) { URL.revokeObjectURL(audioUrlRef.current); audioUrlRef.current = null; }
-  };
+  }, [cleanup]);
+
+  useEffect(() => () => { cleanupOnUnmount(); }, [cleanupOnUnmount]);
 
   const startMeter = (stream) => {
     try {

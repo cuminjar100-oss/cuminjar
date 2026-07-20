@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, placeholderFor, entryImageSrc } from "@/lib/api";
 import { useAuth, formatApiError } from "@/context/AuthContext";
@@ -21,7 +21,7 @@ export default function VaultDetail() {
   const [inviteError, setInviteError] = useState(null);
   const [inviteResult, setInviteResult] = useState(null);
 
-  const refresh = async () => {
+  const refresh = useCallback(async () => {
     if (!user) return;
     try {
       const [b, r] = await Promise.all([
@@ -33,9 +33,9 @@ export default function VaultDetail() {
     } catch {
       navigate("/", { replace: true });
     } finally { setLoading(false); }
-  };
+  }, [user, id, navigate]);
 
-  useEffect(() => { refresh(); /* eslint-disable-next-line */ }, [id, user]);
+  useEffect(() => { refresh(); }, [refresh]);
 
   const sendInvite = async (e) => {
     e.preventDefault();

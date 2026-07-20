@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth, formatApiError } from "@/context/AuthContext";
 import * as appData from "@/lib/appData";
@@ -15,14 +15,14 @@ export default function Vaults() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
 
-  const refresh = async () => {
+  const refresh = useCallback(async () => {
     if (!user) return;
     try {
       setBooks(await appData.listVaults(user));
     } catch {} finally { setLoading(false); }
-  };
+  }, [user]);
 
-  useEffect(() => { refresh(); }, [user]);
+  useEffect(() => { refresh(); }, [refresh]);
 
   const create = async (e) => {
     e.preventDefault();
