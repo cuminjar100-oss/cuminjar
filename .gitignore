@@ -26,3 +26,4 @@ frontend/logs/combined.log
 test_reports/*
 tests/*
 memory/*
+.venv-win/
