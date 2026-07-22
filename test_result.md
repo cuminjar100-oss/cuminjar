@@ -258,6 +258,36 @@ backend:
           agent: "testing"
           comment: "✅ ALL TESTS PASSED (3/3) - NEW FEATURE FULLY WORKING. POST /api/contact with valid data (name='Test User', email='test@example.com', subject='General enquiry', message='Hello team!') returns {ok: true, id: '...'}. POST with invalid email 'invalid-email' returns 400 'Invalid email address'. POST with empty message returns 400 'Message required'. All validation working correctly."
 
+  - task: "Family description field removed (CHANGE 1)"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "CHANGE 1 - Family description field removed from Dashboard. Family POST now sends description: ''. Backend FamilyIn model updated with description: str = '' default."
+        - working: true
+          agent: "testing"
+          comment: "✅ CHANGE 1 VERIFIED - POST /api/family with {name: 'Test Family', description: '', language: 'English'} returns 200 with saved family (id=e9af3615-8f79-41cd-b136-374ad1f64c68, description=''). GET /api/family returns persisted family with empty description. Backend correctly handles empty description field."
+
+  - task: "Resend email integration for invites (CHANGE 2 - PRIMARY)"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "CHANGE 2 (PRIMARY) - Invites now send REAL emails via Resend integration. Added _send_invite_email() function using Resend API. POST /api/invites now includes email_sent, email_provider_id, email_error fields. Notification includes 'Invitation email sent to <email>'."
+        - working: true
+          agent: "testing"
+          comment: "✅ CHANGE 2 VERIFIED - REAL EMAIL INTEGRATION WORKING! POST /api/invites with delivered@resend.dev (Resend test address) successfully sends email. Response includes: email_sent=true, email_provider_id='681535f1-f36e-43ca-a5d1-d82c996c321f' (UUID from Resend), email_error=null, status='pending'. Invalid email returns 400 'Invalid email address'. Duplicate email returns 409 'This email is already invited'. DELETE /api/invites/{id} works correctly. Notification includes 'Invitation email sent to delivered@resend.dev'. All 7 invite tests passed."
+
 frontend:
   - task: "CSS Bug Fix - Fraunces font 'f' letter wonky/slanted in serif headings"
     implemented: true
@@ -325,7 +355,7 @@ frontend:
 metadata:
   created_by: "main_agent"
   version: "1.0"
-  test_sequence: 4
+  test_sequence: 5
   run_ui: false
 
 test_plan:
@@ -347,3 +377,7 @@ agent_communication:
       message: "Code review completed. Added NEW endpoints: Invites (GET/POST/DELETE /api/invites) for family email invitations with validation and auto-notifications, and Contact (POST /api/contact) for contact form submissions with validation. Please test these NEW endpoints and verify regression on existing endpoints."
     - agent: "testing"
       message: "✅ ALL BACKEND TESTS PASSED (32/32 - 100% pass rate). NEW FEATURES FULLY WORKING: Invites endpoints (7/7 tests passed) - GET/POST/DELETE with email validation, duplicate check, auto-notification. Contact endpoint (3/3 tests passed) - POST with email/message validation. REGRESSION VERIFIED: All existing endpoints still working correctly (Health, Family, Recipes, Stories, Albums, Family Tree, Notifications, Voice Recipes). No errors. Backend production-ready."
+    - agent: "main"
+      message: "TWO CHANGES IMPLEMENTED: (1) Family description field removed from Dashboard - POST now sends description: ''. (2) PRIMARY: Invites now send REAL emails via Resend integration with email_sent, email_provider_id, email_error fields. Please verify both changes and run regression tests on GET /api/, /api/me, /api/recipes, /api/stories."
+    - agent: "testing"
+      message: "✅ ALL TESTS PASSED (32/32 - 100% pass rate). CHANGE 1 VERIFIED: Family POST with empty description works correctly (returns 200, persists with description=''). CHANGE 2 VERIFIED (PRIMARY): Resend email integration FULLY WORKING - Real emails sent via Resend API to delivered@resend.dev. Response includes email_sent=true, email_provider_id (UUID from Resend), email_error=null, status=pending. Invalid email validation (400), duplicate check (409), DELETE, and notification all working. REGRESSION PASSED: GET /api/, /api/me, /api/recipes, /api/stories all working correctly. Backend production-ready."

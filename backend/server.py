@@ -22,6 +22,9 @@ db = client[os.environ['DB_NAME']]
 
 SARVAM_API_KEY = os.environ.get('SARVAM_API_KEY')
 EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY')
+RESEND_API_KEY = os.environ.get('RESEND_API_KEY')
+RESEND_FROM_EMAIL = os.environ.get('RESEND_FROM_EMAIL', 'CuminJar <onboarding@resend.dev>')
+APP_BASE_URL = os.environ.get('APP_BASE_URL', 'https://cuminjar.com')
 
 # Demo user (no auth)
 DEMO_USER_ID = 'demo-user'
@@ -272,6 +275,72 @@ import re
 EMAIL_RE = re.compile(r'^[^\s@]+@[^\s@]+\.[^\s@]+$')
 
 
+def _build_invite_email_html(inviter_name: str, family_name: str, invitee_name: str | None, relation: str | None, join_url: str) -> str:
+    display_name = invitee_name or 'there'
+    relation_line = f'as their <strong>{relation}</strong>' if relation else 'to their family'
+    return f"""<!doctype html>
+<html>
+  <body style="margin:0;padding:0;background:#FBF7F1;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1F1B16;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#FBF7F1;padding:40px 16px;">
+      <tr><td align="center">
+        <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #ececec;">
+          <tr><td style="padding:32px 40px 8px 40px;">
+            <div style="font-family:'Fraunces',Georgia,serif;font-size:24px;font-weight:600;">
+              <span style="color:#C46B4A;">Cumin</span><span style="color:#3D5A3A;">Jar</span>
+            </div>
+          </td></tr>
+          <tr><td style="padding:16px 40px 8px 40px;">
+            <h1 style="font-family:'Fraunces',Georgia,serif;font-size:26px;line-height:1.2;margin:0 0 12px 0;color:#1F1B16;font-weight:600;">
+              Hi {display_name}, you're invited to join <em style="color:#C46B4A;">{family_name}</em> on CuminJar
+            </h1>
+            <p style="margin:0 0 16px 0;font-size:15px;line-height:1.6;color:#4b5563;">
+              {inviter_name} invited you {relation_line}'s private family space on CuminJar &mdash; a place to preserve family recipes, stories &amp; traditions in the voices of your loved ones.
+            </p>
+            <p style="margin:0 0 24px 0;font-size:15px;line-height:1.6;color:#4b5563;">
+              Recipes are more than ingredients. They're your history, your love, and your way of staying close. Come join the jar.
+            </p>
+            <p style="margin:0 0 28px 0;">
+              <a href="{join_url}" style="display:inline-block;background:#3D5A3A;color:#ffffff;text-decoration:none;font-weight:600;padding:14px 28px;border-radius:10px;font-size:15px;">Accept invitation</a>
+            </p>
+            <p style="margin:0 0 8px 0;font-size:13px;color:#6b7280;">Or copy this link into your browser:</p>
+            <p style="margin:0 0 24px 0;font-size:13px;color:#3D5A3A;word-break:break-all;">{join_url}</p>
+          </td></tr>
+          <tr><td style="padding:24px 40px 32px 40px;border-top:1px solid #f0eadf;background:#F7EFE3;">
+            <p style="margin:0;font-size:12px;color:#9ca3af;">If you weren't expecting this invitation, you can safely ignore this email. Your family space is always private and secure.</p>
+            <p style="margin:8px 0 0 0;font-size:12px;color:#9ca3af;">&copy; CuminJar &middot; Made with love, for families.</p>
+          </td></tr>
+        </table>
+      </td></tr>
+    </table>
+  </body>
+</html>"""
+
+
+async def _send_invite_email(email: str, invitee_name: str | None, relation: str | None, family_name: str, inviter_name: str) -> dict:
+    """Send invite email via Resend. Returns {ok, id?, error?}."""
+    if not RESEND_API_KEY:
+        return {'ok': False, 'error': 'RESEND_API_KEY not configured'}
+    join_url = f"{APP_BASE_URL}/get-started?invite={email}"
+    subject = f"{inviter_name} invited you to {family_name} on CuminJar"
+    html = _build_invite_email_html(inviter_name, family_name, invitee_name, relation, join_url)
+
+    def _send():
+        import resend
+        resend.api_key = RESEND_API_KEY
+        try:
+            resp = resend.Emails.send({
+                'from': RESEND_FROM_EMAIL,
+                'to': [email],
+                'subject': subject,
+                'html': html,
+            })
+            return {'ok': True, 'id': (resp or {}).get('id')}
+        except Exception as e:
+            logger.exception('Resend send failed')
+            return {'ok': False, 'error': str(e)}
+    return await asyncio.to_thread(_send)
+
+
 @api.get("/invites")
 async def list_invites():
     items = await db.invites.find({'user_id': DEMO_USER_ID}).sort('created_at', -1).to_list(200)
@@ -286,6 +355,21 @@ async def create_invite(payload: InviteIn):
     existing = await db.invites.find_one({'user_id': DEMO_USER_ID, 'email': email})
     if existing:
         raise HTTPException(409, 'This email is already invited')
+
+    # Determine family + inviter names
+    family_doc = await db.families.find_one({'user_id': DEMO_USER_ID})
+    family_name = (family_doc or {}).get('name') or 'our family'
+    inviter_name = DEMO_USER['name']
+
+    # Send email via Resend
+    send_result = await _send_invite_email(
+        email=email,
+        invitee_name=(payload.name or '').strip() or None,
+        relation=(payload.relation or '').strip() or None,
+        family_name=family_name,
+        inviter_name=inviter_name,
+    )
+
     doc = {
         'id': str(uuid.uuid4()),
         'user_id': DEMO_USER_ID,
@@ -293,16 +377,24 @@ async def create_invite(payload: InviteIn):
         'name': (payload.name or '').strip() or None,
         'relation': (payload.relation or '').strip() or None,
         'status': 'pending',
+        'email_sent': bool(send_result.get('ok')),
+        'email_error': send_result.get('error'),
+        'email_provider_id': send_result.get('id'),
         'created_at': now_iso(),
     }
     await db.invites.insert_one(doc)
-    # Auto-notification
+
+    # Notification
+    if send_result.get('ok'):
+        notif_desc = f'Invitation email sent to {email}.'
+    else:
+        notif_desc = f'Invite saved for {email} (email delivery pending: {send_result.get("error", "unknown error")})'
     await db.notifications.insert_one({
         'id': str(uuid.uuid4()),
         'user_id': DEMO_USER_ID,
         'icon': 'Users',
-        'title': 'Family invite sent',
-        'desc': f'Invitation sent to {email}. They will get an email shortly.',
+        'title': 'Family invite sent' if send_result.get('ok') else 'Family invite saved',
+        'desc': notif_desc,
         'when': 'just now',
         'read': False,
         'created_at': now_iso(),

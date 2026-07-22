@@ -101,10 +101,10 @@ def test_family_crud():
     except Exception as e:
         log_fail("GET /api/family", f"Exception: {str(e)}")
     
-    # POST family (create)
+    # POST family (create) - CHANGE 1: Test with empty description
     family_data = {
         "name": "Test Rao Family",
-        "description": "A close-knit family preserving recipes and stories.",
+        "description": "",  # CHANGE 1: Empty description (field removed from Dashboard)
         "language": "English",
         "coverPhoto": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
     }
@@ -114,7 +114,7 @@ def test_family_crud():
         if resp.status_code == 200:
             created = resp.json()
             if 'id' in created and created.get('name') == family_data['name']:
-                log_pass("POST /api/family", f"Created family with id={created['id']}")
+                log_pass("POST /api/family (empty description)", f"Created family with id={created['id']}, description='{created.get('description', '')}'")
                 family_id = created['id']
             else:
                 log_fail("POST /api/family", f"Unexpected response: {created}")
@@ -419,8 +419,8 @@ def test_notifications():
         log_fail("GET /api/notifications (after mark-read)", f"Exception: {str(e)}")
 
 def test_invites():
-    """Test 8: Invites (NEW FEATURE - family email invitations)"""
-    print("\n=== Testing Invites (NEW FEATURE) ===")
+    """Test 8: Invites with REAL Resend email integration (CHANGE 2 - PRIMARY)"""
+    print("\n=== Testing Invites with Resend Email Integration (CHANGE 2) ===")
     
     # GET invites (initially empty or has previous test data)
     try:
@@ -440,53 +440,68 @@ def test_invites():
         log_fail("GET /api/invites", f"Exception: {str(e)}")
         initial_count = 0
     
-    # POST invite with valid data
+    # CHANGE 2: POST invite with Resend test address (delivered@resend.dev)
     invite_data = {
-        "email": "paati@family.com",
-        "name": "Lakshmi Paati",
+        "email": "delivered@resend.dev",  # Resend's test address that always accepts
+        "name": "Test Grandmother",
         "relation": "Grandmother"
     }
     
     invite_id = None
     try:
-        resp = requests.post(f"{BASE_URL}/invites", json=invite_data, timeout=10)
+        print("  Sending real email via Resend (may take a few seconds)...")
+        resp = requests.post(f"{BASE_URL}/invites", json=invite_data, timeout=30)
         if resp.status_code == 200:
             created = resp.json()
-            required_fields = ['id', 'email', 'status', 'created_at']
+            required_fields = ['id', 'email', 'status', 'created_at', 'email_sent', 'email_provider_id', 'email_error']
             missing = [f for f in required_fields if f not in created]
             
             if not missing:
                 invite_id = created['id']
-                # Verify email is lowercased
-                if created['email'] == invite_data['email'].lower():
-                    log_pass("POST /api/invites (valid)", f"Created invite with id={invite_id}, email={created['email']}, status={created['status']}")
+                email_sent = created.get('email_sent')
+                email_provider_id = created.get('email_provider_id')
+                email_error = created.get('email_error')
+                status = created.get('status')
+                
+                # CHANGE 2: Verify Resend integration fields
+                if email_sent == True and email_provider_id and email_error is None and status == 'pending':
+                    log_pass("POST /api/invites (Resend integration)", 
+                            f"✅ REAL EMAIL SENT via Resend! id={invite_id}, email_sent=True, email_provider_id={email_provider_id}, email_error=None, status=pending")
                 else:
-                    log_fail("POST /api/invites (valid)", f"Email not lowercased: expected '{invite_data['email'].lower()}', got '{created['email']}'")
+                    log_fail("POST /api/invites (Resend integration)", 
+                            f"Resend fields incorrect: email_sent={email_sent}, email_provider_id={email_provider_id}, email_error={email_error}, status={status}")
             else:
-                log_fail("POST /api/invites (valid)", f"Missing fields: {missing}. Response: {created}")
+                log_fail("POST /api/invites (Resend integration)", f"Missing fields: {missing}. Response: {created}")
         else:
-            log_fail("POST /api/invites (valid)", f"Status {resp.status_code}: {resp.text}")
+            log_fail("POST /api/invites (Resend integration)", f"Status {resp.status_code}: {resp.text}")
     except Exception as e:
-        log_fail("POST /api/invites (valid)", f"Exception: {str(e)}")
+        log_fail("POST /api/invites (Resend integration)", f"Exception: {str(e)}")
     
-    # Verify notification was auto-created
+    # CHANGE 2: Verify notification includes "Invitation email sent to <email>"
     try:
         notif_resp = requests.get(f"{BASE_URL}/notifications", timeout=10)
         if notif_resp.status_code == 200:
             notifs = notif_resp.json()
             items = notifs.get('items', [])
-            # Look for "Family invite sent" notification
-            found_notif = any('family invite sent' in item.get('title', '').lower() for item in items)
+            # Look for "Family invite sent" notification with email in description
+            found_notif = None
+            for item in items:
+                if 'family invite sent' in item.get('title', '').lower():
+                    desc = item.get('desc', '')
+                    if 'invitation email sent to' in desc.lower() and invite_data['email'] in desc.lower():
+                        found_notif = item
+                        break
+            
             if found_notif:
-                log_pass("Invite notification", "Notification auto-created after invite")
+                log_pass("Invite notification (Resend)", f"Notification includes 'Invitation email sent to {invite_data['email']}'")
             else:
-                log_fail("Invite notification", "No 'Family invite sent' notification found")
+                log_fail("Invite notification (Resend)", f"No notification with 'Invitation email sent to {invite_data['email']}' found")
     except Exception as e:
-        log_fail("Invite notification", f"Exception: {str(e)}")
+        log_fail("Invite notification (Resend)", f"Exception: {str(e)}")
     
     # POST invite with invalid email
     try:
-        resp = requests.post(f"{BASE_URL}/invites", json={"email": "not-an-email", "name": "Test"}, timeout=10)
+        resp = requests.post(f"{BASE_URL}/invites", json={"email": "not-an-email", "name": "Test", "relation": "Test"}, timeout=10)
         if resp.status_code == 400:
             error = resp.json()
             if 'invalid email' in error.get('detail', '').lower():
@@ -498,7 +513,7 @@ def test_invites():
     except Exception as e:
         log_fail("POST /api/invites (invalid email)", f"Exception: {str(e)}")
     
-    # POST invite with duplicate email
+    # POST invite with duplicate email (delivered@resend.dev again)
     try:
         resp = requests.post(f"{BASE_URL}/invites", json=invite_data, timeout=10)
         if resp.status_code == 409:
