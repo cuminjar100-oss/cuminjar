@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { X, Mail, Loader2, Trash2, Send, Clock, CheckCircle2 } from 'lucide-react';
 import api from '../api';
 import { useToast } from '../hooks/use-toast';
@@ -12,12 +12,12 @@ export default function InviteFamilyModal({ onClose }) {
   const [sending, setSending] = useState(false);
   const { toast } = useToast();
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     try { setInvites(await api.listInvites()); } catch (e) { console.error(e); }
     setLoading(false);
-  };
-  useEffect(() => { load(); }, []);
+  }, []);
+  useEffect(() => { load(); }, [load]);
 
   const send = async (e) => {
     e.preventDefault();

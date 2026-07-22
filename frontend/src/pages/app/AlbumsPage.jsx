@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import AppShell from '../../components/AppShell';
 import { Plus, Images as ImagesIcon, Loader2, X } from 'lucide-react';
 import api from '../../api';
@@ -10,12 +10,12 @@ export default function AlbumsPage() {
   const [showModal, setShowModal] = useState(false);
   const { toast } = useToast();
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     try { setAlbums(await api.listAlbums()); } catch (e) { console.error(e); }
     setLoading(false);
-  };
-  useEffect(() => { load(); }, []);
+  }, []);
+  useEffect(() => { load(); }, [load]);
 
   return (
     <AppShell active="albums">

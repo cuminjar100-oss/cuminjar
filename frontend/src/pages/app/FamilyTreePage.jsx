@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import AppShell from '../../components/AppShell';
 import { Plus, Loader2, X } from 'lucide-react';
 import api from '../../api';
@@ -11,12 +11,12 @@ export default function FamilyTreePage() {
   const [showModal, setShowModal] = useState(false);
   const { toast } = useToast();
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     try { setMembers(await api.getFamilyTree()); } catch (e) { console.error(e); }
     setLoading(false);
-  };
-  useEffect(() => { load(); }, []);
+  }, []);
+  useEffect(() => { load(); }, [load]);
 
   const grouped = [0, 1, 2, 3].map(lv => ({ level: lv, members: members.filter(m => m.level === lv) })).filter(g => g.members.length > 0);
 

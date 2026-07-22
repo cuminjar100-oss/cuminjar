@@ -36,8 +36,8 @@ export default function Contact() {
 
       <section className="max-w-5xl mx-auto px-6 lg:px-10 py-10 grid md:grid-cols-3 gap-6">
         <ContactCard icon={Mail} title="Email" desc="hello@cuminjar.com" sub="We reply within 24 hours." />
-        <ContactCard icon={MessageCircle} title="Support" desc="support@cuminjar.com" sub="For account &amp; billing help." />
-        <ContactCard icon={MapPin} title="Address" desc="Bengaluru, India" sub="Also San Jose &amp; Toronto." />
+        <ContactCard icon={MessageCircle} title="Support" desc="support@cuminjar.com" sub="For account & billing help." />
+        <ContactCard icon={MapPin} title="Address" desc="Bengaluru, India" sub="Also San Jose & Toronto." />
       </section>
 
       <section className="max-w-3xl mx-auto px-6 lg:px-10 pb-16">
@@ -97,8 +97,8 @@ function ContactCard({ icon: Icon, title, desc, sub }) {
         <Icon size={20} className="text-terracotta" />
       </div>
       <p className="font-semibold text-neutral-900 mt-3">{title}</p>
-      <p className="text-neutral-800 text-[14.5px] mt-1" dangerouslySetInnerHTML={{ __html: desc }} />
-      <p className="text-[12.5px] text-neutral-500 mt-1" dangerouslySetInnerHTML={{ __html: sub }} />
+      <p className="text-neutral-800 text-[14.5px] mt-1">{desc}</p>
+      <p className="text-[12.5px] text-neutral-500 mt-1">{sub}</p>
     </div>
   );
 }

@@ -51,8 +51,8 @@ export default function Landing() {
             </div>
             <div className="mt-10 flex items-center gap-3">
               <div className="flex -space-x-2">
-                {familyAvatars.slice(0, 4).map((src, i) => (
-                  <img key={i} src={src} alt="family member" className="w-9 h-9 rounded-full border-2 border-cream object-cover" />
+                {familyAvatars.slice(0, 4).map((src) => (
+                  <img key={src} src={src} alt="family member" className="w-9 h-9 rounded-full border-2 border-cream object-cover" />
                 ))}
               </div>
               <p className="text-[14px] text-neutral-600">Join 1,000+ families preserving their heritage</p>

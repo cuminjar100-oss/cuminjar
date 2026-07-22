@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import AppShell from '../../components/AppShell';
 import { Plus, Filter, Heart, Clock, Users as UsersIcon, Loader2, X } from 'lucide-react';
 import api from '../../api';
@@ -13,13 +13,13 @@ export default function RecipesPage() {
   const [showModal, setShowModal] = useState(false);
   const { toast } = useToast();
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     try { setRecipes(await api.listRecipes()); } catch (e) { toast({ title: 'Failed to load recipes' }); }
     setLoading(false);
-  };
+  }, [toast]);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [load]);
 
   const toggleLike = async (id) => {
     setRecipes(prev => prev.map(r => r.id === id ? { ...r, liked: !r.liked } : r));

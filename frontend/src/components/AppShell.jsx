@@ -15,7 +15,9 @@ export default function AppShell({ children, active }) {
   const [unread, setUnread] = useState(0);
 
   useEffect(() => {
-    api.listNotifications().then((d) => setUnread(d?.unread || 0)).catch(() => {});
+    let cancelled = false;
+    api.listNotifications().then((d) => { if (!cancelled) setUnread(d?.unread || 0); }).catch((e) => console.error(e));
+    return () => { cancelled = true; };
   }, [location.pathname]);
   return (
     <div className="min-h-screen bg-cream flex">

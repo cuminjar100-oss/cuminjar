@@ -304,9 +304,24 @@ frontend:
           agent: "testing"
           comment: "✅ BUG FIX VERIFIED - Visual inspection completed across 4 pages (Landing, Features, Pricing, How it Works). Letter 'f' in all upright serif headings now renders as normal upright serif character with no tilt or wonky curl. Font-variation-settings correctly applied: 'SOFT' 50, 'WONK' 0, 'opsz' 96. Screenshots captured for all pages. Italic portions (e.g., 'in their voice.', 'families.') correctly styled in terracotta - not part of bug. Fix successful."
 
-  - task: "Dashboard - Create/Update Family Group"
+  - task: "Contact page - XSS fix regression check"
     implemented: true
-    working: "NA"
+    working: true
+    file: "frontend/src/pages/Contact.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "Code review fixes applied. Contact page with three contact cards and form submission."
+        - working: true
+          agent: "testing"
+          comment: "✅ PASSED - Contact page verified after code-review fixes. Three contact cards render correctly: 'hello@cuminjar.com', 'For account & billing help.', 'Also San Jose & Toronto.' - ampersands display correctly as '&' in visible text (HTML source contains '&amp;' which is correct React XSS prevention behavior, not a bug). Contact form submission works: filled with name='Test User', email='test@example.com', subject='General enquiry', message='Hello team' - success state appeared with 'Thank you!' heading. No XSS regression found."
+
+  - task: "Dashboard - Family form (useCallback + cancellation + description field removed)"
+    implemented: true
+    working: true
     file: "frontend/src/pages/Dashboard.jsx"
     stuck_count: 0
     priority: "high"
@@ -314,11 +329,14 @@ frontend:
     status_history:
         - working: "NA"
           agent: "main"
-          comment: "Loads existing family on mount. File upload -> base64. Persists to backend."
+          comment: "Code review fixes: useCallback dependencies fixed, useEffect cancellation added, Family Description field removed. Loads existing family on mount. File upload -> base64. Persists to backend."
+        - working: true
+          agent: "testing"
+          comment: "✅ PASSED - Dashboard family form verified after code-review fixes. Family Description field correctly REMOVED (only Family Group Name + Language + Cover Photo shown). Form loads without console errors. Filled with 'Test Family' name, language 'English'. Form submission and update working. Persistence verified: after refresh, form re-populates with saved data. useCallback and cancellation changes working correctly."
 
-  - task: "Recipes page - list, create, like"
+  - task: "Recipes page - list, create, like (useCallback change)"
     implemented: true
-    working: "NA"
+    working: true
     file: "frontend/src/pages/app/RecipesPage.jsx"
     stuck_count: 0
     priority: "high"
@@ -326,7 +344,70 @@ frontend:
     status_history:
         - working: "NA"
           agent: "main"
-          comment: "Add Recipe modal with cover upload. Region filter. Like toggle via API."
+          comment: "Code review fixes: useCallback dependencies fixed. Add Recipe modal with cover upload. Region filter. Like toggle via API."
+        - working: true
+          agent: "testing"
+          comment: "✅ PASSED - Recipes page verified after code-review fixes. All 4 seeded recipes load correctly: 'Paati's Sambar', 'Nani's Rajma Chawal', 'Amma's Fish Curry', 'Dadi's Aloo Paratha'. Like toggle working: clicked heart icon on first recipe, visual state changed from outline (class: 'text-terracotta') to filled (class: 'text-terracotta fill-terracotta'). useCallback changes working correctly."
+
+  - task: "Stories page (useCallback change)"
+    implemented: true
+    working: true
+    file: "frontend/src/pages/app/StoriesPage.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "Code review fixes: useCallback dependencies fixed. Stories list with add modal."
+        - working: true
+          agent: "testing"
+          comment: "✅ PASSED - Stories page verified after code-review fixes. Seeded stories load without errors (6 stories found including 'The Family Almirah', 'Grandma's Diwali', 'The Monsoon Kitchen'). Page loads correctly. useCallback changes working correctly."
+
+  - task: "Invite Family Modal (useCallback + real Resend email)"
+    implemented: true
+    working: true
+    file: "frontend/src/components/InviteFamilyModal.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "Code review fixes: useCallback dependencies fixed. Modal for inviting family with real Resend email integration."
+        - working: true
+          agent: "testing"
+          comment: "✅ PASSED - Invite Family Modal verified after code-review fixes. Modal opens correctly from Dashboard. Previous invites to 'delivered@resend.dev' visible in 'Sent invitations' list with 'Pending' status badge. Modal displays invite email correctly. Real Resend email integration working (verified via notifications showing 'Invitation email sent to delivered@resend.dev'). useCallback changes working correctly."
+
+  - task: "Notifications page (useEffect cleanup)"
+    implemented: true
+    working: true
+    file: "frontend/src/pages/app/NotificationsPage.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "Code review fixes: useEffect cleanup added. Notifications list with mark all read."
+        - working: true
+          agent: "testing"
+          comment: "✅ PASSED - Notifications page verified after code-review fixes. Notifications list loads correctly (11 notifications found). Verified notification 'Invitation email sent to delivered@resend.dev' from invite test is visible. Page loads without errors. useEffect cleanup changes working correctly."
+
+  - task: "Landing hero (Paati image + spices)"
+    implemented: true
+    working: true
+    file: "frontend/src/pages/Landing.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "Landing page hero section with phone mockup showing Paati, star anise, cardamom spices, recipe paper, bowl of lentils."
+        - working: true
+          agent: "testing"
+          comment: "✅ PASSED - Landing hero verified. Hero loads with phone mockup showing Paati (elderly Indian grandmother) via background image crop. Heading 'Preserve family recipes, stories & traditions' with italic 'in their voice.' in terracotta color renders correctly. Hero image div with aria-label 'Paati's Sambar recipe playing on the CuminJar app' is visible. All visual elements present."
 
   - task: "Voice Recipes with MediaRecorder + backend upload"
     implemented: true
@@ -340,7 +421,7 @@ frontend:
           agent: "main"
           comment: "Real recorder using getUserMedia + MediaRecorder. Preview, save with title/author/language, upload multipart. Shows transcript + English translation."
 
-  - task: "Stories, Albums, Family Tree, Search, Notifications wired to backend"
+  - task: "Stories, Albums, Family Tree, Search wired to backend"
     implemented: true
     working: "NA"
     file: "frontend/src/pages/app/*"
@@ -355,7 +436,7 @@ frontend:
 metadata:
   created_by: "main_agent"
   version: "1.0"
-  test_sequence: 5
+  test_sequence: 6
   run_ui: false
 
 test_plan:
@@ -381,3 +462,7 @@ agent_communication:
       message: "TWO CHANGES IMPLEMENTED: (1) Family description field removed from Dashboard - POST now sends description: ''. (2) PRIMARY: Invites now send REAL emails via Resend integration with email_sent, email_provider_id, email_error fields. Please verify both changes and run regression tests on GET /api/, /api/me, /api/recipes, /api/stories."
     - agent: "testing"
       message: "✅ ALL TESTS PASSED (32/32 - 100% pass rate). CHANGE 1 VERIFIED: Family POST with empty description works correctly (returns 200, persists with description=''). CHANGE 2 VERIFIED (PRIMARY): Resend email integration FULLY WORKING - Real emails sent via Resend API to delivered@resend.dev. Response includes email_sent=true, email_provider_id (UUID from Resend), email_error=null, status=pending. Invalid email validation (400), duplicate check (409), DELETE, and notification all working. REGRESSION PASSED: GET /api/, /api/me, /api/recipes, /api/stories all working correctly. Backend production-ready."
+    - agent: "main"
+      message: "Code-review fixes applied to frontend: React hook dependencies fixed (useCallback), useEffect cleanup added, Family Description field removed. Please verify these areas: Contact page (XSS fix regression), Dashboard family form (useCallback + cancellation + description removed), Recipes page (useCallback + like toggle), Stories page (useCallback), Invite Family Modal (useCallback + Resend email), Notifications page (useEffect cleanup), Landing hero (Paati image + spices). Check for console errors related to React hooks, missing deps, or key props."
+    - agent: "testing"
+      message: "✅ ALL FRONTEND TESTS PASSED (7/7 - 100% pass rate). CODE-REVIEW FIXES VERIFIED: (1) Contact page - XSS fix working correctly, ampersands render as '&' in visible text (HTML source '&amp;' is correct React behavior), form submission works. (2) Dashboard - Family Description field correctly REMOVED, form loads/updates/persists correctly, useCallback + cancellation working. (3) Recipes - All 4 seeded recipes load, like toggle working (heart icon changes outline to filled), useCallback working. (4) Stories - Seeded stories load without errors, useCallback working. (5) Invite Modal - Opens correctly, shows sent invitations with Pending status, Resend integration working, useCallback working. (6) Notifications - Loads correctly with invite notifications visible, useEffect cleanup working. (7) Landing hero - Paati image loads, heading with italic 'in their voice.' renders correctly. NO CONSOLE ERRORS: No React warnings/errors related to hooks, missing deps, or key props detected. All code-review changes working correctly."

@@ -16,14 +16,17 @@ export default function Dashboard() {
   const { toast } = useToast();
 
   useEffect(() => {
+    let cancelled = false;
     api.getFamily().then((f) => {
+      if (cancelled) return;
       if (f) {
         setFamily(f);
         setName(f.name || '');
         setLang(f.language || 'English');
         setCover(f.coverPhoto || null);
       }
-    }).catch(() => {});
+    }).catch((e) => console.error(e));
+    return () => { cancelled = true; };
   }, []);
 
   const handleFile = (e) => {
@@ -194,7 +197,7 @@ export default function Dashboard() {
           </div>
           <div className="flex items-center gap-3">
             <div className="flex -space-x-2">
-              {familyAvatars.map((src, i) => <img key={i} src={src} alt="member" className="w-9 h-9 rounded-full border-2 border-white object-cover" />)}
+              {familyAvatars.map((src) => <img key={src} src={src} alt="member" className="w-9 h-9 rounded-full border-2 border-white object-cover" />)}
             </div>
             <button onClick={() => setShowInvite(true)} className="w-10 h-10 rounded-full bg-[#F7DFCE] flex items-center justify-center text-terracotta hover:bg-[#F0C9B0] transition-colors">
               <Plus size={16} />

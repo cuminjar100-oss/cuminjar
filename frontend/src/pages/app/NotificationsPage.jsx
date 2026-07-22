@@ -16,14 +16,17 @@ export default function NotificationsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    (async () => {
+    let cancelled = false;
+    const run = async () => {
       try {
         const data = await api.listNotifications();
-        setItems(data.items || []);
+        if (!cancelled) setItems(data.items || []);
         await api.markAllRead();
       } catch (e) { console.error(e); }
-      setLoading(false);
-    })();
+      if (!cancelled) setLoading(false);
+    };
+    run();
+    return () => { cancelled = true; };
   }, []);
 
   return (

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import AppShell from '../../components/AppShell';
 import { Mic, Play, Square, Trash2, Loader2, Sparkles, X, Globe } from 'lucide-react';
 import api from '../../api';
@@ -35,12 +35,12 @@ export default function VoiceRecipesPage() {
   const startedAtRef = useRef(0);
   const { toast } = useToast();
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     try { setRecordings(await api.listVoiceRecipes()); } catch (e) { console.error(e); }
     setLoading(false);
-  };
-  useEffect(() => { load(); }, []);
+  }, []);
+  useEffect(() => { load(); }, [load]);
 
   const format = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(Math.floor(s) % 60).padStart(2, '0')}`;
 

@@ -9,8 +9,10 @@ export default function SearchPage() {
   const [stories, setStories] = useState([]);
 
   useEffect(() => {
-    api.listRecipes().then(setRecipes).catch(() => {});
-    api.listStories().then(setStories).catch(() => {});
+    let cancelled = false;
+    api.listRecipes().then((r) => { if (!cancelled) setRecipes(r); }).catch((e) => console.error(e));
+    api.listStories().then((s) => { if (!cancelled) setStories(s); }).catch((e) => console.error(e));
+    return () => { cancelled = true; };
   }, []);
 
   const filteredRecipes = recipes.filter(r => r.title.toLowerCase().includes(q.toLowerCase()) || (r.author || '').toLowerCase().includes(q.toLowerCase()));

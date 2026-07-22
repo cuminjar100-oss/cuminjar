@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import AppShell from '../../components/AppShell';
 import { Play, Clock, Plus, X, Loader2 } from 'lucide-react';
 import api from '../../api';
@@ -10,12 +10,12 @@ export default function StoriesPage() {
   const [showModal, setShowModal] = useState(false);
   const { toast } = useToast();
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     try { setStories(await api.listStories()); } catch (e) { toast({ title: 'Failed to load stories' }); }
     setLoading(false);
-  };
-  useEffect(() => { load(); }, []);
+  }, [toast]);
+  useEffect(() => { load(); }, [load]);
 
   return (
     <AppShell active="stories">
