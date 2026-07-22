@@ -14,7 +14,7 @@ export default function InviteFamilyModal({ onClose }) {
 
   const load = async () => {
     setLoading(true);
-    try { setInvites(await api.listInvites()); } catch (e) {}
+    try { setInvites(await api.listInvites()); } catch (e) { console.error(e); }
     setLoading(false);
   };
   useEffect(() => { load(); }, []);

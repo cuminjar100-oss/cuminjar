@@ -224,6 +224,39 @@ backend:
         - working: true
           agent: "testing"
           comment: "✅ PASSED - CRITICAL INTEGRATION WORKING. GET /api/voice-recipes returns list. POST /api/voice-recipes with WAV audio file returns 200 with all required fields (id, title, author, language, duration, transcript, transcript_en, error). Sarvam STT integration working (no crashes on silent audio). Notification auto-created after upload verified. DELETE /api/voice-recipes/{id} removes successfully. Full pipeline (Sarvam + Gemini) operational."
+        - working: true
+          agent: "testing"
+          comment: "✅ REGRESSION TEST PASSED - Voice recipes endpoint still working correctly after code review. GET /api/voice-recipes returns list. POST with audio file creates voice recipe with all required fields. Notification auto-created. DELETE removes successfully. Integration with Sarvam STT + Gemini translation operational."
+
+  - task: "Invites CRUD (family email invitations)"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "NEW FEATURE - GET /api/invites lists invites. POST /api/invites creates invite with email validation (lowercased), duplicate check (409), auto-notification. DELETE /api/invites/{id} removes invite."
+        - working: true
+          agent: "testing"
+          comment: "✅ ALL TESTS PASSED (7/7) - NEW FEATURE FULLY WORKING. GET /api/invites returns list (empty array on fresh state). POST /api/invites with valid data creates invite with id, email (lowercased), status='pending', created_at. POST with invalid email 'not-an-email' returns 400 'Invalid email address'. POST with duplicate email returns 409 'This email is already invited'. DELETE /api/invites/{id} returns 200 {ok: true} and removes invite from list. Notification 'Family invite sent' auto-created after successful invite verified."
+
+  - task: "Contact form submission"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "NEW FEATURE - POST /api/contact accepts name, email, subject, message. Validates email format and message not empty. Returns {ok: true, id: '...'}."
+        - working: true
+          agent: "testing"
+          comment: "✅ ALL TESTS PASSED (3/3) - NEW FEATURE FULLY WORKING. POST /api/contact with valid data (name='Test User', email='test@example.com', subject='General enquiry', message='Hello team!') returns {ok: true, id: '...'}. POST with invalid email 'invalid-email' returns 400 'Invalid email address'. POST with empty message returns 400 'Message required'. All validation working correctly."
 
 frontend:
   - task: "CSS Bug Fix - Fraunces font 'f' letter wonky/slanted in serif headings"
@@ -292,7 +325,7 @@ frontend:
 metadata:
   created_by: "main_agent"
   version: "1.0"
-  test_sequence: 3
+  test_sequence: 4
   run_ui: false
 
 test_plan:
@@ -310,3 +343,7 @@ agent_communication:
       message: "CSS bug fix applied for Fraunces font 'f' letter appearing wonky/slanted in serif headings. Set WONK axis to 0 in font-variation-settings. Please verify visually on Landing, Features, Pricing, and How it Works pages."
     - agent: "testing"
       message: "✅ CSS BUG FIX VERIFIED - Letter 'f' now renders correctly as upright serif character across all pages. Font-variation-settings successfully applied. Screenshots captured for visual confirmation. Fix is successful."
+    - agent: "main"
+      message: "Code review completed. Added NEW endpoints: Invites (GET/POST/DELETE /api/invites) for family email invitations with validation and auto-notifications, and Contact (POST /api/contact) for contact form submissions with validation. Please test these NEW endpoints and verify regression on existing endpoints."
+    - agent: "testing"
+      message: "✅ ALL BACKEND TESTS PASSED (32/32 - 100% pass rate). NEW FEATURES FULLY WORKING: Invites endpoints (7/7 tests passed) - GET/POST/DELETE with email validation, duplicate check, auto-notification. Contact endpoint (3/3 tests passed) - POST with email/message validation. REGRESSION VERIFIED: All existing endpoints still working correctly (Health, Family, Recipes, Stories, Albums, Family Tree, Notifications, Voice Recipes). No errors. Backend production-ready."

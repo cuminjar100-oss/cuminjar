@@ -13,7 +13,7 @@ export default function FamilyTreePage() {
 
   const load = async () => {
     setLoading(true);
-    try { setMembers(await api.getFamilyTree()); } catch (e) {}
+    try { setMembers(await api.getFamilyTree()); } catch (e) { console.error(e); }
     setLoading(false);
   };
   useEffect(() => { load(); }, []);

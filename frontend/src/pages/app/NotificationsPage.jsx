@@ -21,7 +21,7 @@ export default function NotificationsPage() {
         const data = await api.listNotifications();
         setItems(data.items || []);
         await api.markAllRead();
-      } catch (e) {}
+      } catch (e) { console.error(e); }
       setLoading(false);
     })();
   }, []);

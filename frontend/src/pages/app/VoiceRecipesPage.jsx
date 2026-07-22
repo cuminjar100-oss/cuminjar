@@ -37,7 +37,7 @@ export default function VoiceRecipesPage() {
 
   const load = async () => {
     setLoading(true);
-    try { setRecordings(await api.listVoiceRecipes()); } catch (e) {}
+    try { setRecordings(await api.listVoiceRecipes()); } catch (e) { console.error(e); }
     setLoading(false);
   };
   useEffect(() => { load(); }, []);

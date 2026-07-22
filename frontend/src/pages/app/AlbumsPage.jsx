@@ -12,7 +12,7 @@ export default function AlbumsPage() {
 
   const load = async () => {
     setLoading(true);
-    try { setAlbums(await api.listAlbums()); } catch (e) {}
+    try { setAlbums(await api.listAlbums()); } catch (e) { console.error(e); }
     setLoading(false);
   };
   useEffect(() => { load(); }, []);

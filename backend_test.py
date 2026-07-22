@@ -418,8 +418,189 @@ def test_notifications():
     except Exception as e:
         log_fail("GET /api/notifications (after mark-read)", f"Exception: {str(e)}")
 
+def test_invites():
+    """Test 8: Invites (NEW FEATURE - family email invitations)"""
+    print("\n=== Testing Invites (NEW FEATURE) ===")
+    
+    # GET invites (initially empty or has previous test data)
+    try:
+        resp = requests.get(f"{BASE_URL}/invites", timeout=10)
+        if resp.status_code == 200:
+            invites = resp.json()
+            if isinstance(invites, list):
+                log_pass("GET /api/invites", f"Returns list with {len(invites)} invites")
+                initial_count = len(invites)
+            else:
+                log_fail("GET /api/invites", f"Expected list, got: {type(invites)}")
+                initial_count = 0
+        else:
+            log_fail("GET /api/invites", f"Status {resp.status_code}: {resp.text}")
+            initial_count = 0
+    except Exception as e:
+        log_fail("GET /api/invites", f"Exception: {str(e)}")
+        initial_count = 0
+    
+    # POST invite with valid data
+    invite_data = {
+        "email": "paati@family.com",
+        "name": "Lakshmi Paati",
+        "relation": "Grandmother"
+    }
+    
+    invite_id = None
+    try:
+        resp = requests.post(f"{BASE_URL}/invites", json=invite_data, timeout=10)
+        if resp.status_code == 200:
+            created = resp.json()
+            required_fields = ['id', 'email', 'status', 'created_at']
+            missing = [f for f in required_fields if f not in created]
+            
+            if not missing:
+                invite_id = created['id']
+                # Verify email is lowercased
+                if created['email'] == invite_data['email'].lower():
+                    log_pass("POST /api/invites (valid)", f"Created invite with id={invite_id}, email={created['email']}, status={created['status']}")
+                else:
+                    log_fail("POST /api/invites (valid)", f"Email not lowercased: expected '{invite_data['email'].lower()}', got '{created['email']}'")
+            else:
+                log_fail("POST /api/invites (valid)", f"Missing fields: {missing}. Response: {created}")
+        else:
+            log_fail("POST /api/invites (valid)", f"Status {resp.status_code}: {resp.text}")
+    except Exception as e:
+        log_fail("POST /api/invites (valid)", f"Exception: {str(e)}")
+    
+    # Verify notification was auto-created
+    try:
+        notif_resp = requests.get(f"{BASE_URL}/notifications", timeout=10)
+        if notif_resp.status_code == 200:
+            notifs = notif_resp.json()
+            items = notifs.get('items', [])
+            # Look for "Family invite sent" notification
+            found_notif = any('family invite sent' in item.get('title', '').lower() for item in items)
+            if found_notif:
+                log_pass("Invite notification", "Notification auto-created after invite")
+            else:
+                log_fail("Invite notification", "No 'Family invite sent' notification found")
+    except Exception as e:
+        log_fail("Invite notification", f"Exception: {str(e)}")
+    
+    # POST invite with invalid email
+    try:
+        resp = requests.post(f"{BASE_URL}/invites", json={"email": "not-an-email", "name": "Test"}, timeout=10)
+        if resp.status_code == 400:
+            error = resp.json()
+            if 'invalid email' in error.get('detail', '').lower():
+                log_pass("POST /api/invites (invalid email)", "Returns 400 with 'Invalid email address'")
+            else:
+                log_fail("POST /api/invites (invalid email)", f"Returns 400 but wrong detail: {error.get('detail')}")
+        else:
+            log_fail("POST /api/invites (invalid email)", f"Expected 400, got {resp.status_code}: {resp.text}")
+    except Exception as e:
+        log_fail("POST /api/invites (invalid email)", f"Exception: {str(e)}")
+    
+    # POST invite with duplicate email
+    try:
+        resp = requests.post(f"{BASE_URL}/invites", json=invite_data, timeout=10)
+        if resp.status_code == 409:
+            error = resp.json()
+            if 'already invited' in error.get('detail', '').lower():
+                log_pass("POST /api/invites (duplicate)", "Returns 409 with 'This email is already invited'")
+            else:
+                log_fail("POST /api/invites (duplicate)", f"Returns 409 but wrong detail: {error.get('detail')}")
+        else:
+            log_fail("POST /api/invites (duplicate)", f"Expected 409, got {resp.status_code}: {resp.text}")
+    except Exception as e:
+        log_fail("POST /api/invites (duplicate)", f"Exception: {str(e)}")
+    
+    # DELETE invite
+    if invite_id:
+        try:
+            resp = requests.delete(f"{BASE_URL}/invites/{invite_id}", timeout=10)
+            if resp.status_code == 200:
+                result = resp.json()
+                if result.get('ok') == True:
+                    log_pass("DELETE /api/invites/{id}", f"Deleted invite {invite_id}")
+                    
+                    # Verify it's gone
+                    get_resp = requests.get(f"{BASE_URL}/invites", timeout=10)
+                    if get_resp.status_code == 200:
+                        invites = get_resp.json()
+                        if not any(inv.get('id') == invite_id for inv in invites):
+                            log_pass("GET /api/invites (after delete)", "Invite no longer in list")
+                        else:
+                            log_fail("GET /api/invites (after delete)", "Invite still in list after delete")
+                else:
+                    log_fail("DELETE /api/invites/{id}", f"Unexpected response: {result}")
+            else:
+                log_fail("DELETE /api/invites/{id}", f"Status {resp.status_code}: {resp.text}")
+        except Exception as e:
+            log_fail("DELETE /api/invites/{id}", f"Exception: {str(e)}")
+
+def test_contact():
+    """Test 9: Contact (NEW FEATURE - contact form submissions)"""
+    print("\n=== Testing Contact (NEW FEATURE) ===")
+    
+    # POST contact with valid data
+    contact_data = {
+        "name": "Test User",
+        "email": "test@example.com",
+        "subject": "General enquiry",
+        "message": "Hello team! This is a test message."
+    }
+    
+    try:
+        resp = requests.post(f"{BASE_URL}/contact", json=contact_data, timeout=10)
+        if resp.status_code == 200:
+            result = resp.json()
+            if result.get('ok') == True and 'id' in result:
+                log_pass("POST /api/contact (valid)", f"Contact submitted with id={result['id']}")
+            else:
+                log_fail("POST /api/contact (valid)", f"Unexpected response: {result}")
+        else:
+            log_fail("POST /api/contact (valid)", f"Status {resp.status_code}: {resp.text}")
+    except Exception as e:
+        log_fail("POST /api/contact (valid)", f"Exception: {str(e)}")
+    
+    # POST contact with invalid email
+    try:
+        resp = requests.post(f"{BASE_URL}/contact", json={
+            "name": "Test",
+            "email": "invalid-email",
+            "subject": "Test",
+            "message": "Test message"
+        }, timeout=10)
+        if resp.status_code == 400:
+            error = resp.json()
+            if 'invalid email' in error.get('detail', '').lower():
+                log_pass("POST /api/contact (invalid email)", "Returns 400 with 'Invalid email address'")
+            else:
+                log_fail("POST /api/contact (invalid email)", f"Returns 400 but wrong detail: {error.get('detail')}")
+        else:
+            log_fail("POST /api/contact (invalid email)", f"Expected 400, got {resp.status_code}: {resp.text}")
+    except Exception as e:
+        log_fail("POST /api/contact (invalid email)", f"Exception: {str(e)}")
+    
+    # POST contact with empty message
+    try:
+        resp = requests.post(f"{BASE_URL}/contact", json={
+            "name": "Test",
+            "email": "test@example.com",
+            "subject": "Test",
+            "message": ""
+        }, timeout=10)
+        if resp.status_code == 400:
+            error = resp.json()
+            if 'message' in error.get('detail', '').lower():
+                log_pass("POST /api/contact (empty message)", "Returns 400 with 'Message required'")
+            else:
+                log_fail("POST /api/contact (empty message)", f"Returns 400 but wrong detail: {error.get('detail')}")
+        else:
+            log_fail("POST /api/contact (empty message)", f"Expected 400, got {resp.status_code}: {resp.text}")
+    except Exception as e:
+        log_fail("POST /api/contact (empty message)", f"Exception: {str(e)}")
+
 def test_voice_recipes():
-    """Test 8: Voice recipes with Sarvam STT + Gemini translation (CRITICAL)"""
+    """Test 10: Voice recipes with Sarvam STT + Gemini translation (CRITICAL)"""
     print("\n=== Testing Voice Recipes (CRITICAL - Sarvam + Gemini) ===")
     
     # GET voice recipes (initially empty or has previous test data)
@@ -552,6 +733,8 @@ if __name__ == "__main__":
     test_albums()
     test_family_tree()
     test_notifications()
+    test_invites()  # NEW
+    test_contact()  # NEW
     test_voice_recipes()
     
     # Print summary
