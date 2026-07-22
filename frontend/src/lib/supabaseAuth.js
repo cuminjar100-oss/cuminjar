@@ -29,6 +29,15 @@ function signInErrorMessage(err) {
   if (code === "over_request_rate_limit" || code === "over_email_send_rate_limit") {
     return "Too many attempts. Please wait a few minutes and try again.";
   }
+  if (code === "otp_disabled" || lower.includes("signups not allowed for otp")) {
+    return "No account found for that email. Create an account first, then sign in with a code.";
+  }
+  if (lower.includes("token has expired") || lower.includes("otp_expired")) {
+    return "That code has expired. Request a new one.";
+  }
+  if (lower.includes("token is invalid") || code === "otp_expired") {
+    return "Invalid or expired code. Please try again.";
+  }
   // emergent-main.js (or similar) may read the fetch body before Supabase parses the 400 response
   if (lower.includes("body stream already read") || lower.includes("failed to execute 'json'")) {
     return "Invalid email or password.";
@@ -161,10 +170,50 @@ export async function updatePassword(password) {
 }
 
 /**
- * Send login OTP via WhatsApp (Supabase Auth → Twilio WhatsApp).
- * Requires Phone provider + Twilio WhatsApp configured in the Supabase dashboard.
- * Set REACT_APP_CONSOLE_OTP=true only for local/dev (prints OTP in browser console).
+ * Send login OTP to email (Supabase Auth → SMTP / Resend).
+ * Requires Email provider enabled and ideally custom SMTP (Resend) in Supabase.
+ * shouldCreateUser: false — register first, then sign in with email code.
  */
+export async function sendEmailOtp(emailRaw) {
+  const email = normalizeEmail(emailRaw);
+  if (!email) throw new Error("Please enter a valid email address.");
+
+  const supabase = getSupabase();
+  if (!supabase) throw new Error("Supabase is not configured.");
+
+  const { error } = await supabase.auth.signInWithOtp({
+    email,
+    options: {
+      shouldCreateUser: false,
+      emailRedirectTo: `${window.location.origin}/login`,
+    },
+  });
+  if (error) throw new Error(authErrorMessage(error));
+  return { email };
+}
+
+export async function verifyEmailOtp({ email, otp }) {
+  const supabase = getSupabase();
+  if (!supabase) throw new Error("Supabase is not configured.");
+
+  const normalized = normalizeEmail(email);
+  const token = String(otp || "").trim();
+  if (!normalized) throw new Error("Please enter a valid email address.");
+  if (!token) throw new Error("Enter the verification code from your email.");
+
+  const { data, error } = await supabase.auth.verifyOtp({
+    email: normalized,
+    token,
+    type: "email",
+  });
+  if (error) throw new Error(authErrorMessage(error));
+  if (!data.user) throw new Error("Could not verify that code. Please try again.");
+
+  const profile = await fetchProfile(data.user.id);
+  return toAppUser(data.user, profile);
+}
+
+/** @deprecated WhatsApp OTP on hold — kept for possible future re-enable. */
 export async function sendPhoneOtp(mobileRaw) {
   const phone = normalizeMobile(mobileRaw);
   if (!phone) throw new Error("Enter a valid 10-digit mobile number.");
@@ -186,6 +235,7 @@ export async function sendPhoneOtp(mobileRaw) {
   return { phone, channel: "whatsapp" };
 }
 
+/** @deprecated WhatsApp OTP on hold. */
 export async function verifyPhoneOtp({ phone, otp }) {
   const supabase = getSupabase();
   if (!supabase) throw new Error("Supabase is not configured.");
@@ -203,7 +253,6 @@ export async function verifyPhoneOtp({ phone, otp }) {
     return toAppUser(data.user, profile);
   }
 
-  // WhatsApp OTPs still verify with type "sms" in Supabase Auth
   const { data, error } = await supabase.auth.verifyOtp({
     phone,
     token,

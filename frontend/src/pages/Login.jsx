@@ -5,13 +5,12 @@ import { isConsoleOtpEnabled } from "@/lib/devOtp";
 import { getSupabase } from "@/lib/supabase";
 import {
   signInWithEmail,
-  sendPhoneOtp,
-  verifyPhoneOtp,
+  sendEmailOtp,
+  verifyEmailOtp,
   requestPasswordReset,
   updatePassword,
 } from "@/lib/supabaseAuth";
-import { emailValidationError } from "@/lib/email";
-import { formatMobileDisplay, mobileValidationError, normalizeMobile } from "@/lib/phone";
+import { emailValidationError, normalizeEmail } from "@/lib/email";
 import AuthField, { authInputCls } from "@/components/AuthField";
 import PasswordInput from "@/components/PasswordInput";
 
@@ -19,12 +18,12 @@ const HERO_IMG = "/login-hero.jpg";
 
 export default function Login() {
   const [searchParams] = useSearchParams();
-  const [method, setMethod] = useState("email");
+  /** password = email + password | emailOtp = email one-time code */
+  const [method, setMethod] = useState("password");
   const [step, setStep] = useState("identifier");
   const [email, setEmail] = useState("");
+  const [confirmedEmail, setConfirmedEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [mobile, setMobile] = useState("");
-  const [confirmedMobile, setConfirmedMobile] = useState("");
   const [otp, setOtp] = useState("");
   const [emailStep, setEmailStep] = useState("sign-in"); // sign-in | forgot | reset-password
   const [newPassword, setNewPassword] = useState("");
@@ -39,15 +38,10 @@ export default function Login() {
   const location = useLocation();
 
   useEffect(() => {
-    const m = searchParams.get("mobile");
     const e = searchParams.get("email");
-    if (m) {
-      setMobile(m);
-      setMethod("mobile");
-    }
     if (e) {
       setEmail(e);
-      setMethod("email");
+      setMethod("password");
     }
   }, [searchParams]);
 
@@ -56,7 +50,7 @@ export default function Login() {
     if (!supabase) return undefined;
 
     const openResetForm = () => {
-      setMethod("email");
+      setMethod("password");
       setStep("identifier");
       setEmailStep("reset-password");
       setError(null);
@@ -87,7 +81,7 @@ export default function Login() {
     setStep("identifier");
     setError(null);
     setOtp("");
-    setConfirmedMobile("");
+    setConfirmedEmail("");
     setPassword("");
     setEmailStep("sign-in");
     setResetSent(false);
@@ -100,7 +94,7 @@ export default function Login() {
     setStep("identifier");
     setOtp("");
     setError(null);
-    setConfirmedMobile("");
+    setConfirmedEmail("");
   };
 
   const handleForgotSubmit = async (e) => {
@@ -150,7 +144,7 @@ export default function Login() {
     }
   };
 
-  const handleEmailSubmit = async (e) => {
+  const handlePasswordSubmit = async (e) => {
     e.preventDefault();
     setBusy(true);
     setError(null);
@@ -171,20 +165,18 @@ export default function Login() {
     }
   };
 
-  const handleMobileContinue = async (e) => {
+  const handleEmailOtpSend = async (e) => {
     e.preventDefault();
     setBusy(true);
     setError(null);
     try {
-      const mobileErr = mobileValidationError(mobile);
-      if (mobileErr) {
-        setError(mobileErr);
+      const emailErr = emailValidationError(email);
+      if (emailErr) {
+        setError(emailErr);
         return;
       }
-
-      const { phone } = await sendPhoneOtp(mobile);
-      setConfirmedMobile(phone);
-
+      const { email: sentTo } = await sendEmailOtp(email);
+      setConfirmedEmail(sentTo);
       setStep("otp");
     } catch (err) {
       setError(err?.message || formatApiError(err, "We couldn't send a verification code."));
@@ -193,13 +185,13 @@ export default function Login() {
     }
   };
 
-  const handleOtpSubmit = async (e) => {
+  const handleEmailOtpVerify = async (e) => {
     e.preventDefault();
     setBusy(true);
     setError(null);
     try {
-      const user = await verifyPhoneOtp({
-        phone: confirmedMobile || normalizeMobile(mobile),
+      const user = await verifyEmailOtp({
+        email: confirmedEmail || normalizeEmail(email),
         otp,
       });
       setUser(user);
@@ -212,20 +204,18 @@ export default function Login() {
     }
   };
 
-  const displayMobile = confirmedMobile
-    ? formatMobileDisplay(confirmedMobile)
-    : formatMobileDisplay(normalizeMobile(mobile) || "");
+  const displayEmail = confirmedEmail || normalizeEmail(email) || "your email";
 
   const subtitle =
-    method === "email" && emailStep === "forgot"
+    method === "password" && emailStep === "forgot"
       ? "We'll email you a link to choose a new password."
-      : method === "email" && emailStep === "reset-password"
+      : method === "password" && emailStep === "reset-password"
         ? "Choose a new password for your account."
-      : method === "email"
-      ? "Sign in with your email and password."
-      : step === "identifier"
-        ? "We'll send a one-time code to WhatsApp."
-        : `Enter the code we sent on WhatsApp to ${displayMobile || "your number"}.`;
+        : method === "password"
+          ? "Sign in with your email and password."
+          : step === "identifier"
+            ? "We'll send a one-time code to your email."
+            : `Enter the code we sent to ${displayEmail}.`;
 
   return (
     <div data-testid="login-screen" className="min-h-screen w-full grid lg:grid-cols-5 bg-[#FDFBF7]">
@@ -255,8 +245,10 @@ export default function Login() {
             </div>
             <h2 className="font-display text-3xl sm:text-4xl text-[#2C302B] leading-tight">Welcome back</h2>
             <p className="text-[#5B6359] mt-2">{subtitle}</p>
-            {step === "identifier" && (
-              <p className="text-[#8C857B] text-sm mt-1">Use email or WhatsApp — whichever you signed up with.</p>
+            {step === "identifier" && emailStep === "sign-in" && (
+              <p className="text-[#8C857B] text-sm mt-1">
+                Use your password, or get a one-time code by email.
+              </p>
             )}
           </div>
 
@@ -269,36 +261,36 @@ export default function Login() {
               <button
                 type="button"
                 role="tab"
-                aria-selected={method === "email"}
-                data-testid="login-method-email"
-                onClick={() => switchMethod("email")}
+                aria-selected={method === "password"}
+                data-testid="login-method-password"
+                onClick={() => switchMethod("password")}
                 className={`flex-1 rounded-full px-4 py-2.5 text-sm font-semibold transition-all ${
-                  method === "email"
+                  method === "password"
                     ? "bg-white text-[#2C302B] shadow-sm"
                     : "text-[#5B6359] hover:text-[#2C302B]"
                 }`}
               >
-                Email
+                Password
               </button>
               <button
                 type="button"
                 role="tab"
-                aria-selected={method === "mobile"}
-                data-testid="login-method-mobile"
-                onClick={() => switchMethod("mobile")}
+                aria-selected={method === "emailOtp"}
+                data-testid="login-method-email-otp"
+                onClick={() => switchMethod("emailOtp")}
                 className={`flex-1 rounded-full px-4 py-2.5 text-sm font-semibold transition-all ${
-                  method === "mobile"
+                  method === "emailOtp"
                     ? "bg-white text-[#2C302B] shadow-sm"
                     : "text-[#5B6359] hover:text-[#2C302B]"
                 }`}
               >
-                WhatsApp
+                Email code
               </button>
             </div>
           )}
 
-          {method === "email" && step === "identifier" && emailStep === "sign-in" && (
-            <form onSubmit={handleEmailSubmit} className="space-y-4" data-testid="login-email-step">
+          {method === "password" && step === "identifier" && emailStep === "sign-in" && (
+            <form onSubmit={handlePasswordSubmit} className="space-y-4" data-testid="login-email-step">
               <AuthField label="Email">
                 <input
                   type="email"
@@ -348,7 +340,7 @@ export default function Login() {
             </form>
           )}
 
-          {method === "email" && step === "identifier" && emailStep === "forgot" && (
+          {method === "password" && step === "identifier" && emailStep === "forgot" && (
             <form onSubmit={handleForgotSubmit} className="space-y-4" data-testid="login-forgot-step">
               <AuthField
                 label="Email"
@@ -432,7 +424,7 @@ export default function Login() {
             </form>
           )}
 
-          {method === "email" && emailStep === "reset-password" && (
+          {method === "password" && emailStep === "reset-password" && (
             <form onSubmit={handleResetPasswordSubmit} className="space-y-4" data-testid="login-reset-password-step">
               <AuthField label="New password" hint="At least 6 characters.">
                 <PasswordInput
@@ -469,18 +461,21 @@ export default function Login() {
             </form>
           )}
 
-          {method === "mobile" && step === "identifier" && (
-            <form onSubmit={handleMobileContinue} className="space-y-4" data-testid="login-mobile-step">
-              <AuthField label="WhatsApp number" hint="India (+91). Enter the 10-digit number linked to WhatsApp.">
+          {method === "emailOtp" && step === "identifier" && (
+            <form onSubmit={handleEmailOtpSend} className="space-y-4" data-testid="login-email-otp-step">
+              <AuthField
+                label="Email"
+                hint="Use the same email you registered with. We'll send a 6-digit code."
+              >
                 <input
-                  type="tel"
-                  value={mobile}
+                  type="email"
+                  value={email}
                   required
-                  autoComplete="tel"
-                  inputMode="numeric"
-                  onChange={(e) => setMobile(e.target.value)}
-                  placeholder="98765 43210"
-                  data-testid="login-mobile-input"
+                  autoComplete="email"
+                  autoFocus
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  data-testid="login-email-otp-input"
                   className={authInputCls}
                 />
               </AuthField>
@@ -494,23 +489,19 @@ export default function Login() {
               <button
                 type="submit"
                 disabled={busy}
-                data-testid="login-continue-button"
+                data-testid="login-send-email-otp-button"
                 className="btn-press w-full bg-[#D96C4A] hover:bg-[#C05A3A] text-white rounded-full px-6 py-3.5 font-semibold transition-all shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                {busy ? "Sending…" : "Send WhatsApp code"}
+                {busy ? "Sending…" : "Send email code"}
               </button>
             </form>
           )}
 
-          {method === "mobile" && step === "otp" && (
-            <form onSubmit={handleOtpSubmit} className="space-y-4" data-testid="login-otp-step">
+          {method === "emailOtp" && step === "otp" && (
+            <form onSubmit={handleEmailOtpVerify} className="space-y-4" data-testid="login-otp-step">
               <AuthField
                 label="Verification code"
-                hint={
-                  isConsoleOtpEnabled()
-                    ? "Dev mode — open the browser console (F12) for your 6-digit code."
-                    : "Check WhatsApp for the 6-digit code from Mamascript."
-                }
+                hint="Check your inbox (and spam) for the 6-digit code from Mamascript."
               >
                 <input
                   type="text"
@@ -545,10 +536,10 @@ export default function Login() {
               <button
                 type="button"
                 onClick={goBackToIdentifier}
-                data-testid="login-change-mobile-button"
+                data-testid="login-change-email-button"
                 className="w-full text-sm text-[#5B6359] hover:text-[#D96C4A] font-semibold transition-colors py-2"
               >
-                Change mobile number
+                Change email
               </button>
             </form>
           )}
