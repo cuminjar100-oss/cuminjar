@@ -270,7 +270,7 @@ export default function Login() {
                     : "text-[#5B6359] hover:text-[#2C302B]"
                 }`}
               >
-                Password
+                Login with password
               </button>
               <button
                 type="button"
@@ -284,7 +284,7 @@ export default function Login() {
                     : "text-[#5B6359] hover:text-[#2C302B]"
                 }`}
               >
-                Email code
+                Login with email code
               </button>
             </div>
           )}
