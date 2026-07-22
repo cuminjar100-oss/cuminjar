@@ -106,6 +106,8 @@ export const mockStories = [
 
 export const heroImages = {
   grandmaKitchen: 'https://images.unsplash.com/photo-1522643527310-7222a3f57bb1?w=800&auto=format&fit=crop&q=70',
+  heroReference: 'https://customer-assets-eiarnc6j.emergentagent.net/job_fd231760-f3e8-434c-816f-b8c98a910eec/artifacts/ft54uvvl_ChatGPT%20Image%20Jul%2021%2C%202026%2C%2007_34_01%20PM.png',
+  dashboardReference: 'https://customer-assets-eiarnc6j.emergentagent.net/job_fd231760-f3e8-434c-816f-b8c98a910eec/artifacts/vc2h89qu_ChatGPT%20Image%20Jul%2022%2C%202026%2C%2012_18_18%20PM.png',
   recipeJournal: 'https://images.pexels.com/photos/34941860/pexels-photo-34941860.jpeg?w=600&auto=format&fit=crop&q=60',
   claypotFrame: 'https://images.pexels.com/photos/35295143/pexels-photo-35295143.jpeg?w=600&auto=format&fit=crop&q=60',
   spicesBowl: 'https://images.unsplash.com/photo-1600728257188-480e132c1610?w=600&auto=format&fit=crop&q=60'

@@ -59,33 +59,35 @@ export default function Landing() {
             </div>
           </div>
 
-          {/* Phone mockup + spice decorations */}
-          <div className="relative flex justify-center lg:justify-end min-h-[560px]">
-            <div className="absolute -top-6 -right-6 w-48 h-48 rounded-full bg-[#EEE9DA] opacity-60 blur-2xl" />
-            <div className="relative">
-              <PhoneMockup image={heroImages.grandmaKitchen} />
-              {/* handwritten recipe journal */}
-              <img
-                src={heroImages.recipeJournal}
-                alt="recipe journal"
-                className="absolute -right-10 top-16 w-40 h-64 object-cover rounded-md shadow-xl rotate-6 hidden md:block"
-              />
-
-              {/* Spice decorations scattered around the phone base */}
-              <StarAnise size={78} className="absolute -left-14 bottom-24 drop-shadow-md hidden md:block" style={{ transform: 'rotate(-12deg)' }} />
-              <StarAnise size={42} className="absolute left-2 -bottom-2 drop-shadow-sm hidden md:block" style={{ transform: 'rotate(24deg)' }} />
-
-              <Cardamom size={22} className="absolute -left-4 bottom-6 hidden md:block" rotate={-20} />
-              <Cardamom size={20} className="absolute left-8 bottom-16 hidden md:block" rotate={15} />
-              <Cardamom size={18} className="absolute left-16 bottom-2 hidden md:block" rotate={-10} />
-              <Cardamom size={20} className="absolute -left-8 bottom-40 hidden md:block" rotate={40} />
-              <Cardamom size={22} className="absolute left-24 bottom-10 hidden md:block" rotate={-5} />
-              <Cardamom size={18} className="absolute -left-16 bottom-8 hidden md:block" rotate={20} />
-              <Cardamom size={20} className="absolute left-32 -bottom-2 hidden md:block" rotate={35} />
-              <Cardamom size={18} className="absolute left-4 bottom-32 hidden md:block" rotate={-25} />
-
-              <CinnamonStick size={30} className="absolute -left-12 bottom-8 hidden md:block" rotate={-18} />
-            </div>
+          {/* Phone mockup + spices — sourced from the exact reference composition */}
+          <div className="relative flex justify-center lg:justify-end">
+            <div
+              className="hidden md:block"
+              style={{
+                width: '500px',
+                height: '600px',
+                backgroundImage: `url(${heroImages.heroReference})`,
+                backgroundSize: '1075px 1613px',
+                backgroundPosition: '-556px -115px',
+                backgroundRepeat: 'no-repeat',
+              }}
+              role="img"
+              aria-label="Paati's Sambar recipe playing on the CuminJar app"
+            />
+            {/* Mobile fallback: show a smaller crop */}
+            <div
+              className="md:hidden"
+              style={{
+                width: '340px',
+                height: '408px',
+                backgroundImage: `url(${heroImages.heroReference})`,
+                backgroundSize: '731px 1097px',
+                backgroundPosition: '-378px -78px',
+                backgroundRepeat: 'no-repeat',
+              }}
+              role="img"
+              aria-label="Paati's Sambar recipe playing on the CuminJar app"
+            />
           </div>
         </div>
       </section>
