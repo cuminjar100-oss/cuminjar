@@ -4,6 +4,7 @@ import MarketingHeader from '../components/MarketingHeader';
 import MarketingFooter from '../components/MarketingFooter';
 import { Play, Mic, Sparkles, ImagePlus, Users, UserPlus, Heart, Star, ArrowRight } from 'lucide-react';
 import { features, steps, testimonials, pressLogos, heroImages, familyAvatars } from '../mock';
+import { StarAnise, Cardamom, CinnamonStick, LeafSprig } from '../components/Spices';
 
 const iconMap = { Mic, Sparkles, ImagePlus, Users, UserPlus, Heart };
 
@@ -58,23 +59,32 @@ export default function Landing() {
             </div>
           </div>
 
-          {/* Phone mockup */}
-          <div className="relative flex justify-center lg:justify-end">
+          {/* Phone mockup + spice decorations */}
+          <div className="relative flex justify-center lg:justify-end min-h-[560px]">
             <div className="absolute -top-6 -right-6 w-48 h-48 rounded-full bg-[#EEE9DA] opacity-60 blur-2xl" />
             <div className="relative">
               <PhoneMockup image={heroImages.grandmaKitchen} />
-              {/* handwritten recipe */}
+              {/* handwritten recipe journal */}
               <img
                 src={heroImages.recipeJournal}
                 alt="recipe journal"
                 className="absolute -right-10 top-16 w-40 h-64 object-cover rounded-md shadow-xl rotate-6 hidden md:block"
               />
-              {/* Spice sprig */}
-              <div className="absolute -left-6 top-40 hidden md:block">
-                <div className="w-14 h-14 rounded-full bg-[#F0E4CB] flex items-center justify-center">
-                  <span className="text-2xl">✦</span>
-                </div>
-              </div>
+
+              {/* Spice decorations scattered around the phone base */}
+              <StarAnise size={78} className="absolute -left-14 bottom-24 drop-shadow-md hidden md:block" style={{ transform: 'rotate(-12deg)' }} />
+              <StarAnise size={42} className="absolute left-2 -bottom-2 drop-shadow-sm hidden md:block" style={{ transform: 'rotate(24deg)' }} />
+
+              <Cardamom size={22} className="absolute -left-4 bottom-6 hidden md:block" rotate={-20} />
+              <Cardamom size={20} className="absolute left-8 bottom-16 hidden md:block" rotate={15} />
+              <Cardamom size={18} className="absolute left-16 bottom-2 hidden md:block" rotate={-10} />
+              <Cardamom size={20} className="absolute -left-8 bottom-40 hidden md:block" rotate={40} />
+              <Cardamom size={22} className="absolute left-24 bottom-10 hidden md:block" rotate={-5} />
+              <Cardamom size={18} className="absolute -left-16 bottom-8 hidden md:block" rotate={20} />
+              <Cardamom size={20} className="absolute left-32 -bottom-2 hidden md:block" rotate={35} />
+              <Cardamom size={18} className="absolute left-4 bottom-32 hidden md:block" rotate={-25} />
+
+              <CinnamonStick size={30} className="absolute -left-12 bottom-8 hidden md:block" rotate={-18} />
             </div>
           </div>
         </div>
@@ -213,7 +223,7 @@ function PhoneMockup({ image }) {
           </div>
           {/* Image with play */}
           <div className="relative mx-3 rounded-xl overflow-hidden">
-            <img src={image} alt="grandma" className="w-full h-40 object-cover" />
+            <img src={image} alt="grandma" className="w-full h-44 object-cover" style={{ objectPosition: '50% 25%' }} />
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="w-14 h-14 rounded-full bg-white/85 backdrop-blur-sm flex items-center justify-center shadow-lg">
                 <Play className="text-neutral-900 ml-0.5" size={22} fill="currentColor" />
