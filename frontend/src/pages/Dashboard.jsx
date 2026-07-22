@@ -4,6 +4,7 @@ import { Users, Mic, Sparkles, Globe, Image as ImageIcon, Lightbulb, Lock, Plus,
 import { heroImages, familyAvatars } from '../mock';
 import { useToast } from '../hooks/use-toast';
 import api from '../api';
+import InviteFamilyModal from '../components/InviteFamilyModal';
 
 export default function Dashboard() {
   const [name, setName] = useState('');
@@ -12,6 +13,7 @@ export default function Dashboard() {
   const [cover, setCover] = useState(null); // base64
   const [saving, setSaving] = useState(false);
   const [family, setFamily] = useState(null);
+  const [showInvite, setShowInvite] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -209,13 +211,14 @@ export default function Dashboard() {
             <div className="flex -space-x-2">
               {familyAvatars.map((src, i) => <img key={i} src={src} alt="member" className="w-9 h-9 rounded-full border-2 border-white object-cover" />)}
             </div>
-            <button className="w-10 h-10 rounded-full bg-[#F7DFCE] flex items-center justify-center text-terracotta hover:bg-[#F0C9B0] transition-colors">
+            <button onClick={() => setShowInvite(true)} className="w-10 h-10 rounded-full bg-[#F7DFCE] flex items-center justify-center text-terracotta hover:bg-[#F0C9B0] transition-colors">
               <Plus size={16} />
             </button>
-            <span className="text-[13px] text-neutral-700 leading-tight">Invite<br />Family</span>
+            <button onClick={() => setShowInvite(true)} className="text-[13px] text-neutral-700 leading-tight text-left hover:text-cumin-green transition-colors">Invite<br />Family</button>
           </div>
         </div>
       </div>
+      {showInvite && <InviteFamilyModal onClose={() => setShowInvite(false)} />}
     </AppShell>
   );
 }

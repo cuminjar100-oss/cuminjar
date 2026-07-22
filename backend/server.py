@@ -83,6 +83,19 @@ class FamilyMemberIn(BaseModel):
     avatar: Optional[str] = None
 
 
+class InviteIn(BaseModel):
+    email: str
+    name: Optional[str] = None
+    relation: Optional[str] = None
+
+
+class ContactIn(BaseModel):
+    name: str
+    email: str
+    subject: Optional[str] = ''
+    message: str
+
+
 # --------------------- Helpers ---------------------
 def _strip_id(doc):
     if not doc:
@@ -252,6 +265,77 @@ async def create_album(payload: AlbumIn):
     doc.update({'id': str(uuid.uuid4()), 'user_id': DEMO_USER_ID, 'count': 0, 'created_at': now_iso()})
     await db.albums.insert_one(doc)
     return _strip_id(doc)
+
+
+# --------------------- Invites (email invitations) ---------------------
+import re
+EMAIL_RE = re.compile(r'^[^\s@]+@[^\s@]+\.[^\s@]+$')
+
+
+@api.get("/invites")
+async def list_invites():
+    items = await db.invites.find({'user_id': DEMO_USER_ID}).sort('created_at', -1).to_list(200)
+    return [_strip_id(i) for i in items]
+
+
+@api.post("/invites")
+async def create_invite(payload: InviteIn):
+    email = (payload.email or '').strip().lower()
+    if not EMAIL_RE.match(email):
+        raise HTTPException(400, 'Invalid email address')
+    existing = await db.invites.find_one({'user_id': DEMO_USER_ID, 'email': email})
+    if existing:
+        raise HTTPException(409, 'This email is already invited')
+    doc = {
+        'id': str(uuid.uuid4()),
+        'user_id': DEMO_USER_ID,
+        'email': email,
+        'name': (payload.name or '').strip() or None,
+        'relation': (payload.relation or '').strip() or None,
+        'status': 'pending',
+        'created_at': now_iso(),
+    }
+    await db.invites.insert_one(doc)
+    # Auto-notification
+    await db.notifications.insert_one({
+        'id': str(uuid.uuid4()),
+        'user_id': DEMO_USER_ID,
+        'icon': 'Users',
+        'title': 'Family invite sent',
+        'desc': f'Invitation sent to {email}. They will get an email shortly.',
+        'when': 'just now',
+        'read': False,
+        'created_at': now_iso(),
+    })
+    return _strip_id(doc)
+
+
+@api.delete("/invites/{invite_id}")
+async def delete_invite(invite_id: str):
+    res = await db.invites.delete_one({'id': invite_id, 'user_id': DEMO_USER_ID})
+    if res.deleted_count == 0:
+        raise HTTPException(404, 'Invite not found')
+    return {'ok': True}
+
+
+# --------------------- Contact ---------------------
+@api.post("/contact")
+async def create_contact(payload: ContactIn):
+    email = (payload.email or '').strip().lower()
+    if not EMAIL_RE.match(email):
+        raise HTTPException(400, 'Invalid email address')
+    if not payload.message.strip():
+        raise HTTPException(400, 'Message required')
+    doc = {
+        'id': str(uuid.uuid4()),
+        'name': payload.name.strip(),
+        'email': email,
+        'subject': (payload.subject or '').strip(),
+        'message': payload.message.strip(),
+        'created_at': now_iso(),
+    }
+    await db.contact_messages.insert_one(doc)
+    return {'ok': True, 'id': doc['id']}
 
 
 # --------------------- Family Tree ---------------------

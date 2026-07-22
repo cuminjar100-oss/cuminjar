@@ -39,7 +39,7 @@ export const steps = [
   { n: 1, icon: 'UserPlus', title: 'Create Your Family', desc: 'Set up your family account and invite loved ones in seconds.', tint: 'lavender' },
   { n: 2, icon: 'Mic', title: 'Record & Share', desc: 'Elders record recipes or stories in their own voice using the app.', tint: 'peach' },
   { n: 3, icon: 'Sparkles', title: 'We Work Our Magic', desc: 'AI transcribes, translates (if needed) and structures it into beautiful recipe cards.', tint: 'sage' },
-  { n: 4, icon: 'Heart', title: 'Preserve & Cherish', desc: 'Add photos, stories and memories. Share and pass down your heritage.', tint: 'blush' }
+  { n: 4, icon: 'BookHeart', title: 'Print & Preserve as a Book', desc: 'Pick your favourite recipes & stories — we hardbind them into a book. Scan the QR on each page to hear it in their voice.', tint: 'blush' }
 ];
 
 export const testimonials = [
@@ -105,7 +105,7 @@ export const mockStories = [
 ];
 
 export const heroImages = {
-  grandmaKitchen: 'https://images.unsplash.com/photo-1522643527310-7222a3f57bb1?w=800&auto=format&fit=crop&q=70',
+  grandmaKitchen: '/paati_face.png',
   heroReference: 'https://customer-assets-eiarnc6j.emergentagent.net/job_fd231760-f3e8-434c-816f-b8c98a910eec/artifacts/ft54uvvl_ChatGPT%20Image%20Jul%2021%2C%202026%2C%2007_34_01%20PM.png',
   dashboardReference: 'https://customer-assets-eiarnc6j.emergentagent.net/job_fd231760-f3e8-434c-816f-b8c98a910eec/artifacts/vc2h89qu_ChatGPT%20Image%20Jul%2022%2C%202026%2C%2012_18_18%20PM.png',
   recipeJournal: 'https://images.pexels.com/photos/34941860/pexels-photo-34941860.jpeg?w=600&auto=format&fit=crop&q=60',

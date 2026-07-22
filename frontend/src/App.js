@@ -7,6 +7,8 @@ import Features from './pages/Features';
 import Stories from './pages/Stories';
 import Pricing from './pages/Pricing';
 import About from './pages/About';
+import Terms from './pages/Terms';
+import Contact from './pages/Contact';
 import Login from './pages/Login';
 import GetStarted from './pages/GetStarted';
 import Dashboard from './pages/Dashboard';
@@ -31,6 +33,9 @@ function App() {
           <Route path="/stories" element={<Stories />} />
           <Route path="/pricing" element={<Pricing />} />
           <Route path="/about" element={<About />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/privacy" element={<Terms />} />
+          <Route path="/contact" element={<Contact />} />
           <Route path="/login" element={<Login />} />
           <Route path="/get-started" element={<GetStarted />} />
           <Route path="/app" element={<Dashboard />} />

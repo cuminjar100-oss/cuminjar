@@ -27,6 +27,12 @@ export const api = {
   listNotifications: () => http.get('/notifications').then(r => r.data),
   markAllRead: () => http.post('/notifications/mark-read').then(r => r.data),
 
+  listInvites: () => http.get('/invites').then(r => r.data),
+  createInvite: (body) => http.post('/invites', body).then(r => r.data),
+  deleteInvite: (id) => http.delete(`/invites/${id}`).then(r => r.data),
+
+  submitContact: (body) => http.post('/contact', body).then(r => r.data),
+
   listVoiceRecipes: () => http.get('/voice-recipes').then(r => r.data),
   uploadVoiceRecipe: async (file, meta) => {
     const fd = new FormData();

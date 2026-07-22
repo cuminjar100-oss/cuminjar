@@ -2,11 +2,11 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import MarketingHeader from '../components/MarketingHeader';
 import MarketingFooter from '../components/MarketingFooter';
-import { Play, Mic, Sparkles, ImagePlus, Users, UserPlus, Heart, Star, ArrowRight } from 'lucide-react';
+import { Play, Mic, Sparkles, ImagePlus, Users, UserPlus, Heart, Star, ArrowRight, BookHeart } from 'lucide-react';
 import { features, steps, testimonials, pressLogos, heroImages, familyAvatars } from '../mock';
 import { StarAnise, Cardamom, CinnamonStick, LeafSprig } from '../components/Spices';
 
-const iconMap = { Mic, Sparkles, ImagePlus, Users, UserPlus, Heart };
+const iconMap = { Mic, Sparkles, ImagePlus, Users, UserPlus, Heart, BookHeart };
 
 const tintBg = {
   peach: 'bg-[#FBE3D2]', sage: 'bg-[#DFEAD8]', amber: 'bg-[#F9E4C3]', lavender: 'bg-[#E4DEF4]', blush: 'bg-[#F7D9DA]'
