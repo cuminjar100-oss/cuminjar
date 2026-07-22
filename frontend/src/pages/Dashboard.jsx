@@ -8,7 +8,6 @@ import InviteFamilyModal from '../components/InviteFamilyModal';
 
 export default function Dashboard() {
   const [name, setName] = useState('');
-  const [desc, setDesc] = useState('');
   const [lang, setLang] = useState('English');
   const [cover, setCover] = useState(null); // base64
   const [saving, setSaving] = useState(false);
@@ -21,7 +20,6 @@ export default function Dashboard() {
       if (f) {
         setFamily(f);
         setName(f.name || '');
-        setDesc(f.description || '');
         setLang(f.language || 'English');
         setCover(f.coverPhoto || null);
       }
@@ -46,13 +44,9 @@ export default function Dashboard() {
       toast({ title: 'Family Group Name required', description: 'Please add a name for your family space.' });
       return;
     }
-    if (!desc.trim()) {
-      toast({ title: 'Family Description required', description: 'Share a little about your family.' });
-      return;
-    }
     try {
       setSaving(true);
-      const saved = await api.createFamily({ name, description: desc, language: lang, coverPhoto: cover });
+      const saved = await api.createFamily({ name, description: '', language: lang, coverPhoto: cover });
       setFamily(saved);
       toast({ title: family ? 'Family Group Updated!' : 'Family Group Created!', description: `${saved.name} is ready. Next: invite family.` });
     } catch (err) {
@@ -111,15 +105,6 @@ export default function Dashboard() {
             </div>
 
             <div className="mt-8">
-              <label className="text-[14px] font-semibold text-neutral-900">Family Description / Family Story <span className="text-terracotta">*</span></label>
-              <p className="text-[13px] text-neutral-500 mt-0.5">Share a little about your family—your roots, values, traditions, or what makes your family special.</p>
-              <div className="relative mt-2">
-                <textarea rows={5} value={desc} onChange={e => setDesc(e.target.value.slice(0, 300))} placeholder="e.g., We are a close-knit family that cherishes home-cooked meals, celebrates festivals together, and believes in staying connected through stories and traditions." className="w-full bg-white border border-neutral-200 rounded-lg px-4 py-3 text-[14px] placeholder:text-neutral-400 focus:outline-none focus:border-cumin-green focus:ring-2 focus:ring-cumin-green/10 transition-all resize-none" />
-                <span className="absolute right-3 bottom-3 text-[11px] text-neutral-400">{desc.length}/300</span>
-              </div>
-            </div>
-
-            <div className="mt-6">
               <label className="text-[14px] font-semibold text-neutral-900">Primary Family Language <span className="text-terracotta">*</span></label>
               <p className="text-[13px] text-neutral-500 mt-0.5">This helps us provide the best voice and transcription experience.</p>
               <div className="relative mt-2">
