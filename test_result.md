@@ -226,6 +226,21 @@ backend:
           comment: "✅ PASSED - CRITICAL INTEGRATION WORKING. GET /api/voice-recipes returns list. POST /api/voice-recipes with WAV audio file returns 200 with all required fields (id, title, author, language, duration, transcript, transcript_en, error). Sarvam STT integration working (no crashes on silent audio). Notification auto-created after upload verified. DELETE /api/voice-recipes/{id} removes successfully. Full pipeline (Sarvam + Gemini) operational."
 
 frontend:
+  - task: "CSS Bug Fix - Fraunces font 'f' letter wonky/slanted in serif headings"
+    implemented: true
+    working: true
+    file: "frontend/src/index.css"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "User reported letter 'f' appeared crooked/slanted in serif display headings. Applied fix: Set WONK axis to 0 via font-variation-settings: 'SOFT' 50, 'WONK' 0, 'opsz' 96 on .font-serif-display class. Updated Google Fonts import to include SOFT and WONK axes."
+        - working: true
+          agent: "testing"
+          comment: "✅ BUG FIX VERIFIED - Visual inspection completed across 4 pages (Landing, Features, Pricing, How it Works). Letter 'f' in all upright serif headings now renders as normal upright serif character with no tilt or wonky curl. Font-variation-settings correctly applied: 'SOFT' 50, 'WONK' 0, 'opsz' 96. Screenshots captured for all pages. Italic portions (e.g., 'in their voice.', 'families.') correctly styled in terracotta - not part of bug. Fix successful."
+
   - task: "Dashboard - Create/Update Family Group"
     implemented: true
     working: "NA"
@@ -277,7 +292,7 @@ frontend:
 metadata:
   created_by: "main_agent"
   version: "1.0"
-  test_sequence: 2
+  test_sequence: 3
   run_ui: false
 
 test_plan:
@@ -291,3 +306,7 @@ agent_communication:
       message: "Backend built with FastAPI + Mongo. Demo user (no auth). Sarvam AI STT integrated (saarika:v2.5), Gemini via emergentintegrations for translation. Please test all endpoints. For voice-recipes upload, use a small audio blob (e.g., mp3/webm) - a short English utterance is fine to verify pipeline. Also verify that seeded data appears on empty collections."
     - agent: "testing"
       message: "✅ ALL BACKEND TESTS PASSED (22/22 - 100% pass rate). Comprehensive testing completed for all 8 backend task groups. All endpoints working correctly including CRITICAL Sarvam STT + Gemini translation integration. Seeded data verified for recipes (4), stories (3), albums (4), family tree (6), notifications (4). All CRUD operations tested and working. Voice recipe pipeline fully operational with notification auto-creation. No errors in backend logs. Backend is production-ready."
+    - agent: "main"
+      message: "CSS bug fix applied for Fraunces font 'f' letter appearing wonky/slanted in serif headings. Set WONK axis to 0 in font-variation-settings. Please verify visually on Landing, Features, Pricing, and How it Works pages."
+    - agent: "testing"
+      message: "✅ CSS BUG FIX VERIFIED - Letter 'f' now renders correctly as upright serif character across all pages. Font-variation-settings successfully applied. Screenshots captured for visual confirmation. Fix is successful."

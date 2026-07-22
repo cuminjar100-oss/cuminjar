@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700;9..144,800&family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT,WONK@9..144,400..800,0..100,0..1&family=Inter:wght@300;400;500;600;700&display=swap');
 
 body {
   margin: 0;
@@ -16,6 +16,8 @@ body {
 .font-serif-display {
   font-family: 'Fraunces', serif;
   letter-spacing: -0.02em;
+  font-variation-settings: "SOFT" 50, "WONK" 0, "opsz" 96;
+  font-feature-settings: "ss01" off, "ss02" off;
 }
 
 code {
