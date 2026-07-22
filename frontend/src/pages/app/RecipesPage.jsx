@@ -1,9 +1,37 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import AppShell from '../../components/AppShell';
-import { mockRecipes } from '../../mock';
-import { Plus, Filter, Heart, Clock, Users as UsersIcon } from 'lucide-react';
+import { Plus, Filter, Heart, Clock, Users as UsersIcon, Loader2, X } from 'lucide-react';
+import api from '../../api';
+import { useToast } from '../../hooks/use-toast';
+
+const REGIONS = ['All', 'Favorites', 'South Indian', 'North Indian', 'Coastal', 'Punjabi'];
 
 export default function RecipesPage() {
+  const [recipes, setRecipes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('All');
+  const [showModal, setShowModal] = useState(false);
+  const { toast } = useToast();
+
+  const load = async () => {
+    setLoading(true);
+    try { setRecipes(await api.listRecipes()); } catch (e) { toast({ title: 'Failed to load recipes' }); }
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const toggleLike = async (id) => {
+    setRecipes(prev => prev.map(r => r.id === id ? { ...r, liked: !r.liked } : r));
+    try { await api.likeRecipe(id); } catch (e) { load(); }
+  };
+
+  const filtered = recipes.filter(r => {
+    if (filter === 'All') return true;
+    if (filter === 'Favorites') return r.liked;
+    return r.region === filter;
+  });
+
   return (
     <AppShell active="recipes">
       <div className="px-8 py-6">
@@ -14,40 +42,109 @@ export default function RecipesPage() {
           </div>
           <div className="flex items-center gap-3">
             <button className="flex items-center gap-2 bg-white border border-neutral-200 px-4 py-2.5 rounded-lg text-[14px] text-neutral-700 hover:border-cumin-green transition-colors"><Filter size={15} /> Filter</button>
-            <button className="flex items-center gap-2 bg-cumin-green text-white px-4 py-2.5 rounded-lg text-[14px] font-medium hover:bg-[#324A2F] transition-colors"><Plus size={15} /> Add Recipe</button>
+            <button onClick={() => setShowModal(true)} className="flex items-center gap-2 bg-cumin-green text-white px-4 py-2.5 rounded-lg text-[14px] font-medium hover:bg-[#324A2F] transition-colors"><Plus size={15} /> Add Recipe</button>
           </div>
         </div>
 
         <div className="flex items-center gap-2 mt-6 flex-wrap">
-          {['All', 'Favorites', 'Voice Recipes', 'South Indian', 'North Indian', 'Coastal', 'Punjabi'].map((c, i) => (
-            <button key={c} className={`text-[13px] px-4 py-1.5 rounded-full transition-colors ${i === 0 ? 'bg-cumin-green text-white' : 'bg-white border border-neutral-200 text-neutral-700 hover:border-cumin-green'}`}>{c}</button>
+          {REGIONS.map((c) => (
+            <button key={c} onClick={() => setFilter(c)} className={`text-[13px] px-4 py-1.5 rounded-full transition-colors ${filter === c ? 'bg-cumin-green text-white' : 'bg-white border border-neutral-200 text-neutral-700 hover:border-cumin-green'}`}>{c}</button>
           ))}
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8">
-          {mockRecipes.map(r => (
-            <div key={r.id} className="bg-white rounded-2xl border border-neutral-200/70 overflow-hidden hover:shadow-lg transition-shadow group">
-              <div className="relative aspect-[4/3] overflow-hidden">
-                <img src={r.cover} alt={r.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                <button className="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/85 backdrop-blur flex items-center justify-center hover:bg-white transition-colors">
-                  <Heart size={16} className="text-terracotta" />
-                </button>
-              </div>
-              <div className="p-5">
-                <h3 className="font-serif-display text-[20px] font-semibold text-neutral-900">{r.title}</h3>
-                <p className="text-[12px] text-neutral-500 mt-1">By {r.author} · {r.region}</p>
-                <div className="flex items-center gap-4 mt-3 text-[12.5px] text-neutral-600">
-                  <span className="flex items-center gap-1"><UsersIcon size={13} /> Serves {r.serves}</span>
-                  <span className="flex items-center gap-1"><Clock size={13} /> {r.time}</span>
+        {loading ? (
+          <div className="mt-12 flex items-center justify-center text-neutral-500"><Loader2 className="animate-spin" size={22} /></div>
+        ) : (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8">
+            {filtered.map(r => (
+              <div key={r.id} className="bg-white rounded-2xl border border-neutral-200/70 overflow-hidden hover:shadow-lg transition-shadow group">
+                <div className="relative aspect-[4/3] overflow-hidden">
+                  {r.cover && <img src={r.cover} alt={r.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />}
+                  <button onClick={() => toggleLike(r.id)} className="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/85 backdrop-blur flex items-center justify-center hover:bg-white transition-colors">
+                    <Heart size={16} className={r.liked ? 'text-terracotta fill-terracotta' : 'text-terracotta'} fill={r.liked ? 'currentColor' : 'none'} />
+                  </button>
                 </div>
-                <div className="flex flex-wrap gap-1.5 mt-3">
-                  {r.tags.map(t => <span key={t} className="text-[11px] bg-[#F5EDDD] text-neutral-700 px-2.5 py-0.5 rounded-full">{t}</span>)}
+                <div className="p-5">
+                  <h3 className="font-serif-display text-[20px] font-semibold text-neutral-900">{r.title}</h3>
+                  <p className="text-[12px] text-neutral-500 mt-1">By {r.author} · {r.region}</p>
+                  <div className="flex items-center gap-4 mt-3 text-[12.5px] text-neutral-600">
+                    <span className="flex items-center gap-1"><UsersIcon size={13} /> Serves {r.serves}</span>
+                    <span className="flex items-center gap-1"><Clock size={13} /> {r.time}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 mt-3">
+                    {(r.tags || []).map(t => <span key={t} className="text-[11px] bg-[#F5EDDD] text-neutral-700 px-2.5 py-0.5 rounded-full">{t}</span>)}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+            {filtered.length === 0 && (
+              <div className="col-span-full text-center py-12 text-neutral-500">No recipes yet. Add your first one!</div>
+            )}
+          </div>
+        )}
       </div>
+
+      {showModal && <AddRecipeModal onClose={() => setShowModal(false)} onSaved={(r) => { setRecipes(prev => [r, ...prev]); setShowModal(false); toast({ title: 'Recipe saved!' }); }} />}
     </AppShell>
+  );
+}
+
+function AddRecipeModal({ onClose, onSaved }) {
+  const [form, setForm] = useState({ title: '', author: '', region: 'South Indian', serves: '4', time: '30 mins', tags: '', cover: '' });
+  const [saving, setSaving] = useState(false);
+
+  const handleFile = (e) => {
+    const f = e.target.files?.[0]; if (!f) return;
+    const reader = new FileReader();
+    reader.onload = () => setForm(prev => ({ ...prev, cover: reader.result }));
+    reader.readAsDataURL(f);
+  };
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      const saved = await api.createRecipe({
+        title: form.title,
+        author: form.author || 'You',
+        region: form.region,
+        serves: form.serves,
+        time: form.time,
+        tags: form.tags.split(',').map(t => t.trim()).filter(Boolean),
+        cover: form.cover || null,
+      });
+      onSaved(saved);
+    } finally { setSaving(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-4" onClick={onClose}>
+      <form onSubmit={submit} onClick={e => e.stopPropagation()} className="bg-white rounded-2xl p-6 w-full max-w-lg">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-serif-display text-[24px] font-semibold">Add a recipe</h3>
+          <button type="button" onClick={onClose} className="w-8 h-8 rounded-full hover:bg-neutral-100 flex items-center justify-center"><X size={16} /></button>
+        </div>
+        <div className="space-y-3">
+          <input required placeholder="Recipe title (e.g., Paati’s Sambar)" value={form.title} onChange={e => setForm({...form, title: e.target.value})} className="w-full border border-neutral-200 rounded-lg px-3 py-2.5 text-[14px] focus:outline-none focus:border-cumin-green" />
+          <input placeholder="Author (who taught you)" value={form.author} onChange={e => setForm({...form, author: e.target.value})} className="w-full border border-neutral-200 rounded-lg px-3 py-2.5 text-[14px] focus:outline-none focus:border-cumin-green" />
+          <div className="grid grid-cols-3 gap-2">
+            <select value={form.region} onChange={e => setForm({...form, region: e.target.value})} className="border border-neutral-200 rounded-lg px-3 py-2.5 text-[14px] focus:outline-none focus:border-cumin-green">
+              {['South Indian', 'North Indian', 'Coastal', 'Punjabi'].map(x => <option key={x}>{x}</option>)}
+            </select>
+            <input placeholder="Serves" value={form.serves} onChange={e => setForm({...form, serves: e.target.value})} className="border border-neutral-200 rounded-lg px-3 py-2.5 text-[14px] focus:outline-none focus:border-cumin-green" />
+            <input placeholder="Time" value={form.time} onChange={e => setForm({...form, time: e.target.value})} className="border border-neutral-200 rounded-lg px-3 py-2.5 text-[14px] focus:outline-none focus:border-cumin-green" />
+          </div>
+          <input placeholder="Tags (comma-separated)" value={form.tags} onChange={e => setForm({...form, tags: e.target.value})} className="w-full border border-neutral-200 rounded-lg px-3 py-2.5 text-[14px] focus:outline-none focus:border-cumin-green" />
+          <label className="flex items-center gap-3 border border-dashed border-neutral-300 rounded-lg px-3 py-3 cursor-pointer text-[13.5px] text-neutral-600">
+            {form.cover ? <img src={form.cover} alt="cover" className="w-14 h-14 rounded object-cover" /> : <div className="w-14 h-14 rounded bg-neutral-100" />}
+            <span>Upload cover photo</span>
+            <input type="file" accept="image/*" onChange={handleFile} className="hidden" />
+          </label>
+        </div>
+        <button disabled={saving} type="submit" className="w-full mt-5 bg-cumin-green text-white py-3 rounded-lg font-medium hover:bg-[#324A2F] transition-colors flex items-center justify-center gap-2 disabled:opacity-70">
+          {saving && <Loader2 size={15} className="animate-spin" />} Save Recipe
+        </button>
+      </form>
+    </div>
   );
 }

@@ -95,7 +95,7 @@ export const mockRecipes = [
   { id: 'r1', title: "Paati's Sambar", author: 'Lakshmi Paati', region: 'South Indian', serves: '4-5', time: '45 mins', tags: ['Lentils', 'Traditional'], cover: 'https://images.unsplash.com/photo-1600728257188-480e132c1610?w=800&auto=format&fit=crop&q=60' },
   { id: 'r2', title: "Nani's Rajma Chawal", author: 'Sunita Nani', region: 'North Indian', serves: '4', time: '60 mins', tags: ['Rajma', 'Comfort'], cover: 'https://images.pexels.com/photos/34941860/pexels-photo-34941860.jpeg?w=800&auto=format&fit=crop&q=60' },
   { id: 'r3', title: "Amma's Fish Curry", author: 'Rukmini Amma', region: 'Coastal', serves: '3', time: '30 mins', tags: ['Seafood', 'Spicy'], cover: 'https://images.pexels.com/photos/35295143/pexels-photo-35295143.jpeg?w=800&auto=format&fit=crop&q=60' },
-  { id: 'r4', title: "Dadi's Aloo Paratha", author: 'Kamla Dadi', region: 'Punjabi', serves: '4', time: '40 mins', tags: ['Breakfast'], cover: 'https://images.unsplash.com/photo-1749542356351-a2fbb0e2db68?w=800&auto=format&fit=crop&q=60' }
+  { id: 'r4', title: "Dadi's Aloo Paratha", author: 'Kamla Dadi', region: 'Punjabi', serves: '4', time: '40 mins', tags: ['Breakfast'], cover: 'https://images.unsplash.com/photo-1533128361669-69c065857a13?w=800&auto=format&fit=crop&q=60' }
 ];
 
 export const mockStories = [
@@ -105,7 +105,7 @@ export const mockStories = [
 ];
 
 export const heroImages = {
-  grandmaKitchen: 'https://images.unsplash.com/photo-1749542356351-a2fbb0e2db68?w=800&auto=format&fit=crop&q=60',
+  grandmaKitchen: 'https://images.unsplash.com/photo-1533128361669-69c065857a13?w=800&auto=format&fit=crop&q=60',
   recipeJournal: 'https://images.pexels.com/photos/34941860/pexels-photo-34941860.jpeg?w=600&auto=format&fit=crop&q=60',
   claypotFrame: 'https://images.pexels.com/photos/35295143/pexels-photo-35295143.jpeg?w=600&auto=format&fit=crop&q=60',
   spicesBowl: 'https://images.unsplash.com/photo-1600728257188-480e132c1610?w=600&auto=format&fit=crop&q=60'

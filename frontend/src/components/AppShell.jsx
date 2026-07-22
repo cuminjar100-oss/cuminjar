@@ -1,16 +1,22 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import Logo from './Logo';
 import {
   Home, Soup, BookOpen, Mic, Images, Network, Search, Bell, HelpCircle, Settings, ChevronDown, Smartphone
 } from 'lucide-react';
 import { sidebarLinks, currentUser } from '../mock';
+import api from '../api';
 
 const iconMap = { Home, Soup, BookOpen, Mic, Images, Network, Search };
 
 export default function AppShell({ children, active }) {
   const location = useLocation();
   const navigate = useNavigate();
+  const [unread, setUnread] = useState(0);
+
+  useEffect(() => {
+    api.listNotifications().then((d) => setUnread(d?.unread || 0)).catch(() => {});
+  }, [location.pathname]);
   return (
     <div className="min-h-screen bg-cream flex">
       {/* Sidebar */}
@@ -49,7 +55,7 @@ export default function AppShell({ children, active }) {
               <Bell size={18} strokeWidth={1.8} />
               Notifications
             </span>
-            <span className="bg-terracotta text-white text-[11px] w-5 h-5 rounded-full flex items-center justify-center font-medium">3</span>
+            {unread > 0 && <span className="bg-terracotta text-white text-[11px] w-5 h-5 rounded-full flex items-center justify-center font-medium">{unread}</span>}
           </Link>
           <Link
             to="/app/settings"
@@ -90,7 +96,7 @@ export default function AppShell({ children, active }) {
             <div className="flex items-center gap-4">
               <Link to="/app/notifications" className="relative w-10 h-10 rounded-full flex items-center justify-center hover:bg-neutral-100 transition-colors">
                 <Bell size={19} className="text-neutral-700" />
-                <span className="absolute top-1 right-1 bg-terracotta text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-medium">3</span>
+                {unread > 0 && <span className="absolute top-1 right-1 bg-terracotta text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-medium">{unread}</span>}
               </Link>
               <button className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-neutral-100 transition-colors">
                 <HelpCircle size={19} className="text-neutral-700" />

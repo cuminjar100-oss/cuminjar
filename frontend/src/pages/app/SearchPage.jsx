@@ -1,12 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import AppShell from '../../components/AppShell';
 import { Search as SearchIcon } from 'lucide-react';
-import { mockRecipes, mockStories } from '../../mock';
+import api from '../../api';
 
 export default function SearchPage() {
   const [q, setQ] = useState('');
-  const filteredRecipes = mockRecipes.filter(r => r.title.toLowerCase().includes(q.toLowerCase()) || r.author.toLowerCase().includes(q.toLowerCase()));
-  const filteredStories = mockStories.filter(s => s.title.toLowerCase().includes(q.toLowerCase()) || s.author.toLowerCase().includes(q.toLowerCase()));
+  const [recipes, setRecipes] = useState([]);
+  const [stories, setStories] = useState([]);
+
+  useEffect(() => {
+    api.listRecipes().then(setRecipes).catch(() => {});
+    api.listStories().then(setStories).catch(() => {});
+  }, []);
+
+  const filteredRecipes = recipes.filter(r => r.title.toLowerCase().includes(q.toLowerCase()) || (r.author || '').toLowerCase().includes(q.toLowerCase()));
+  const filteredStories = stories.filter(s => s.title.toLowerCase().includes(q.toLowerCase()) || (s.author || '').toLowerCase().includes(q.toLowerCase()));
 
   return (
     <AppShell active="search">
@@ -16,13 +24,7 @@ export default function SearchPage() {
 
         <div className="mt-6 max-w-2xl relative">
           <SearchIcon size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400" />
-          <input
-            autoFocus
-            value={q}
-            onChange={e => setQ(e.target.value)}
-            placeholder="Try ‘sambar’, ‘Paati’ or ‘Diwali’"
-            className="w-full bg-white border border-neutral-200 rounded-xl pl-12 pr-4 py-3.5 text-[15px] focus:outline-none focus:border-cumin-green focus:ring-2 focus:ring-cumin-green/10"
-          />
+          <input autoFocus value={q} onChange={e => setQ(e.target.value)} placeholder="Try ‘sambar’, ‘Paati’ or ‘Diwali’" className="w-full bg-white border border-neutral-200 rounded-xl pl-12 pr-4 py-3.5 text-[15px] focus:outline-none focus:border-cumin-green focus:ring-2 focus:ring-cumin-green/10" />
         </div>
 
         {q && (
@@ -33,7 +35,7 @@ export default function SearchPage() {
                 <div className="grid md:grid-cols-2 gap-4">
                   {filteredRecipes.map(r => (
                     <div key={r.id} className="bg-white rounded-xl border border-neutral-200 p-4 flex items-center gap-4">
-                      <img src={r.cover} alt={r.title} className="w-14 h-14 rounded-lg object-cover" />
+                      {r.cover && <img src={r.cover} alt={r.title} className="w-14 h-14 rounded-lg object-cover" />}
                       <div>
                         <p className="font-semibold text-[14.5px]">{r.title}</p>
                         <p className="text-[12px] text-neutral-500">By {r.author}</p>
