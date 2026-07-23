@@ -10,7 +10,7 @@ const plans = [
     price: '₹0',
     cadence: '/ forever',
     desc: 'Start preserving. Try CuminJar with your family.',
-    features: ['1 family group', 'Only 1 family member', 'Up to 3 recipes', '2 GB storage', 'Basic AI transcription', 'Community support'],
+    features: ['1 family group', '1 family member', 'Up to 3 recipes', '2 GB storage', 'Basic AI transcription', 'Community support'],
     cta: 'Start Free',
     highlighted: false
   },

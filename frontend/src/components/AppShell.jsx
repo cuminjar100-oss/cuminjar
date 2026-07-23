@@ -2,10 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import Logo from './Logo';
 import {
-  Home, Soup, BookOpen, Search, HelpCircle, Settings, ChevronDown, Menu, X, Mic
+  Home, Soup, BookOpen, Search, HelpCircle, Settings, ChevronDown, Menu, X, Mic, LogOut, User as UserIcon
 } from 'lucide-react';
 import { sidebarLinks, currentUser } from '../mock';
 import api from '../api';
+import {
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuLabel,
+} from './ui/dropdown-menu';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 
 const iconMap = { Home, Soup, BookOpen, Search };
 
@@ -96,12 +100,53 @@ export default function AppShell({ children, active, onOpenRecord }) {
               />
             </div>
             <div className="flex-1 lg:hidden" />
-            <button className="hidden lg:flex w-10 h-10 rounded-full hover:bg-neutral-100 items-center justify-center"><HelpCircle size={19} className="text-neutral-700" /></button>
-            <button className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-full hover:bg-neutral-100 transition-colors">
-              <img src={currentUser.avatar} alt={currentUser.name} className="w-8 h-8 rounded-full object-cover" />
-              <span className="hidden lg:inline text-[14px] font-medium text-neutral-800">{currentUser.name}</span>
-              <ChevronDown size={15} className="hidden lg:inline text-neutral-500" />
-            </button>
+            <TooltipProvider delayDuration={200}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Link to="/contact" data-testid="help-button" aria-label="Help & support" className="hidden lg:flex w-10 h-10 rounded-full hover:bg-neutral-100 items-center justify-center">
+                    <HelpCircle size={19} className="text-neutral-700" />
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="text-[12px]">Help &amp; support</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button data-testid="user-menu-trigger" className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-full hover:bg-neutral-100 transition-colors">
+                  <img src={currentUser.avatar} alt={currentUser.name} className="w-8 h-8 rounded-full object-cover" />
+                  <span className="hidden lg:inline text-[14px] font-medium text-neutral-800">{currentUser.name}</span>
+                  <ChevronDown size={15} className="hidden lg:inline text-neutral-500" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>
+                  <div className="text-[13px] font-semibold text-neutral-900">{currentUser.name}</div>
+                  <div className="text-[11.5px] text-neutral-500 font-normal">{currentUser.email || 'meera.rao@family.com'}</div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => navigate('/app/settings')} data-testid="user-menu-account">
+                  <UserIcon size={14} className="mr-2" /> Account settings
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate('/contact')}>
+                  <HelpCircle size={14} className="mr-2" /> Help &amp; support
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => {
+                    try {
+                      localStorage.removeItem('cuminjar_verified_email');
+                      localStorage.removeItem('cuminjar_active_family');
+                    } catch { /* ignore */ }
+                    navigate('/login');
+                  }}
+                  data-testid="user-menu-logout"
+                  className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                >
+                  <LogOut size={14} className="mr-2" /> Log out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </header>
 
