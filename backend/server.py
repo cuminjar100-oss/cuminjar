@@ -65,6 +65,9 @@ class RecipeIn(BaseModel):
     cover: Optional[str] = None
     ingredients: List[str] = []
     steps: List[str] = []
+    transcript_en: Optional[str] = None  # from voice or photo
+    source_kind: Optional[str] = None    # 'text' | 'voice' | 'photo'
+    source_language: Optional[str] = None
 
 
 class StoryIn(BaseModel):
@@ -72,6 +75,9 @@ class StoryIn(BaseModel):
     author: str
     excerpt: str
     mins: int = 4
+    transcript_en: Optional[str] = None
+    source_kind: Optional[str] = None
+    source_language: Optional[str] = None
 
 
 class AlbumIn(BaseModel):
@@ -187,28 +193,74 @@ async def me():
 # --------------------- Family ---------------------
 @api.get("/family")
 async def get_family():
-    doc = await db.families.find_one({'user_id': DEMO_USER_ID})
+    """Return the most-recent family group (backwards compatible)."""
+    doc = await db.families.find_one({'user_id': DEMO_USER_ID}, sort=[('created_at', -1)])
     return _strip_id(doc)
+
+
+@api.get("/families")
+async def list_families():
+    items = await db.families.find({'user_id': DEMO_USER_ID}).sort('created_at', -1).to_list(200)
+    return [_strip_id(i) for i in items]
 
 
 @api.post("/family")
 async def create_family(payload: FamilyIn):
-    existing = await db.families.find_one({'user_id': DEMO_USER_ID})
+    """Create a NEW family group each time. Update via PUT /api/family/{id}."""
     data = payload.dict()
-    data.update({'user_id': DEMO_USER_ID, 'updated_at': now_iso()})
-    if existing:
-        await db.families.update_one({'user_id': DEMO_USER_ID}, {'$set': data})
-        doc = await db.families.find_one({'user_id': DEMO_USER_ID})
-    else:
-        data.update({'id': str(uuid.uuid4()), 'created_at': now_iso()})
-        await db.families.insert_one(data)
-        doc = data
+    data.update({
+        'id': str(uuid.uuid4()),
+        'user_id': DEMO_USER_ID,
+        'created_at': now_iso(),
+        'updated_at': now_iso(),
+    })
+    await db.families.insert_one(data)
+    return _strip_id(data)
+
+
+@api.put("/family/{family_id}")
+async def update_family(family_id: str, payload: FamilyIn):
+    existing = await db.families.find_one({'id': family_id, 'user_id': DEMO_USER_ID})
+    if not existing:
+        raise HTTPException(404, 'Family not found')
+    data = payload.dict()
+    data['updated_at'] = now_iso()
+    await db.families.update_one({'id': family_id, 'user_id': DEMO_USER_ID}, {'$set': data})
+    doc = await db.families.find_one({'id': family_id, 'user_id': DEMO_USER_ID})
     return _strip_id(doc)
 
 
-@api.put("/family")
-async def update_family(payload: FamilyIn):
-    return await create_family(payload)
+@api.delete("/family/{family_id}")
+async def delete_family(family_id: str):
+    res = await db.families.delete_one({'id': family_id, 'user_id': DEMO_USER_ID})
+    if res.deleted_count == 0:
+        raise HTTPException(404, 'Family not found')
+    return {'ok': True}
+
+
+# --------------------- Transcribe helper endpoint (voice + photo → English) ---------------------
+@api.post("/transcribe")
+async def transcribe_media_endpoint(
+    file: UploadFile = File(...),
+    kind: str = Form('audio'),  # 'audio' or 'photo'
+    language_code: str = Form('unknown'),
+):
+    """Universal transcription endpoint used by Recipes and Stories.
+    kind='audio' -> Sarvam STT (chunked) + Gemini translation to English
+    kind='photo' -> Gemini vision OCR + translation to English
+    Returns {transcript, transcript_en, language, error}
+    """
+    data = await file.read()
+    if not data:
+        raise HTTPException(400, 'Empty file')
+    result = await transcribe_media(
+        media_kind='photo' if kind == 'photo' else 'audio',
+        file_bytes=data,
+        filename=file.filename or 'upload',
+        mime_type=file.content_type or ('image/jpeg' if kind == 'photo' else 'audio/wav'),
+        language_code=language_code,
+    )
+    return result
 
 
 # --------------------- Recipes ---------------------
@@ -462,25 +514,64 @@ async def mark_read():
 
 
 # --------------------- Voice Recipes (Sarvam STT + Gemini translate) ---------------------
+SARVAM_MAX_CHUNK_S = 25  # keep under Sarvam's 30-second real-time limit
+
+
+def _split_audio_bytes(audio_bytes: bytes) -> list[bytes]:
+    """Split audio into <= SARVAM_MAX_CHUNK_S second WAV chunks."""
+    from pydub import AudioSegment
+    audio = AudioSegment.from_file(io.BytesIO(audio_bytes))
+    chunk_ms = SARVAM_MAX_CHUNK_S * 1000
+    chunks: list[bytes] = []
+    for start in range(0, len(audio), chunk_ms):
+        chunk = audio[start:start + chunk_ms]
+        buf = io.BytesIO()
+        chunk.export(buf, format='wav')
+        chunks.append(buf.getvalue())
+    return chunks or [audio_bytes]
+
+
+def _sarvam_transcribe_sync(audio_bytes: bytes, language_code: str, filename: str) -> dict:
+    from sarvamai import SarvamAI
+    client = SarvamAI(api_subscription_key=SARVAM_API_KEY)
+    buf = io.BytesIO(audio_bytes)
+    buf.name = filename or 'audio.wav'
+    try:
+        resp = client.speech_to_text.transcribe(
+            file=buf,
+            model='saarika:v2.5',
+            language_code=language_code if language_code and language_code != 'auto' else 'unknown',
+        )
+        transcript = getattr(resp, 'transcript', None) or getattr(resp, 'text', None) or ''
+        detected = getattr(resp, 'language_code', None) or language_code
+        return {'transcript': transcript, 'language': detected}
+    except Exception as e:
+        logger.exception('Sarvam STT failed')
+        return {'transcript': '', 'language': language_code, 'error': str(e)}
+
+
 async def _sarvam_transcribe(audio_bytes: bytes, language_code: str, filename: str) -> dict:
-    """Run Sarvam STT in a thread (SDK is sync)."""
+    """Chunk audio if needed and transcribe each chunk, then concatenate."""
     def _run():
-        from sarvamai import SarvamAI
-        client = SarvamAI(api_subscription_key=SARVAM_API_KEY)
-        buf = io.BytesIO(audio_bytes)
-        buf.name = filename or 'audio.webm'
         try:
-            resp = client.speech_to_text.transcribe(
-                file=buf,
-                model='saarika:v2.5',
-                language_code=language_code if language_code and language_code != 'auto' else 'unknown',
-            )
-            transcript = getattr(resp, 'transcript', None) or getattr(resp, 'text', None) or ''
-            detected = getattr(resp, 'language_code', None) or language_code
-            return {'transcript': transcript, 'language': detected}
+            chunks = _split_audio_bytes(audio_bytes)
         except Exception as e:
-            logger.exception('Sarvam STT failed')
-            return {'transcript': '', 'language': language_code, 'error': str(e)}
+            logger.exception('Audio chunking failed')
+            # Fall back to a single call with the raw bytes
+            return _sarvam_transcribe_sync(audio_bytes, language_code, filename)
+        parts: list[str] = []
+        detected = language_code
+        last_error = None
+        for idx, chunk_bytes in enumerate(chunks):
+            r = _sarvam_transcribe_sync(chunk_bytes, language_code, f'chunk_{idx}.wav')
+            if r.get('error'):
+                last_error = r['error']
+            if r.get('transcript'):
+                parts.append(r['transcript'].strip())
+            if r.get('language'):
+                detected = r['language']
+        transcript = ' '.join(p for p in parts if p).strip()
+        return {'transcript': transcript, 'language': detected, 'error': last_error if not transcript else None}
     return await asyncio.to_thread(_run)
 
 
@@ -508,6 +599,69 @@ async def _translate_to_english(text: str, source_lang: str) -> str:
         return text
 
 
+async def _gemini_ocr_image(image_bytes: bytes, mime_type: str = 'image/jpeg') -> str:
+    """Extract text from an image (e.g., handwritten recipe page) using Gemini vision. Returns English text."""
+    if not image_bytes:
+        return ''
+    try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
+        import base64
+        b64 = base64.b64encode(image_bytes).decode('utf-8')
+        chat = LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            session_id=f'ocr-{uuid.uuid4()}',
+            system_message=(
+                'You are a helpful assistant that reads photographs of handwritten or printed recipe/story pages. '
+                'Extract ALL text from the image, translate it to natural fluent English if it is in another language, '
+                'and preserve the structure (ingredients as a list, steps numbered, headings kept). '
+                'Return ONLY the extracted and translated text. No preface, no commentary.'
+            ),
+        ).with_model('gemini', 'gemini-2.5-flash')
+        msg = UserMessage(
+            text='Please transcribe and translate this image to English.',
+            file_contents=[ImageContent(image_base64=b64)],
+        )
+        parts = []
+        async for ev in chat.stream_message(msg):
+            content = getattr(ev, 'content', None)
+            if content:
+                parts.append(content)
+        return ''.join(parts).strip()
+    except Exception:
+        logger.exception('Gemini OCR failed')
+        return ''
+
+
+async def transcribe_media(
+    media_kind: str,
+    file_bytes: bytes,
+    filename: str,
+    mime_type: str,
+    language_code: str = 'unknown',
+) -> dict:
+    """
+    Unified transcription helper for both audio and photo.
+    Returns: {transcript, transcript_en, language, error}
+    """
+    if media_kind == 'audio':
+        stt = await _sarvam_transcribe(file_bytes, language_code, filename)
+        transcript = stt.get('transcript', '') or ''
+        lang = stt.get('language', language_code) or language_code
+        error = stt.get('error')
+        if transcript and lang and str(lang).lower().startswith('en'):
+            transcript_en = transcript
+        elif transcript:
+            transcript_en = await _translate_to_english(transcript, str(lang))
+        else:
+            transcript_en = ''
+        return {'transcript': transcript, 'transcript_en': transcript_en, 'language': lang, 'error': error}
+    elif media_kind == 'photo':
+        english = await _gemini_ocr_image(file_bytes, mime_type)
+        return {'transcript': english, 'transcript_en': english, 'language': 'en-IN', 'error': None if english else 'Could not read text from image'}
+    else:
+        return {'transcript': '', 'transcript_en': '', 'language': language_code, 'error': f'Unknown media kind: {media_kind}'}
+
+
 @api.get("/voice-recipes")
 async def list_voice_recipes():
     items = await db.voice_recipes.find({'user_id': DEMO_USER_ID}).sort('created_at', -1).to_list(200)
@@ -526,18 +680,13 @@ async def create_voice_recipe(
     if not audio_bytes:
         raise HTTPException(400, 'Empty audio file')
 
-    stt = await _sarvam_transcribe(audio_bytes, language_code, audio.filename or 'audio.webm')
-    transcript = stt.get('transcript', '') or ''
-    detected_lang = stt.get('language', language_code) or language_code
-    error = stt.get('error')
-
-    transcript_en = ''
-    if transcript:
-        if detected_lang and str(detected_lang).lower().startswith('en'):
-            transcript_en = transcript
-        else:
-            transcript_en = await _translate_to_english(transcript, str(detected_lang))
-
+    result = await transcribe_media(
+        media_kind='audio',
+        file_bytes=audio_bytes,
+        filename=audio.filename or 'audio.webm',
+        mime_type=audio.content_type or 'audio/webm',
+        language_code=language_code,
+    )
     dur_str = f"{int(duration)//60}:{int(duration)%60:02d}"
 
     doc = {
@@ -545,16 +694,15 @@ async def create_voice_recipe(
         'user_id': DEMO_USER_ID,
         'title': title,
         'author': author,
-        'language': detected_lang,
+        'language': result.get('language') or language_code,
         'duration': dur_str,
-        'transcript': transcript,
-        'transcript_en': transcript_en,
-        'error': error,
+        'transcript': result.get('transcript', ''),
+        'transcript_en': result.get('transcript_en', ''),
+        'error': result.get('error'),
         'created_at': now_iso(),
     }
     await db.voice_recipes.insert_one(doc)
 
-    # Create a notification
     await db.notifications.insert_one({
         'id': str(uuid.uuid4()),
         'user_id': DEMO_USER_ID,

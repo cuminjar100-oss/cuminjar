@@ -3,6 +3,7 @@ import AppShell from '../../components/AppShell';
 import { Play, Clock, Plus, X, Loader2 } from 'lucide-react';
 import api from '../../api';
 import { useToast } from '../../hooks/use-toast';
+import MediaTranscribeInput from '../../components/MediaTranscribeInput';
 
 export default function StoriesPage() {
   const [stories, setStories] = useState([]);
@@ -60,27 +61,47 @@ export default function StoriesPage() {
 }
 
 function AddStoryModal({ onClose, onSaved }) {
-  const [form, setForm] = useState({ title: '', author: '', excerpt: '', mins: 4 });
+  const [form, setForm] = useState({ title: '', author: '', excerpt: '', mins: 4, source_kind: 'text', source_language: '' });
   const [saving, setSaving] = useState(false);
+
+  const handleTranscribed = ({ transcript_en, language, kind }) => {
+    const firstLine = (transcript_en || '').split('\n')[0].slice(0, 60);
+    setForm(prev => ({
+      ...prev,
+      excerpt: transcript_en || '',
+      source_kind: kind,
+      source_language: language || '',
+      title: prev.title || firstLine,
+    }));
+  };
+
   const submit = async (e) => {
     e.preventDefault();
     setSaving(true);
     try {
-      const saved = await api.createStory({ ...form, mins: Number(form.mins) || 4, author: form.author || 'You' });
+      const saved = await api.createStory({
+        ...form,
+        mins: Number(form.mins) || 4,
+        author: form.author || 'You',
+        transcript_en: form.excerpt || null,
+      });
       onSaved(saved);
     } finally { setSaving(false); }
   };
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-4" onClick={onClose}>
-      <form onSubmit={submit} onClick={e => e.stopPropagation()} className="bg-white rounded-2xl p-6 w-full max-w-lg">
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-4 py-6" onClick={onClose}>
+      <form onSubmit={submit} onClick={e => e.stopPropagation()} className="bg-white rounded-2xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-serif-display text-[24px] font-semibold">New story</h3>
           <button type="button" onClick={onClose} className="w-8 h-8 rounded-full hover:bg-neutral-100 flex items-center justify-center"><X size={16} /></button>
         </div>
-        <div className="space-y-3">
+
+        <MediaTranscribeInput onTranscribed={handleTranscribed} />
+
+        <div className="space-y-3 mt-4">
           <input required placeholder="Story title" value={form.title} onChange={e => setForm({...form, title: e.target.value})} className="w-full border border-neutral-200 rounded-lg px-3 py-2.5 text-[14px] focus:outline-none focus:border-cumin-green" />
           <input placeholder="Author" value={form.author} onChange={e => setForm({...form, author: e.target.value})} className="w-full border border-neutral-200 rounded-lg px-3 py-2.5 text-[14px] focus:outline-none focus:border-cumin-green" />
-          <textarea rows={5} required placeholder="Write your story…" value={form.excerpt} onChange={e => setForm({...form, excerpt: e.target.value})} className="w-full border border-neutral-200 rounded-lg px-3 py-2.5 text-[14px] focus:outline-none focus:border-cumin-green resize-none" />
+          <textarea rows={6} required placeholder="Write your story… (auto-filled from voice/photo — feel free to edit)" value={form.excerpt} onChange={e => setForm({...form, excerpt: e.target.value})} className="w-full border border-neutral-200 rounded-lg px-3 py-2.5 text-[14px] focus:outline-none focus:border-cumin-green resize-none" />
           <div className="flex items-center gap-2">
             <label className="text-[13px] text-neutral-600">Listen time (mins):</label>
             <input type="number" min="1" value={form.mins} onChange={e => setForm({...form, mins: e.target.value})} className="w-20 border border-neutral-200 rounded-lg px-3 py-2 text-[14px] focus:outline-none focus:border-cumin-green" />

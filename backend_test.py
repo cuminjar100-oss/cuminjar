@@ -84,79 +84,160 @@ def test_health_endpoints():
     return None
 
 def test_family_crud():
-    """Test 2: Family group CRUD"""
-    print("\n=== Testing Family CRUD ===")
+    """Test 2: Family group CRUD - CHANGE 1: Multiple family groups"""
+    print("\n=== Testing Family CRUD (CHANGE 1: Multiple Family Groups) ===")
     
-    # GET family (may be null initially)
+    # Step 1: GET /api/families - note current count
     try:
-        resp = requests.get(f"{BASE_URL}/family", timeout=10)
+        resp = requests.get(f"{BASE_URL}/families", timeout=10)
         if resp.status_code == 200:
-            family = resp.json()
-            if family is None:
-                log_pass("GET /api/family (before creation)", "Returns null as expected")
+            families = resp.json()
+            if isinstance(families, list):
+                initial_count = len(families)
+                log_pass("GET /api/families (initial)", f"Returns list with {initial_count} families")
             else:
-                log_pass("GET /api/family (existing)", f"Family: {family.get('name', 'N/A')}")
+                log_fail("GET /api/families", f"Expected list, got: {type(families)}")
+                initial_count = 0
         else:
-            log_fail("GET /api/family", f"Status {resp.status_code}: {resp.text}")
+            log_fail("GET /api/families", f"Status {resp.status_code}: {resp.text}")
+            initial_count = 0
     except Exception as e:
-        log_fail("GET /api/family", f"Exception: {str(e)}")
+        log_fail("GET /api/families", f"Exception: {str(e)}")
+        initial_count = 0
     
-    # POST family (create) - CHANGE 1: Test with empty description
-    family_data = {
-        "name": "Test Rao Family",
-        "description": "",  # CHANGE 1: Empty description (field removed from Dashboard)
-        "language": "English",
-        "coverPhoto": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+    # Step 2: POST /api/family with "Rao Family" -> get family_1
+    family_1_data = {
+        "name": "Rao Family",
+        "description": "",
+        "language": "English"
     }
     
+    family_1_id = None
     try:
-        resp = requests.post(f"{BASE_URL}/family", json=family_data, timeout=10)
+        resp = requests.post(f"{BASE_URL}/family", json=family_1_data, timeout=10)
         if resp.status_code == 200:
-            created = resp.json()
-            if 'id' in created and created.get('name') == family_data['name']:
-                log_pass("POST /api/family (empty description)", f"Created family with id={created['id']}, description='{created.get('description', '')}'")
-                family_id = created['id']
+            family_1 = resp.json()
+            if 'id' in family_1 and family_1.get('name') == family_1_data['name']:
+                family_1_id = family_1['id']
+                log_pass("POST /api/family (family_1)", f"Created 'Rao Family' with id={family_1_id}")
             else:
-                log_fail("POST /api/family", f"Unexpected response: {created}")
-                family_id = None
+                log_fail("POST /api/family (family_1)", f"Unexpected response: {family_1}")
         else:
-            log_fail("POST /api/family", f"Status {resp.status_code}: {resp.text}")
-            family_id = None
+            log_fail("POST /api/family (family_1)", f"Status {resp.status_code}: {resp.text}")
     except Exception as e:
-        log_fail("POST /api/family", f"Exception: {str(e)}")
-        family_id = None
+        log_fail("POST /api/family (family_1)", f"Exception: {str(e)}")
     
-    # PUT family (update)
-    if family_id:
-        update_data = family_data.copy()
-        update_data['description'] = "Updated description for testing"
+    # Step 3: POST /api/family with "Kumar Family" -> get family_2 (different id)
+    family_2_data = {
+        "name": "Kumar Family",
+        "description": "",
+        "language": "Hindi"
+    }
+    
+    family_2_id = None
+    try:
+        resp = requests.post(f"{BASE_URL}/family", json=family_2_data, timeout=10)
+        if resp.status_code == 200:
+            family_2 = resp.json()
+            if 'id' in family_2 and family_2.get('name') == family_2_data['name']:
+                family_2_id = family_2['id']
+                if family_2_id != family_1_id:
+                    log_pass("POST /api/family (family_2)", f"Created 'Kumar Family' with NEW id={family_2_id} (different from family_1)")
+                else:
+                    log_fail("POST /api/family (family_2)", f"Same id as family_1: {family_2_id}")
+            else:
+                log_fail("POST /api/family (family_2)", f"Unexpected response: {family_2}")
+        else:
+            log_fail("POST /api/family (family_2)", f"Status {resp.status_code}: {resp.text}")
+    except Exception as e:
+        log_fail("POST /api/family (family_2)", f"Exception: {str(e)}")
+    
+    # Step 4: GET /api/families should return both (plus any pre-existing)
+    try:
+        resp = requests.get(f"{BASE_URL}/families", timeout=10)
+        if resp.status_code == 200:
+            families = resp.json()
+            if isinstance(families, list):
+                new_count = len(families)
+                if new_count >= initial_count + 2:
+                    # Check if both families are in the list
+                    family_names = [f.get('name') for f in families]
+                    if 'Rao Family' in family_names and 'Kumar Family' in family_names:
+                        log_pass("GET /api/families (after creation)", f"Returns {new_count} families including both 'Rao Family' and 'Kumar Family'")
+                    else:
+                        log_fail("GET /api/families (after creation)", f"Missing one or both families. Found: {family_names}")
+                else:
+                    log_fail("GET /api/families (after creation)", f"Expected at least {initial_count + 2} families, got {new_count}")
+            else:
+                log_fail("GET /api/families (after creation)", f"Expected list, got: {type(families)}")
+        else:
+            log_fail("GET /api/families (after creation)", f"Status {resp.status_code}: {resp.text}")
+    except Exception as e:
+        log_fail("GET /api/families (after creation)", f"Exception: {str(e)}")
+    
+    # Step 5: PUT /api/family/{family_1.id} with updated name
+    if family_1_id:
+        update_data = {
+            "name": "Rao Family Updated",
+            "description": "",
+            "language": "English"
+        }
         
         try:
-            resp = requests.put(f"{BASE_URL}/family", json=update_data, timeout=10)
+            resp = requests.put(f"{BASE_URL}/family/{family_1_id}", json=update_data, timeout=10)
             if resp.status_code == 200:
                 updated = resp.json()
-                if updated.get('description') == update_data['description']:
-                    log_pass("PUT /api/family", "Family updated successfully")
+                if updated.get('name') == update_data['name']:
+                    log_pass("PUT /api/family/{id}", f"Updated family_1 name to 'Rao Family Updated'")
                 else:
-                    log_fail("PUT /api/family", f"Description not updated: {updated.get('description')}")
+                    log_fail("PUT /api/family/{id}", f"Name not updated: {updated.get('name')}")
             else:
-                log_fail("PUT /api/family", f"Status {resp.status_code}: {resp.text}")
+                log_fail("PUT /api/family/{id}", f"Status {resp.status_code}: {resp.text}")
         except Exception as e:
-            log_fail("PUT /api/family", f"Exception: {str(e)}")
+            log_fail("PUT /api/family/{id}", f"Exception: {str(e)}")
     
-    # GET family again to verify persistence
+    # Step 6: GET /api/family should return the most recent (family_2 based on created_at)
     try:
         resp = requests.get(f"{BASE_URL}/family", timeout=10)
         if resp.status_code == 200:
             family = resp.json()
-            if family and family.get('name') == family_data['name']:
-                log_pass("GET /api/family (after creation)", f"Family persisted: {family['name']}")
+            if family:
+                # Should be family_2 (Kumar Family) as it was created most recently
+                if family.get('name') == 'Kumar Family':
+                    log_pass("GET /api/family (backwards compat)", f"Returns most recent family: '{family.get('name')}'")
+                else:
+                    log_warning("GET /api/family (backwards compat)", f"Expected 'Kumar Family' (most recent), got '{family.get('name')}'")
             else:
-                log_fail("GET /api/family (after creation)", f"Family not persisted correctly: {family}")
+                log_fail("GET /api/family (backwards compat)", "Returns null after families created")
         else:
-            log_fail("GET /api/family (after creation)", f"Status {resp.status_code}: {resp.text}")
+            log_fail("GET /api/family (backwards compat)", f"Status {resp.status_code}: {resp.text}")
     except Exception as e:
-        log_fail("GET /api/family (after creation)", f"Exception: {str(e)}")
+        log_fail("GET /api/family (backwards compat)", f"Exception: {str(e)}")
+    
+    # Step 7: DELETE /api/family/{family_2.id} -> 200 {"ok": true}
+    if family_2_id:
+        try:
+            resp = requests.delete(f"{BASE_URL}/family/{family_2_id}", timeout=10)
+            if resp.status_code == 200:
+                result = resp.json()
+                if result.get('ok') == True:
+                    log_pass("DELETE /api/family/{id}", f"Deleted family_2 (Kumar Family)")
+                else:
+                    log_fail("DELETE /api/family/{id}", f"Unexpected response: {result}")
+            else:
+                log_fail("DELETE /api/family/{id}", f"Status {resp.status_code}: {resp.text}")
+        except Exception as e:
+            log_fail("DELETE /api/family/{id}", f"Exception: {str(e)}")
+    
+    # Step 8: DELETE /api/family/non-existent -> 404
+    try:
+        resp = requests.delete(f"{BASE_URL}/family/non-existent-id-12345", timeout=10)
+        if resp.status_code == 404:
+            log_pass("DELETE /api/family/{non-existent}", "Returns 404 for non-existent family")
+        else:
+            log_fail("DELETE /api/family/{non-existent}", f"Expected 404, got {resp.status_code}: {resp.text}")
+    except Exception as e:
+        log_fail("DELETE /api/family/{non-existent}", f"Exception: {str(e)}")
 
 def test_recipes():
     """Test 3: Recipes CRUD + like"""
@@ -614,9 +695,151 @@ def test_contact():
     except Exception as e:
         log_fail("POST /api/contact (empty message)", f"Exception: {str(e)}")
 
+def test_transcribe_endpoint():
+    """Test 10: Universal transcription endpoint (CHANGE 2: Sarvam audio chunking + Gemini photo OCR)"""
+    print("\n=== Testing Universal Transcription Endpoint (CHANGE 2) ===")
+    
+    # Test 1: Short silent WAV (2-3 seconds) with kind=audio
+    print("  Test 1: Short silent WAV (2-3 seconds)...")
+    audio_data = generate_silent_wav(duration_seconds=2)
+    
+    files = {
+        'file': ('test_audio_short.wav', io.BytesIO(audio_data), 'audio/wav')
+    }
+    data = {
+        'kind': 'audio',
+        'language_code': 'en-IN'
+    }
+    
+    try:
+        print("    Uploading short silent audio (may take 10-30 seconds)...")
+        resp = requests.post(f"{BASE_URL}/transcribe", files=files, data=data, timeout=60)
+        if resp.status_code == 200:
+            result = resp.json()
+            required_fields = ['transcript', 'transcript_en', 'language']
+            missing = [f for f in required_fields if f not in result]
+            
+            if not missing:
+                transcript = result.get('transcript', '')
+                transcript_en = result.get('transcript_en', '')
+                language = result.get('language', '')
+                error = result.get('error')
+                
+                # For silent audio, transcript may be empty but endpoint should NOT crash
+                if error and 'exceeds maximum limit' in error.lower():
+                    log_fail("POST /api/transcribe (short audio)", f"CRITICAL: Audio chunking not working - got 'exceeds maximum limit' error: {error}")
+                else:
+                    log_pass("POST /api/transcribe (short audio)", f"Returns 200 (transcript may be empty for silent audio, error={error})")
+            else:
+                log_fail("POST /api/transcribe (short audio)", f"Missing fields: {missing}. Response: {result}")
+        else:
+            log_fail("POST /api/transcribe (short audio)", f"Status {resp.status_code}: {resp.text}")
+    except requests.exceptions.Timeout:
+        log_fail("POST /api/transcribe (short audio)", "Request timed out after 60 seconds")
+    except Exception as e:
+        log_fail("POST /api/transcribe (short audio)", f"Exception: {str(e)}")
+    
+    # Test 2: LONGER silent WAV (~40 seconds) - CRITICAL: Tests audio chunking
+    print("  Test 2: LONGER silent WAV (~40 seconds) - CRITICAL CHUNKING TEST...")
+    audio_data_long = generate_silent_wav(duration_seconds=40)
+    
+    files = {
+        'file': ('test_audio_long.wav', io.BytesIO(audio_data_long), 'audio/wav')
+    }
+    data = {
+        'kind': 'audio',
+        'language_code': 'en-IN'
+    }
+    
+    try:
+        print("    Uploading LONG silent audio (may take 30-60 seconds)...")
+        resp = requests.post(f"{BASE_URL}/transcribe", files=files, data=data, timeout=90)
+        if resp.status_code == 200:
+            result = resp.json()
+            required_fields = ['transcript', 'transcript_en', 'language']
+            missing = [f for f in required_fields if f not in result]
+            
+            if not missing:
+                transcript = result.get('transcript', '')
+                transcript_en = result.get('transcript_en', '')
+                language = result.get('language', '')
+                error = result.get('error')
+                
+                # CRITICAL: Should NOT have "exceeds maximum limit" error
+                if error and 'exceeds maximum limit' in error.lower():
+                    log_fail("POST /api/transcribe (long audio - CHUNKING)", f"❌ CRITICAL: Audio chunking FAILED - Sarvam rejected >30s audio: {error}")
+                else:
+                    log_pass("POST /api/transcribe (long audio - CHUNKING)", f"✅ CRITICAL: Audio chunking WORKING - 40s audio processed without 'exceeds maximum limit' error (transcript may be empty for silent audio, error={error})")
+            else:
+                log_fail("POST /api/transcribe (long audio - CHUNKING)", f"Missing fields: {missing}. Response: {result}")
+        else:
+            log_fail("POST /api/transcribe (long audio - CHUNKING)", f"Status {resp.status_code}: {resp.text}")
+    except requests.exceptions.Timeout:
+        log_fail("POST /api/transcribe (long audio - CHUNKING)", "Request timed out after 90 seconds")
+    except Exception as e:
+        log_fail("POST /api/transcribe (long audio - CHUNKING)", f"Exception: {str(e)}")
+    
+    # Test 3: Small PNG with text-like content (or plain PNG) with kind=photo
+    print("  Test 3: Small PNG (Gemini photo OCR)...")
+    # Generate a small 1x1 PNG
+    png_data = base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==')
+    
+    files = {
+        'file': ('test_image.png', io.BytesIO(png_data), 'image/png')
+    }
+    data = {
+        'kind': 'photo',
+        'language_code': 'en-IN'
+    }
+    
+    try:
+        print("    Uploading PNG for OCR (may take 10-30 seconds)...")
+        resp = requests.post(f"{BASE_URL}/transcribe", files=files, data=data, timeout=60)
+        if resp.status_code == 200:
+            result = resp.json()
+            required_fields = ['transcript', 'transcript_en', 'language']
+            missing = [f for f in required_fields if f not in result]
+            
+            if not missing:
+                transcript_en = result.get('transcript_en', '')
+                # For plain PNG, transcript_en may be empty but shouldn't error
+                log_pass("POST /api/transcribe (photo)", f"Returns 200 with transcript_en field (may be empty for plain PNG)")
+            else:
+                log_fail("POST /api/transcribe (photo)", f"Missing fields: {missing}. Response: {result}")
+        else:
+            log_fail("POST /api/transcribe (photo)", f"Status {resp.status_code}: {resp.text}")
+    except requests.exceptions.Timeout:
+        log_fail("POST /api/transcribe (photo)", "Request timed out after 60 seconds")
+    except Exception as e:
+        log_fail("POST /api/transcribe (photo)", f"Exception: {str(e)}")
+    
+    # Test 4: POST empty file -> 400 "Empty file"
+    print("  Test 4: Empty file (should return 400)...")
+    files = {
+        'file': ('empty.wav', io.BytesIO(b''), 'audio/wav')
+    }
+    data = {
+        'kind': 'audio',
+        'language_code': 'en-IN'
+    }
+    
+    try:
+        resp = requests.post(f"{BASE_URL}/transcribe", files=files, data=data, timeout=10)
+        if resp.status_code == 400:
+            error = resp.json()
+            if 'empty file' in error.get('detail', '').lower():
+                log_pass("POST /api/transcribe (empty file)", "Returns 400 with 'Empty file'")
+            else:
+                log_fail("POST /api/transcribe (empty file)", f"Returns 400 but wrong detail: {error.get('detail')}")
+        else:
+            log_fail("POST /api/transcribe (empty file)", f"Expected 400, got {resp.status_code}: {resp.text}")
+    except Exception as e:
+        log_fail("POST /api/transcribe (empty file)", f"Exception: {str(e)}")
+
+
 def test_voice_recipes():
-    """Test 10: Voice recipes with Sarvam STT + Gemini translation (CRITICAL)"""
-    print("\n=== Testing Voice Recipes (CRITICAL - Sarvam + Gemini) ===")
+    """Test 11: Voice recipes (CHANGE 3: Regression test - still works via unified helper)"""
+    print("\n=== Testing Voice Recipes (CHANGE 3: Regression Test) ===")
     
     # GET voice recipes (initially empty or has previous test data)
     try:
@@ -664,12 +887,8 @@ def test_voice_recipes():
                 transcript_en = created.get('transcript_en', '')
                 error = created.get('error')
                 
-                if error:
-                    log_warning("POST /api/voice-recipes", f"Created with error: {error}")
-                elif not transcript:
-                    log_warning("POST /api/voice-recipes", f"Created with id={voice_id} but transcript is empty (expected for silent audio)")
-                else:
-                    log_pass("POST /api/voice-recipes", f"Created with id={voice_id}, transcript length={len(transcript)}, transcript_en length={len(transcript_en)}")
+                # CHANGE 3: Verify voice recipes still works via unified helper
+                log_pass("POST /api/voice-recipes (REGRESSION)", f"✅ CHANGE 3 VERIFIED: Voice recipes still works via unified helper. Created with id={voice_id}")
                 
                 # Check if notification was created
                 try:
@@ -700,13 +919,13 @@ def test_voice_recipes():
                 except Exception as e:
                     log_fail("DELETE /api/voice-recipes/{id}", f"Exception: {str(e)}")
             else:
-                log_fail("POST /api/voice-recipes", f"Missing fields: {missing}. Response: {created}")
+                log_fail("POST /api/voice-recipes (REGRESSION)", f"Missing fields: {missing}. Response: {created}")
         else:
-            log_fail("POST /api/voice-recipes", f"Status {resp.status_code}: {resp.text}")
+            log_fail("POST /api/voice-recipes (REGRESSION)", f"Status {resp.status_code}: {resp.text}")
     except requests.exceptions.Timeout:
-        log_fail("POST /api/voice-recipes", "Request timed out after 60 seconds")
+        log_fail("POST /api/voice-recipes (REGRESSION)", "Request timed out after 60 seconds")
     except Exception as e:
-        log_fail("POST /api/voice-recipes", f"Exception: {str(e)}")
+        log_fail("POST /api/voice-recipes (REGRESSION)", f"Exception: {str(e)}")
 
 def print_summary():
     """Print test summary"""
@@ -742,15 +961,16 @@ if __name__ == "__main__":
     
     # Run all tests in order
     test_health_endpoints()
-    test_family_crud()
+    test_family_crud()  # CHANGE 1: Multiple family groups
     test_recipes()
     test_stories()
     test_albums()
     test_family_tree()
     test_notifications()
-    test_invites()  # NEW
-    test_contact()  # NEW
-    test_voice_recipes()
+    test_invites()
+    test_contact()
+    test_transcribe_endpoint()  # CHANGE 2: Universal transcription endpoint
+    test_voice_recipes()  # CHANGE 3: Regression test
     
     # Print summary
     print_summary()

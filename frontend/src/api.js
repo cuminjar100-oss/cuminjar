@@ -9,7 +9,20 @@ export const api = {
   me: () => http.get('/me').then(r => r.data),
 
   getFamily: () => http.get('/family').then(r => r.data),
+  listFamilies: () => http.get('/families').then(r => r.data),
   createFamily: (body) => http.post('/family', body).then(r => r.data),
+  updateFamily: (id, body) => http.put(`/family/${id}`, body).then(r => r.data),
+  deleteFamily: (id) => http.delete(`/family/${id}`).then(r => r.data),
+
+  // Universal transcription (voice audio or photo of a page)
+  transcribeMedia: async (file, kind, language_code = 'unknown') => {
+    const fd = new FormData();
+    fd.append('file', file, file.name || (kind === 'photo' ? 'page.jpg' : 'recording.webm'));
+    fd.append('kind', kind);
+    fd.append('language_code', language_code);
+    const r = await http.post('/transcribe', fd, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 180000 });
+    return r.data;
+  },
 
   listRecipes: () => http.get('/recipes').then(r => r.data),
   createRecipe: (body) => http.post('/recipes', body).then(r => r.data),

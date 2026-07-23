@@ -50,16 +50,6 @@ export default function AppShell({ children, active }) {
 
         <div className="px-3 pb-3 space-y-1">
           <Link
-            to="/app/notifications"
-            className={`flex items-center justify-between px-4 py-2.5 rounded-lg text-[15px] text-neutral-700 hover:bg-[#F5EDDD] transition-colors ${location.pathname === '/app/notifications' ? 'bg-[#F5EDDD]' : ''}`}
-          >
-            <span className="flex items-center gap-3">
-              <Bell size={18} strokeWidth={1.8} />
-              Notifications
-            </span>
-            {unread > 0 && <span className="bg-terracotta text-white text-[11px] w-5 h-5 rounded-full flex items-center justify-center font-medium">{unread}</span>}
-          </Link>
-          <Link
             to="/app/settings"
             className={`flex items-center gap-3 px-4 py-2.5 rounded-lg text-[15px] text-neutral-700 hover:bg-[#F5EDDD] transition-colors ${location.pathname === '/app/settings' ? 'bg-[#F5EDDD]' : ''}`}
           >

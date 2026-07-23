@@ -1,33 +1,54 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import AppShell from '../components/AppShell';
-import { Users, Mic, Sparkles, Globe, Image as ImageIcon, Lightbulb, Lock, Plus, Loader2, CheckCircle2 } from 'lucide-react';
+import { Users, Mic, Sparkles, Globe, Image as ImageIcon, Lightbulb, Lock, Plus, Loader2, CheckCircle2, ChevronDown } from 'lucide-react';
 import { heroImages, familyAvatars } from '../mock';
 import { useToast } from '../hooks/use-toast';
 import api from '../api';
 import InviteFamilyModal from '../components/InviteFamilyModal';
 
 export default function Dashboard() {
+  const [families, setFamilies] = useState([]);
+  const [activeFamilyId, setActiveFamilyId] = useState(null);
   const [name, setName] = useState('');
   const [lang, setLang] = useState('English');
   const [cover, setCover] = useState(null); // base64
   const [saving, setSaving] = useState(false);
-  const [family, setFamily] = useState(null);
   const [showInvite, setShowInvite] = useState(false);
+  const [mode, setMode] = useState('view'); // 'view' | 'edit' | 'create'
   const { toast } = useToast();
 
-  useEffect(() => {
-    let cancelled = false;
-    api.getFamily().then((f) => {
-      if (cancelled) return;
-      if (f) {
-        setFamily(f);
-        setName(f.name || '');
-        setLang(f.language || 'English');
-        setCover(f.coverPhoto || null);
+  const active = families.find(f => f.id === activeFamilyId) || null;
+
+  const loadFamilies = useCallback(async () => {
+    try {
+      const list = await api.listFamilies();
+      setFamilies(list);
+      if (list.length === 0) {
+        setMode('create');
+        setActiveFamilyId(null);
+      } else {
+        // Pick previously-selected from localStorage if present, else first
+        const saved = localStorage.getItem('cuminjar_active_family');
+        const target = list.find(f => f.id === saved) || list[0];
+        setActiveFamilyId(target.id);
+        setMode('view');
       }
-    }).catch((e) => console.error(e));
-    return () => { cancelled = true; };
+    } catch (e) { console.error(e); }
   }, []);
+
+  useEffect(() => { loadFamilies(); }, [loadFamilies]);
+
+  // Sync form fields to the active family
+  useEffect(() => {
+    if (active) {
+      setName(active.name || '');
+      setLang(active.language || 'English');
+      setCover(active.coverPhoto || null);
+      localStorage.setItem('cuminjar_active_family', active.id);
+    } else if (mode === 'create') {
+      setName(''); setLang('English'); setCover(null);
+    }
+  }, [active, mode]);
 
   const handleFile = (e) => {
     const file = e.target.files?.[0];
@@ -41,7 +62,7 @@ export default function Dashboard() {
     reader.readAsDataURL(file);
   };
 
-  const handleCreate = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!name.trim()) {
       toast({ title: 'Family Group Name required', description: 'Please add a name for your family space.' });
@@ -49,11 +70,20 @@ export default function Dashboard() {
     }
     try {
       setSaving(true);
-      const saved = await api.createFamily({ name, description: '', language: lang, coverPhoto: cover });
-      setFamily(saved);
-      toast({ title: family ? 'Family Group Updated!' : 'Family Group Created!', description: `${saved.name} is ready. Next: invite family.` });
+      const body = { name, description: '', language: lang, coverPhoto: cover };
+      let saved;
+      if (mode === 'edit' && active) {
+        saved = await api.updateFamily(active.id, body);
+        toast({ title: 'Family updated!' });
+      } else {
+        saved = await api.createFamily(body);
+        toast({ title: 'Family created!', description: `${saved.name} is ready.` });
+      }
+      await loadFamilies();
+      setActiveFamilyId(saved.id);
+      setMode('view');
     } catch (err) {
-      toast({ title: 'Save failed', description: err?.message || 'Please try again.' });
+      toast({ title: 'Save failed', description: err?.response?.data?.detail || err?.message || 'Please try again.' });
     } finally {
       setSaving(false);
     }
@@ -67,24 +97,60 @@ export default function Dashboard() {
             <h1 className="font-serif-display text-[32px] md:text-[36px] font-semibold text-neutral-900 leading-tight">
               Welcome to CuminJar, Meera! <span className="inline-block">👋</span>
             </h1>
-            <p className="mt-2 text-[15px] text-neutral-700">{family ? 'Your family space is ready. You can update details anytime below.' : 'Create your family space to preserve recipes, traditions, and stories together.'}</p>
+            <p className="mt-2 text-[15px] text-neutral-700">{families.length > 0 ? 'Your family spaces are ready. Switch, edit, or create another anytime below.' : 'Create your first family space to preserve recipes, traditions, and stories together.'}</p>
           </div>
           <div className="hidden md:flex items-center gap-4 relative">
             <img src={heroImages.claypotFrame} alt="family jar" className="h-32 w-40 object-cover rounded-xl shadow-md" />
           </div>
         </div>
 
+        {/* Family switcher */}
+        {families.length > 0 && (
+          <div className="mt-6 bg-white rounded-2xl border border-neutral-200/70 p-4 flex flex-wrap items-center gap-3">
+            <span className="text-[13px] font-semibold text-neutral-700 mr-1">Your family groups:</span>
+            {families.map(f => (
+              <button
+                key={f.id}
+                type="button"
+                onClick={() => { setActiveFamilyId(f.id); setMode('view'); }}
+                className={`inline-flex items-center gap-2 text-[13px] px-3 py-1.5 rounded-full transition-colors ${
+                  f.id === activeFamilyId
+                    ? 'bg-cumin-green text-white'
+                    : 'bg-[#F5EDDD] text-neutral-800 hover:bg-[#EFE3CB]'
+                }`}
+              >
+                {f.coverPhoto ? <img src={f.coverPhoto} alt="" className="w-5 h-5 rounded-full object-cover" /> : <Users size={13} />}
+                {f.name}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => { setMode('create'); setActiveFamilyId(null); }}
+              className="inline-flex items-center gap-1.5 text-[13px] px-3 py-1.5 rounded-full border border-dashed border-neutral-300 text-neutral-700 hover:border-cumin-green hover:text-cumin-green transition-colors"
+            >
+              <Plus size={13} /> New family
+            </button>
+          </div>
+        )}
+
         <div className="grid lg:grid-cols-3 gap-6 mt-6">
-          <form onSubmit={handleCreate} className="lg:col-span-2 bg-white rounded-2xl border border-neutral-200/70 p-8">
+          <form onSubmit={handleSubmit} className="lg:col-span-2 bg-white rounded-2xl border border-neutral-200/70 p-8">
             <div className="flex items-start justify-between">
               <div>
-                <h2 className="font-serif-display text-[28px] font-semibold text-neutral-900">{family ? 'Your family group' : 'Create your family group'}</h2>
+                <h2 className="font-serif-display text-[28px] font-semibold text-neutral-900">
+                  {mode === 'create' ? 'Create a family group' : mode === 'edit' ? 'Edit family group' : (active?.name || 'Your family group')}
+                </h2>
                 <p className="text-[14px] text-neutral-500 mt-2">Step 1 of 3</p>
                 <p className="text-[14px] text-neutral-700 mt-0.5">Tell us about your family</p>
               </div>
-              {family && (
-                <span className="inline-flex items-center gap-1 text-[12px] font-semibold text-cumin-green bg-[#DFEAD8] px-3 py-1 rounded-full"><CheckCircle2 size={13}/> Saved</span>
-              )}
+              <div className="flex items-center gap-2">
+                {active && mode === 'view' && (
+                  <>
+                    <span className="inline-flex items-center gap-1 text-[12px] font-semibold text-cumin-green bg-[#DFEAD8] px-3 py-1 rounded-full"><CheckCircle2 size={13}/> Saved</span>
+                    <button type="button" onClick={() => setMode('edit')} className="text-[12px] font-medium text-cumin-green hover:underline">Edit</button>
+                  </>
+                )}
+              </div>
             </div>
 
             <div className="flex items-center gap-2 mt-6 max-w-md">
@@ -155,10 +221,15 @@ export default function Dashboard() {
               <p className="text-[13px] text-neutral-700"><span className="font-semibold">Tip:</span> You can always update these details later in Settings.</p>
             </div>
 
-            <button type="submit" disabled={saving} className="w-full mt-6 bg-cumin-green text-white text-[15px] font-medium py-3.5 rounded-lg hover:bg-[#324A2F] transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-2 disabled:opacity-70">
-              {saving && <Loader2 size={16} className="animate-spin" />}
-              {family ? 'Update Family Group' : 'Create Family Group'}
-            </button>
+            {(mode === 'edit' || mode === 'create') && (
+              <button type="submit" disabled={saving} className="w-full mt-6 bg-cumin-green text-white text-[15px] font-medium py-3.5 rounded-lg hover:bg-[#324A2F] transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-2 disabled:opacity-70">
+                {saving && <Loader2 size={16} className="animate-spin" />}
+                {mode === 'edit' ? 'Update Family Group' : 'Create Family Group'}
+              </button>
+            )}
+            {mode === 'edit' && (
+              <button type="button" onClick={() => setMode('view')} className="w-full mt-2 text-[13px] text-neutral-500 hover:text-neutral-800">Cancel</button>
+            )}
             <p className="mt-3 text-[12px] text-neutral-500 flex items-center justify-center gap-1.5"><Lock size={12} /> Your family space is private and secure.</p>
           </form>
 

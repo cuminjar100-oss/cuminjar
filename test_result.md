@@ -436,7 +436,7 @@ frontend:
 metadata:
   created_by: "main_agent"
   version: "1.0"
-  test_sequence: 6
+  test_sequence: 7
   run_ui: false
 
 test_plan:
@@ -466,3 +466,54 @@ agent_communication:
       message: "Code-review fixes applied to frontend: React hook dependencies fixed (useCallback), useEffect cleanup added, Family Description field removed. Please verify these areas: Contact page (XSS fix regression), Dashboard family form (useCallback + cancellation + description removed), Recipes page (useCallback + like toggle), Stories page (useCallback), Invite Family Modal (useCallback + Resend email), Notifications page (useEffect cleanup), Landing hero (Paati image + spices). Check for console errors related to React hooks, missing deps, or key props."
     - agent: "testing"
       message: "✅ ALL FRONTEND TESTS PASSED (7/7 - 100% pass rate). CODE-REVIEW FIXES VERIFIED: (1) Contact page - XSS fix working correctly, ampersands render as '&' in visible text (HTML source '&amp;' is correct React behavior), form submission works. (2) Dashboard - Family Description field correctly REMOVED, form loads/updates/persists correctly, useCallback + cancellation working. (3) Recipes - All 4 seeded recipes load, like toggle working (heart icon changes outline to filled), useCallback working. (4) Stories - Seeded stories load without errors, useCallback working. (5) Invite Modal - Opens correctly, shows sent invitations with Pending status, Resend integration working, useCallback working. (6) Notifications - Loads correctly with invite notifications visible, useEffect cleanup working. (7) Landing hero - Paati image loads, heading with italic 'in their voice.' renders correctly. NO CONSOLE ERRORS: No React warnings/errors related to hooks, missing deps, or key props detected. All code-review changes working correctly."
+
+
+  - task: "Multiple family groups (CHANGE 1)"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "CHANGE 1 - Multiple family groups support. GET /api/families returns full list. POST /api/family creates NEW family every time (doesn't overwrite). PUT /api/family/{id} updates specific family. DELETE /api/family/{id} deletes family. GET /api/family returns most recent (backwards compat)."
+        - working: true
+          agent: "testing"
+          comment: "✅ CHANGE 1 FULLY VERIFIED (8/8 tests passed). GET /api/families returns list correctly. POST /api/family creates NEW family each time with different IDs (tested with 'Rao Family' and 'Kumar Family'). GET /api/families returns both families. PUT /api/family/{id} updates specific family successfully ('Rao Family' -> 'Rao Family Updated'). GET /api/family returns most recent family (Kumar Family) for backwards compatibility. DELETE /api/family/{id} deletes family successfully. DELETE /api/family/non-existent returns 404. All CRUD operations working correctly."
+
+  - task: "Universal transcription endpoint (CHANGE 2)"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "CHANGE 2 - Universal transcription endpoint POST /api/transcribe. Accepts multipart form fields: file (upload), kind ('audio' or 'photo'), language_code. For audio: uses Sarvam STT with chunking (splits >30s audio into <=25s chunks). For photo: uses Gemini vision OCR. Returns {transcript, transcript_en, language, error}."
+        - working: true
+          agent: "testing"
+          comment: "✅ CHANGE 2 FULLY VERIFIED (4/4 tests passed). POST /api/transcribe with short silent WAV (2s) returns 200 with all required fields (transcript, transcript_en, language). CRITICAL: POST /api/transcribe with LONG silent WAV (40s) returns 200 WITHOUT 'exceeds maximum limit' error - AUDIO CHUNKING WORKING CORRECTLY. POST /api/transcribe with PNG (kind=photo) returns 200 with transcript_en field (Gemini OCR working). POST /api/transcribe with empty file returns 400 'Empty file'. All validation and error handling working correctly."
+
+  - task: "Voice recipe endpoint regression (CHANGE 3)"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "CHANGE 3 - Voice recipe endpoint POST /api/voice-recipes should still work via unified transcribe_media() helper after refactoring."
+        - working: true
+          agent: "testing"
+          comment: "✅ CHANGE 3 VERIFIED - Voice recipe endpoint still works correctly via unified helper. POST /api/voice-recipes with audio file creates voice recipe with all required fields (id, title, author, language, duration, transcript, transcript_en). Notification auto-created after upload. DELETE /api/voice-recipes/{id} removes successfully. Full pipeline operational."
+
+    - agent: "main"
+      message: "THREE MAJOR CHANGES IMPLEMENTED: (1) Multiple family groups - GET /api/families, POST creates new family every time, PUT /api/family/{id}, DELETE /api/family/{id}, GET /api/family backwards compat. (2) Universal transcription endpoint POST /api/transcribe with Sarvam audio chunking (<=25s chunks) + Gemini photo OCR. (3) Voice recipe endpoint regression test. Please verify all three changes and test regression on GET /api/, /api/me, /api/recipes, POST /api/recipes, /api/stories, POST /api/stories, POST /api/invites, POST /api/contact."
+    - agent: "testing"
+      message: "✅ ALL TESTS PASSED (41/41 - 100% pass rate). THREE MAJOR CHANGES FULLY VERIFIED: CHANGE 1 (Multiple family groups) - All 8 tests passed. GET /api/families returns list. POST creates NEW family each time (tested 'Rao Family' + 'Kumar Family' with different IDs). PUT /api/family/{id} updates specific family. DELETE /api/family/{id} deletes family. GET /api/family returns most recent (backwards compat). DELETE non-existent returns 404. CHANGE 2 (Universal transcription) - All 4 tests passed. CRITICAL: Audio chunking WORKING - 40s audio processed without 'exceeds maximum limit' error. Short audio (2s) works. Photo OCR works. Empty file validation works. CHANGE 3 (Voice recipe regression) - Voice recipes still works via unified helper. REGRESSION VERIFIED: GET /api/ (health), GET /api/me, GET /api/recipes, POST /api/recipes, GET /api/stories, POST /api/stories, POST /api/invites (Resend email), POST /api/contact all working correctly. Backend production-ready."

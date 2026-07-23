@@ -72,9 +72,6 @@ export const sidebarLinks = [
   { key: 'home', label: 'Home', icon: 'Home', path: '/app' },
   { key: 'recipes', label: 'Recipes', icon: 'Soup', path: '/app/recipes' },
   { key: 'stories', label: 'Stories', icon: 'BookOpen', path: '/app/stories' },
-  { key: 'voice', label: 'Voice Recipes', icon: 'Mic', path: '/app/voice-recipes' },
-  { key: 'albums', label: 'Albums', icon: 'Images', path: '/app/albums' },
-  { key: 'tree', label: 'Family Tree', icon: 'Network', path: '/app/family-tree' },
   { key: 'search', label: 'Search', icon: 'Search', path: '/app/search' }
 ];
 

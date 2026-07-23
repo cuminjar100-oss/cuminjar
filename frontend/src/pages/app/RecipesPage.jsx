@@ -3,6 +3,7 @@ import AppShell from '../../components/AppShell';
 import { Plus, Filter, Heart, Clock, Users as UsersIcon, Loader2, X } from 'lucide-react';
 import api from '../../api';
 import { useToast } from '../../hooks/use-toast';
+import MediaTranscribeInput from '../../components/MediaTranscribeInput';
 
 const REGIONS = ['All', 'Favorites', 'South Indian', 'North Indian', 'Coastal', 'Punjabi'];
 
@@ -90,7 +91,7 @@ export default function RecipesPage() {
 }
 
 function AddRecipeModal({ onClose, onSaved }) {
-  const [form, setForm] = useState({ title: '', author: '', region: 'South Indian', serves: '4', time: '30 mins', tags: '', cover: '' });
+  const [form, setForm] = useState({ title: '', author: '', region: 'South Indian', serves: '4', time: '30 mins', tags: '', cover: '', transcript_en: '', source_kind: 'text', source_language: '' });
   const [saving, setSaving] = useState(false);
 
   const handleFile = (e) => {
@@ -98,6 +99,18 @@ function AddRecipeModal({ onClose, onSaved }) {
     const reader = new FileReader();
     reader.onload = () => setForm(prev => ({ ...prev, cover: reader.result }));
     reader.readAsDataURL(f);
+  };
+
+  const handleTranscribed = ({ transcript_en, language, kind }) => {
+    // Merge transcript into form; try to auto-fill title if empty
+    const firstLine = (transcript_en || '').split('\n')[0].slice(0, 60);
+    setForm(prev => ({
+      ...prev,
+      transcript_en: transcript_en || '',
+      source_kind: kind,
+      source_language: language || '',
+      title: prev.title || firstLine,
+    }));
   };
 
   const submit = async (e) => {
@@ -112,19 +125,25 @@ function AddRecipeModal({ onClose, onSaved }) {
         time: form.time,
         tags: form.tags.split(',').map(t => t.trim()).filter(Boolean),
         cover: form.cover || null,
+        transcript_en: form.transcript_en || null,
+        source_kind: form.source_kind || 'text',
+        source_language: form.source_language || null,
       });
       onSaved(saved);
     } finally { setSaving(false); }
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-4" onClick={onClose}>
-      <form onSubmit={submit} onClick={e => e.stopPropagation()} className="bg-white rounded-2xl p-6 w-full max-w-lg">
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-4 py-6" onClick={onClose}>
+      <form onSubmit={submit} onClick={e => e.stopPropagation()} className="bg-white rounded-2xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-serif-display text-[24px] font-semibold">Add a recipe</h3>
           <button type="button" onClick={onClose} className="w-8 h-8 rounded-full hover:bg-neutral-100 flex items-center justify-center"><X size={16} /></button>
         </div>
-        <div className="space-y-3">
+
+        <MediaTranscribeInput onTranscribed={handleTranscribed} />
+
+        <div className="space-y-3 mt-4">
           <input required placeholder="Recipe title (e.g., Paati’s Sambar)" value={form.title} onChange={e => setForm({...form, title: e.target.value})} className="w-full border border-neutral-200 rounded-lg px-3 py-2.5 text-[14px] focus:outline-none focus:border-cumin-green" />
           <input placeholder="Author (who taught you)" value={form.author} onChange={e => setForm({...form, author: e.target.value})} className="w-full border border-neutral-200 rounded-lg px-3 py-2.5 text-[14px] focus:outline-none focus:border-cumin-green" />
           <div className="grid grid-cols-3 gap-2">
@@ -135,6 +154,7 @@ function AddRecipeModal({ onClose, onSaved }) {
             <input placeholder="Time" value={form.time} onChange={e => setForm({...form, time: e.target.value})} className="border border-neutral-200 rounded-lg px-3 py-2.5 text-[14px] focus:outline-none focus:border-cumin-green" />
           </div>
           <input placeholder="Tags (comma-separated)" value={form.tags} onChange={e => setForm({...form, tags: e.target.value})} className="w-full border border-neutral-200 rounded-lg px-3 py-2.5 text-[14px] focus:outline-none focus:border-cumin-green" />
+          <textarea placeholder="Recipe details (auto-filled from voice/photo — feel free to edit)" rows={5} value={form.transcript_en} onChange={e => setForm({...form, transcript_en: e.target.value})} className="w-full border border-neutral-200 rounded-lg px-3 py-2.5 text-[14px] focus:outline-none focus:border-cumin-green resize-none" />
           <label className="flex items-center gap-3 border border-dashed border-neutral-300 rounded-lg px-3 py-3 cursor-pointer text-[13.5px] text-neutral-600">
             {form.cover ? <img src={form.cover} alt="cover" className="w-14 h-14 rounded object-cover" /> : <div className="w-14 h-14 rounded bg-neutral-100" />}
             <span>Upload cover photo</span>
