@@ -498,6 +498,226 @@ async def auth_logout(request: Request):
     return resp
 
 
+# --------------------- Email + Password Auth ---------------------
+import bcrypt as _bcrypt
+
+
+def _hash_password(password: str) -> str:
+    return _bcrypt.hashpw(password.encode('utf-8'), _bcrypt.gensalt()).decode('utf-8')
+
+
+def _verify_password(plain: str, hashed: str) -> bool:
+    try:
+        return _bcrypt.checkpw(plain.encode('utf-8'), hashed.encode('utf-8'))
+    except Exception:
+        return False
+
+
+async def _issue_session(user_id: str) -> tuple[str, datetime]:
+    """Create a fresh session_token bound to a user_id, 7-day expiry."""
+    now = datetime.now(timezone.utc)
+    expires_at = now + timedelta(days=7)
+    session_token = _secrets.token_urlsafe(32)
+    await db.user_sessions.insert_one({
+        'user_id': user_id,
+        'session_token': session_token,
+        'created_at': now.isoformat(),
+        'expires_at': expires_at.isoformat(),
+    })
+    return session_token, expires_at
+
+
+def _cookie_response(payload: dict, session_token: str):
+    resp = JSONResponse(payload)
+    resp.set_cookie(
+        key='session_token',
+        value=session_token,
+        max_age=7 * 24 * 3600,
+        httponly=True,
+        secure=True,
+        samesite='none',
+        path='/',
+    )
+    return resp
+
+
+async def _check_brute_force(email: str, request: Request):
+    """Lock out after 5 failed attempts within 15 minutes."""
+    ip = request.client.host if request.client else 'unknown'
+    identifier = f"{ip}:{email}"
+    cutoff = (datetime.now(timezone.utc) - timedelta(minutes=15)).isoformat()
+    fails = await db.login_attempts.count_documents({'identifier': identifier, 'ts': {'$gt': cutoff}, 'success': False})
+    if fails >= 5:
+        raise HTTPException(429, 'Too many failed attempts. Please try again in 15 minutes.')
+
+
+async def _record_attempt(email: str, request: Request, success: bool):
+    ip = request.client.host if request.client else 'unknown'
+    await db.login_attempts.insert_one({
+        'identifier': f"{ip}:{email}",
+        'ip': ip,
+        'email': email,
+        'success': success,
+        'ts': datetime.now(timezone.utc).isoformat(),
+    })
+
+
+async def _ensure_auth_indexes():
+    try:
+        await db.users.create_index('email', unique=True)
+        await db.login_attempts.create_index('identifier')
+        await db.password_reset_otps.create_index('email')
+    except Exception:
+        logger.exception('Failed to create auth indexes')
+
+
+@api.post('/auth/register')
+async def auth_register(payload: dict, request: Request):
+    """Create a new user with email + password. Requires OTP to have been verified first."""
+    email = (payload.get('email') or '').strip().lower()
+    password = payload.get('password') or ''
+    name = (payload.get('name') or '').strip()
+    if not email or not EMAIL_RE.match(email):
+        raise HTTPException(400, 'Please provide a valid email address')
+    if len(password) < 6:
+        raise HTTPException(400, 'Password must be at least 6 characters long')
+
+    # Require a verified OTP for this email
+    verified_otp = await db.email_otps.find_one({'email': email, 'verified': True}, sort=[('verified_at', -1)])
+    if not verified_otp:
+        raise HTTPException(400, 'Please verify your email first with the 6-digit code.')
+
+    existing = await db.users.find_one({'email': email}, {'_id': 0})
+    if existing and existing.get('password_hash'):
+        raise HTTPException(409, 'An account with this email already exists. Please log in instead.')
+
+    now = datetime.now(timezone.utc)
+    password_hash = _hash_password(password)
+
+    if existing:
+        # A Google-created user linking a password
+        user_id = existing['user_id']
+        await db.users.update_one({'user_id': user_id}, {'$set': {'password_hash': password_hash, 'name': name or existing.get('name') or '', 'email_verified': True, 'updated_at': now.isoformat()}})
+    else:
+        user_id = f"user_{uuid.uuid4().hex[:12]}"
+        await db.users.insert_one({
+            'user_id': user_id,
+            'email': email,
+            'name': name or email.split('@')[0],
+            'picture': None,
+            'password_hash': password_hash,
+            'email_verified': True,
+            'created_at': now.isoformat(),
+            'last_login_at': now.isoformat(),
+        })
+
+    session_token, _ = await _issue_session(user_id)
+    user_doc = await db.users.find_one({'user_id': user_id}, {'_id': 0, 'password_hash': 0})
+    return _cookie_response({'user': user_doc}, session_token)
+
+
+@api.post('/auth/login')
+async def auth_login(payload: dict, request: Request):
+    email = (payload.get('email') or '').strip().lower()
+    password = payload.get('password') or ''
+    if not email or not password:
+        raise HTTPException(400, 'Email and password are required')
+
+    await _check_brute_force(email, request)
+
+    user = await db.users.find_one({'email': email}, {'_id': 0})
+    if not user or not user.get('password_hash'):
+        await _record_attempt(email, request, False)
+        raise HTTPException(401, 'Invalid email or password')
+
+    if not _verify_password(password, user['password_hash']):
+        await _record_attempt(email, request, False)
+        raise HTTPException(401, 'Invalid email or password')
+
+    await _record_attempt(email, request, True)
+    # Clear all prior failures for this identifier
+    ip = request.client.host if request.client else 'unknown'
+    await db.login_attempts.delete_many({'identifier': f"{ip}:{email}", 'success': False})
+
+    await db.users.update_one({'user_id': user['user_id']}, {'$set': {'last_login_at': datetime.now(timezone.utc).isoformat()}})
+    session_token, _ = await _issue_session(user['user_id'])
+    user_doc = await db.users.find_one({'user_id': user['user_id']}, {'_id': 0, 'password_hash': 0})
+    return _cookie_response({'user': user_doc}, session_token)
+
+
+@api.post('/auth/forgot-password')
+async def auth_forgot_password(payload: dict):
+    """Send a password-reset OTP to the user's email via Resend. Always returns ok=True
+    to avoid leaking which emails have accounts.
+    """
+    email = (payload.get('email') or '').strip().lower()
+    if not email or not EMAIL_RE.match(email):
+        raise HTTPException(400, 'Please provide a valid email address')
+
+    user = await db.users.find_one({'email': email}, {'_id': 0})
+    # Silently succeed even when no account exists so we don't leak emails
+    if not user:
+        return {'ok': True}
+
+    now = datetime.now(timezone.utc)
+    code = f"{_random.randint(0, 999999):06d}"
+    doc = {
+        'id': str(uuid.uuid4()),
+        'email': email,
+        'code_hash': _hashlib.sha256(code.encode()).hexdigest(),
+        'attempts': 0,
+        'used': False,
+        'created_at': now.isoformat(),
+        'expires_at': (now + timedelta(minutes=15)).isoformat(),
+    }
+    # Invalidate previous unused reset codes
+    await db.password_reset_otps.update_many({'email': email, 'used': False}, {'$set': {'expires_at': now.isoformat()}})
+    await db.password_reset_otps.insert_one(doc)
+
+    result = await _send_otp_email(email, code)  # reuse the branded OTP mailer
+    if not result.get('ok'):
+        raise HTTPException(500, f"Could not send reset email: {result.get('error')}")
+    return {'ok': True}
+
+
+@api.post('/auth/reset-password')
+async def auth_reset_password(payload: dict):
+    email = (payload.get('email') or '').strip().lower()
+    code = (payload.get('code') or '').strip()
+    new_password = payload.get('password') or ''
+    if not email or not code or not new_password:
+        raise HTTPException(400, 'Email, code and new password are required')
+    if len(new_password) < 6:
+        raise HTTPException(400, 'Password must be at least 6 characters long')
+    if not code.isdigit() or len(code) != 6:
+        raise HTTPException(400, 'Enter the 6-digit code from your email')
+
+    now = datetime.now(timezone.utc)
+    otp = await db.password_reset_otps.find_one(
+        {'email': email, 'used': False, 'expires_at': {'$gt': now.isoformat()}},
+        sort=[('created_at', -1)],
+    )
+    if not otp:
+        raise HTTPException(400, 'Reset code expired. Please request a new one.')
+    if otp.get('attempts', 0) >= 5:
+        await db.password_reset_otps.update_one({'id': otp['id']}, {'$set': {'expires_at': now.isoformat()}})
+        raise HTTPException(429, 'Too many wrong attempts. Please request a new reset code.')
+    if _hashlib.sha256(code.encode()).hexdigest() != otp['code_hash']:
+        await db.password_reset_otps.update_one({'id': otp['id']}, {'$inc': {'attempts': 1}})
+        raise HTTPException(400, 'Incorrect reset code.')
+
+    user = await db.users.find_one({'email': email}, {'_id': 0})
+    if not user:
+        raise HTTPException(404, 'No account found for this email')
+
+    await db.users.update_one({'user_id': user['user_id']}, {'$set': {'password_hash': _hash_password(new_password), 'updated_at': now.isoformat()}})
+    await db.password_reset_otps.update_one({'id': otp['id']}, {'$set': {'used': True, 'used_at': now.isoformat()}})
+
+    session_token, _ = await _issue_session(user['user_id'])
+    user_doc = await db.users.find_one({'user_id': user['user_id']}, {'_id': 0, 'password_hash': 0})
+    return _cookie_response({'user': user_doc}, session_token)
+
+
 
 
 @api.post("/family/{family_id}/share")

@@ -20,6 +20,7 @@ export default function Dashboard() {
   const [showCreateFamily, setShowCreateFamily] = useState(false);
   const [openRecipe, setOpenRecipe] = useState(null);
   const [openStory, setOpenStory] = useState(null);
+  const [authUser, setAuthUser] = useState(null);
   const { toast } = useToast();
 
   const active = families.find(f => f.id === activeFamilyId) || null;
@@ -44,6 +45,12 @@ export default function Dashboard() {
 
   useEffect(() => { loadEverything(); }, [loadEverything]);
 
+  useEffect(() => {
+    let cancelled = false;
+    api.authMe().then((u) => { if (!cancelled) setAuthUser(u); }).catch(() => { if (!cancelled) setAuthUser(null); });
+    return () => { cancelled = true; };
+  }, []);
+
   useEffect(() => { if (active) localStorage.setItem('cuminjar_active_family', active.id); }, [active]);
 
   const handleRecordSaved = (r) => {
@@ -56,8 +63,8 @@ export default function Dashboard() {
       <div className="px-3 lg:px-8 py-3 lg:py-6 max-w-4xl mx-auto">
         {/* Compact welcome + big Record button */}
         <div className="bg-gradient-to-br from-[#F7DFCE]/70 to-[#F1E8D8] rounded-2xl p-4 lg:p-8 text-center">
-          <h1 className="font-serif-display text-[22px] lg:text-[34px] font-semibold text-neutral-900 leading-tight">
-            Hi Meera! Preserve a memory today.
+          <h1 className="font-serif-display text-[22px] lg:text-[34px] font-semibold text-neutral-900 leading-tight" data-testid="dashboard-greeting">
+            Hi {((authUser?.name || 'Meera').trim().split(' ')[0]) || 'there'}! Preserve a memory today.
           </h1>
           <p className="mt-1 text-[13px] lg:text-[15px] text-neutral-700 max-w-md mx-auto">Tap Record and just talk. We do the rest.</p>
 
