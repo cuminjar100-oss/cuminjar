@@ -13,6 +13,9 @@ export const api = {
   createFamily: (body) => http.post('/family', body).then(r => r.data),
   updateFamily: (id, body) => http.put(`/family/${id}`, body).then(r => r.data),
   deleteFamily: (id) => http.delete(`/family/${id}`).then(r => r.data),
+  shareFamily: (id) => http.post(`/family/${id}/share`).then(r => r.data),
+  unshareFamily: (id) => http.post(`/family/${id}/unshare`).then(r => r.data),
+  publicCookbook: (token) => http.get(`/public/cookbook/${token}`).then(r => r.data),
 
   // Universal transcription (voice audio or photo of a page)
   transcribeMedia: async (file, kind, language_code = 'unknown') => {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import AppShell from '../components/AppShell';
-import { Users, Mic, Sparkles, Plus, Loader2, CheckCircle2, ChefHat, BookOpen, PartyPopper, Edit2, X, Image as ImageIcon } from 'lucide-react';
+import { Users, Mic, Sparkles, Plus, Loader2, CheckCircle2, ChefHat, BookOpen, PartyPopper, Edit2, X, Image as ImageIcon, Link2, Copy, Check } from 'lucide-react';
 import { useToast } from '../hooks/use-toast';
 import api from '../api';
 import InviteFamilyModal from '../components/InviteFamilyModal';
@@ -107,6 +107,14 @@ export default function Dashboard() {
                 </button>
               ))}
               <button onClick={() => setShowInvite(true)} className="text-[12px] px-2.5 py-1 rounded-full border border-dashed border-neutral-300 text-neutral-600 hover:border-cumin-green hover:text-cumin-green transition-colors">+ Invite</button>
+            </div>
+          )}
+          {active && (
+            <div className="mt-3 pt-3 border-t border-neutral-100 flex items-center justify-between gap-2">
+              <div className="text-[11.5px] text-neutral-500 truncate">
+                <b className="text-neutral-800">Cookbook link</b> · share <span className="text-neutral-800">{active.name}</span> with the family
+              </div>
+              <ShareCookbookButton family={active} />
             </div>
           )}
         </div>
@@ -274,5 +282,59 @@ function CreateFamilyModal({ onClose, onCreated }) {
         </div>
       </form>
     </div>
+  );
+}
+
+
+function ShareCookbookButton({ family }) {
+  const [busy, setBusy] = useState(false);
+  const [url, setUrl] = useState(family?.share_token ? `${window.location.origin}/cookbook/${family.share_token}` : null);
+  const [copied, setCopied] = useState(false);
+  const { toast } = useToast();
+
+  React.useEffect(() => {
+    setUrl(family?.share_token ? `${window.location.origin}/cookbook/${family.share_token}` : null);
+    setCopied(false);
+  }, [family?.share_token, family?.id]);
+
+  const enable = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const r = await api.shareFamily(family.id);
+      const link = `${window.location.origin}${r.path}`;
+      setUrl(link);
+      try {
+        await navigator.clipboard.writeText(link);
+        setCopied(true);
+        toast({ title: 'Cookbook link copied!', description: 'Share it with your family.' });
+      } catch { toast({ title: 'Cookbook link ready', description: link }); }
+    } catch (e) {
+      toast({ title: 'Could not create link', description: e?.response?.data?.detail || e?.message });
+    } finally { setBusy(false); }
+  };
+
+  const copyExisting = async () => {
+    if (!url) return;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      toast({ title: 'Link copied' });
+      setTimeout(() => setCopied(false), 2000);
+    } catch { /* clipboard denied */ }
+  };
+
+  if (!url) {
+    return (
+      <button type="button" onClick={enable} disabled={busy} data-testid="share-cookbook-enable" className="inline-flex items-center gap-1.5 text-[12px] px-3 py-1.5 rounded-full bg-cumin-green text-white hover:bg-[#324A2F] transition-colors disabled:opacity-70">
+        {busy ? <Loader2 size={12} className="animate-spin" /> : <Link2 size={12} />} Share cookbook
+      </button>
+    );
+  }
+
+  return (
+    <button type="button" onClick={copyExisting} data-testid="share-cookbook-copy" title={url} className="inline-flex items-center gap-1.5 text-[12px] px-3 py-1.5 rounded-full border border-cumin-green text-cumin-green hover:bg-cumin-green hover:text-white transition-colors">
+      {copied ? <><Check size={12} /> Copied</> : <><Copy size={12} /> Copy link</>}
+    </button>
   );
 }

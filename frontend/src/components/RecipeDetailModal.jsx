@@ -3,7 +3,7 @@ import { X, Clock, Users as UsersIcon, Heart, ChefHat, Share2, RefreshCw, Loader
 import api from '../api';
 import { shareWithImage, buildRecipeShareText } from '../utils/share';
 
-export default function RecipeDetailModal({ recipe, onClose, onLike, onUpdated }) {
+export default function RecipeDetailModal({ recipe, onClose, onLike, onUpdated, readOnly = false }) {
   const [r, setR] = useState(recipe);
   const [regenerating, setRegenerating] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -98,7 +98,7 @@ export default function RecipeDetailModal({ recipe, onClose, onLike, onUpdated }
             disabled={regenerating}
             data-testid="recipe-detail-regenerate-cover"
             title="Regenerate AI cover"
-            className="absolute bottom-3 left-3 inline-flex items-center gap-1.5 bg-white/90 backdrop-blur px-3 py-1.5 rounded-full text-[12px] font-medium text-neutral-800 hover:bg-white transition-colors disabled:opacity-70"
+            className={`${readOnly ? 'hidden' : ''} absolute bottom-3 left-3 inline-flex items-center gap-1.5 bg-white/90 backdrop-blur px-3 py-1.5 rounded-full text-[12px] font-medium text-neutral-800 hover:bg-white transition-colors disabled:opacity-70`}
           >
             <RefreshCw size={13} className={regenerating ? 'animate-spin' : ''} />
             {regenerating ? 'Generating…' : 'Regenerate cover'}
@@ -115,7 +115,7 @@ export default function RecipeDetailModal({ recipe, onClose, onLike, onUpdated }
           <button onClick={handleShare} data-testid="recipe-detail-share" className="absolute top-3 right-[116px] w-10 h-10 rounded-full bg-white/90 backdrop-blur flex items-center justify-center hover:bg-white transition-colors" title="Share">
             <Share2 size={16} className="text-[#25D366]" />
           </button>
-          {!editing && (
+          {!editing && !readOnly && (
             <button onClick={startEdit} data-testid="recipe-detail-edit" className="absolute top-3 right-[168px] w-10 h-10 rounded-full bg-white/90 backdrop-blur flex items-center justify-center hover:bg-white transition-colors" title="Edit recipe">
               <Pencil size={15} className="text-neutral-700" />
             </button>

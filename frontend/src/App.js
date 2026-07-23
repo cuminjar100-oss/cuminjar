@@ -21,6 +21,7 @@ import FamilyTreePage from './pages/app/FamilyTreePage';
 import SearchPage from './pages/app/SearchPage';
 import SettingsPage from './pages/app/SettingsPage';
 import NotificationsPage from './pages/app/NotificationsPage';
+import PublicCookbook from './pages/PublicCookbook';
 import { Toaster } from './components/ui/toaster';
 
 function App() {
@@ -49,6 +50,7 @@ function App() {
           <Route path="/app/search" element={<SearchPage />} />
           <Route path="/app/settings" element={<SettingsPage />} />
           <Route path="/app/notifications" element={<NotificationsPage />} />
+          <Route path="/cookbook/:token" element={<PublicCookbook />} />
         </Routes>
       </BrowserRouter>
       <Toaster />

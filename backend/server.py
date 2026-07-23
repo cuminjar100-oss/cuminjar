@@ -253,6 +253,61 @@ async def delete_family(family_id: str):
     return {'ok': True}
 
 
+# --------------------- Public cookbook sharing ---------------------
+import secrets as _secrets
+
+
+@api.post("/family/{family_id}/share")
+async def enable_family_share(family_id: str):
+    """Generate (or reuse) a public share token for a family cookbook."""
+    fam = await db.families.find_one({'id': family_id, 'user_id': DEMO_USER_ID})
+    if not fam:
+        raise HTTPException(404, 'Family not found')
+    token = fam.get('share_token') or _secrets.token_urlsafe(12)
+    await db.families.update_one({'id': family_id}, {'$set': {'share_token': token, 'shared_at': now_iso()}})
+    return {'share_token': token, 'path': f'/cookbook/{token}'}
+
+
+@api.post("/family/{family_id}/unshare")
+async def disable_family_share(family_id: str):
+    fam = await db.families.find_one({'id': family_id, 'user_id': DEMO_USER_ID})
+    if not fam:
+        raise HTTPException(404, 'Family not found')
+    await db.families.update_one({'id': family_id}, {'$set': {'share_token': None, 'shared_at': None}})
+    return {'ok': True}
+
+
+@api.get("/public/cookbook/{token}")
+async def public_cookbook(token: str):
+    """Read-only public view of a family cookbook by share token."""
+    fam = await db.families.find_one({'share_token': token})
+    if not fam:
+        raise HTTPException(404, 'Cookbook not found or link revoked')
+    family = _strip_id(dict(fam))
+    # Only expose safe fields
+    safe_family = {
+        'id': family['id'],
+        'name': family.get('name'),
+        'description': family.get('description'),
+        'language': family.get('language'),
+        'coverPhoto': family.get('coverPhoto'),
+    }
+    recipes = await db.recipes.find({'family_id': family['id']}).sort('created_at', -1).to_list(500)
+    stories = await db.stories.find({'family_id': family['id']}).sort('created_at', -1).to_list(500)
+
+    def _clean(doc):
+        d = _strip_id(dict(doc))
+        d.pop('user_id', None)
+        return d
+
+    return {
+        'family': safe_family,
+        'recipes': [_clean(r) for r in recipes],
+        'stories': [_clean(s) for s in stories],
+    }
+
+
+
 # --------------------- Transcribe helper endpoint (voice + photo → English) ---------------------
 @api.post("/smart-record")
 async def smart_record(
