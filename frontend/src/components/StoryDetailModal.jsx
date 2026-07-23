@@ -1,14 +1,18 @@
 import React from 'react';
 import { X, Clock, BookOpen, PartyPopper, Share2, Trash2 } from 'lucide-react';
+import { shareWithImage, buildStoryShareText } from '../utils/share';
 
 export default function StoryDetailModal({ story, onClose, onDelete }) {
   if (!story) return null;
   const s = story;
   const isFestival = s.kind === 'festival';
 
-  const share = () => {
-    const body = `${s.title}\n\n${(s.excerpt || s.transcript_en || '').slice(0, 2000)}\n\nSaved on CuminJar`;
-    window.open(`https://wa.me/?text=${encodeURIComponent(body)}`, '_blank');
+  const handleShare = () => shareWithImage({ title: s.title, text: buildStoryShareText(s), imageUrl: s.cover });
+
+  const handleDelete = () => {
+    if (!onDelete) return;
+    if (!window.confirm(`Delete "${s.title}"? This cannot be undone.`)) return;
+    onDelete(s.id);
   };
 
   return (
@@ -30,9 +34,14 @@ export default function StoryDetailModal({ story, onClose, onDelete }) {
             <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-neutral-500">{isFestival ? 'Festival Memory' : 'Story'}</p>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={share} data-testid="story-detail-share" className="w-9 h-9 rounded-full hover:bg-neutral-100 flex items-center justify-center" title="Share on WhatsApp">
+            <button onClick={handleShare} data-testid="story-detail-share" className="w-9 h-9 rounded-full hover:bg-neutral-100 flex items-center justify-center" title="Share">
               <Share2 size={16} className="text-[#25D366]" />
             </button>
+            {onDelete && (
+              <button onClick={handleDelete} data-testid="story-detail-delete" className="w-9 h-9 rounded-full hover:bg-red-50 hover:text-red-500 text-neutral-500 flex items-center justify-center" title="Delete story">
+                <Trash2 size={16} />
+              </button>
+            )}
             <button onClick={onClose} data-testid="story-detail-close" className="w-9 h-9 rounded-full hover:bg-neutral-100 flex items-center justify-center"><X size={18} /></button>
           </div>
         </div>

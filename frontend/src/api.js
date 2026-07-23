@@ -27,6 +27,7 @@ export const api = {
   listRecipes: () => http.get('/recipes').then(r => r.data),
   createRecipe: (body) => http.post('/recipes', body).then(r => r.data),
   likeRecipe: (id) => http.post(`/recipes/${id}/like`).then(r => r.data),
+  updateRecipe: (id, body) => http.patch(`/recipes/${id}`, body).then(r => r.data),
   regenerateRecipeCover: (id) => http.post(`/recipes/${id}/regenerate-cover`, {}, { timeout: 120000 }).then(r => r.data),
   deleteRecipe: (id) => http.delete(`/recipes/${id}`).then(r => r.data),
 

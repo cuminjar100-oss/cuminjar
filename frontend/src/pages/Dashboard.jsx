@@ -7,6 +7,7 @@ import InviteFamilyModal from '../components/InviteFamilyModal';
 import SmartRecordModal from '../components/SmartRecordModal';
 import RecipeDetailModal from '../components/RecipeDetailModal';
 import StoryDetailModal from '../components/StoryDetailModal';
+import { shareWithImage, buildRecipeShareText, buildStoryShareText } from '../utils/share';
 
 export default function Dashboard() {
   const [families, setFamilies] = useState([]);
@@ -170,7 +171,16 @@ export default function Dashboard() {
 
       {showInvite && <InviteFamilyModal onClose={() => setShowInvite(false)} />}
       {showRecord && <SmartRecordModal onClose={() => setShowRecord(false)} familyId={active?.id} onSaved={handleRecordSaved} />}
-      {openRecipe && <RecipeDetailModal recipe={openRecipe} onClose={() => setOpenRecipe(null)} />}
+      {openRecipe && (
+        <RecipeDetailModal
+          recipe={openRecipe}
+          onClose={() => setOpenRecipe(null)}
+          onUpdated={(u) => {
+            setRecipes(prev => prev.map(x => x.id === u.id ? u : x));
+            setOpenRecipe(u);
+          }}
+        />
+      )}
       {openStory && <StoryDetailModal story={openStory} onClose={() => setOpenStory(null)} />}
       {showCreateFamily && (
         <CreateFamilyModal onClose={() => setShowCreateFamily(false)} onCreated={async () => { setShowCreateFamily(false); await loadEverything(); }} />
@@ -180,12 +190,10 @@ export default function Dashboard() {
 }
 
 function shareRecipe(r) {
-  const body = `${r.title}\n\nBy ${r.author || 'CuminJar family'}${r.serves ? ` · Serves ${r.serves}` : ''}${r.time ? ` · ${r.time}` : ''}\n\n${(r.ingredients || []).length ? 'Ingredients:\n' + r.ingredients.map(i => `• ${i}`).join('\n') + '\n\n' : ''}${(r.steps || []).length ? 'Steps:\n' + r.steps.map((s, i) => `${i + 1}. ${s}`).join('\n') + '\n\n' : ''}Saved on CuminJar 🫙`;
-  window.open(`https://wa.me/?text=${encodeURIComponent(body)}`, '_blank');
+  shareWithImage({ title: r.title, text: buildRecipeShareText(r), imageUrl: r.cover });
 }
 function shareStory(s) {
-  const body = `${s.title}\n\n${(s.excerpt || s.transcript_en || '').slice(0, 800)}\n\nSaved on CuminJar 🫙`;
-  window.open(`https://wa.me/?text=${encodeURIComponent(body)}`, '_blank');
+  shareWithImage({ title: s.title, text: buildStoryShareText(s), imageUrl: s.cover });
 }
 
 function RecipeCardMini({ r, onOpen, onShare }) {
