@@ -5,6 +5,7 @@ import MarketingFooter from '../components/MarketingFooter';
 import { Play, Mic, Sparkles, ImagePlus, Users, UserPlus, Heart, Star, ArrowRight, BookHeart, QrCode, CheckCircle2 } from 'lucide-react';
 import { features, steps, testimonials, pressLogos, heroImages, familyAvatars } from '../mock';
 import { StarAnise, Cardamom, CinnamonStick, LeafSprig } from '../components/Spices';
+import LandingSectionNav from '../components/LandingSectionNav';
 
 const iconMap = { Mic, Sparkles, ImagePlus, Users, UserPlus, Heart, BookHeart };
 
@@ -19,6 +20,7 @@ export default function Landing() {
   return (
     <div className="min-h-screen bg-cream">
       <MarketingHeader />
+      <LandingSectionNav />
 
       {/* HERO */}
       <section className="relative overflow-hidden">
@@ -93,7 +95,7 @@ export default function Landing() {
       </section>
 
       {/* FEATURES STRIP */}
-      <section className="bg-cream-warm py-16">
+      <section id="features" className="bg-cream-warm py-16" style={{ scrollMarginTop: '112px' }}>
         <div className="max-w-7xl mx-auto px-6 lg:px-10 grid md:grid-cols-4 gap-8">
           {features.map(f => {
             const Icon = iconMap[f.icon];
@@ -111,7 +113,7 @@ export default function Landing() {
       </section>
 
       {/* HOW IT WORKS */}
-      <section className="py-20 bg-cream">
+      <section id="how-it-works" className="py-20 bg-cream" style={{ scrollMarginTop: '112px' }}>
         <div className="max-w-7xl mx-auto px-6 lg:px-10 text-center">
           <p className="text-terracotta text-[11px] font-semibold tracking-[0.22em] mb-3">HOW IT WORKS</p>
           <h2 className="font-serif-display text-[38px] md:text-[46px] font-semibold text-neutral-900">Simple. Personal. Timeless.</h2>
@@ -140,7 +142,7 @@ export default function Landing() {
       </section>
 
       {/* FAMILY LEGACY BOOK */}
-      <section className="py-24 bg-[#F3E7D3] relative overflow-hidden" data-testid="legacy-book-section">
+      <section id="legacy-book" className="py-24 bg-[#F3E7D3] relative overflow-hidden" style={{ scrollMarginTop: '112px' }} data-testid="legacy-book-section">
         {/* Soft top divider curve so it separates cleanly from HOW IT WORKS above */}
         <svg
           className="absolute top-0 left-0 w-full h-8 pointer-events-none"
@@ -219,7 +221,7 @@ export default function Landing() {
       </section>
 
       {/* TESTIMONIALS */}
-      <section className="py-20 bg-cream-warm">
+      <section id="testimonials" className="py-20 bg-cream-warm" style={{ scrollMarginTop: '112px' }}>
         <div className="max-w-7xl mx-auto px-6 lg:px-10 text-center">
           <p className="text-terracotta text-[11px] font-semibold tracking-[0.22em] mb-3">LOVED BY FAMILIES</p>
           <h2 className="font-serif-display text-[36px] md:text-[42px] font-semibold text-neutral-900">What families are saying</h2>
@@ -246,7 +248,7 @@ export default function Landing() {
       </section>
 
       {/* CTA */}
-      <section className="pb-24">
+      <section id="pricing-cta" className="pb-24" style={{ scrollMarginTop: '112px' }}>
         <div className="max-w-6xl mx-auto px-6 lg:px-10">
           <div className="bg-gradient-to-br from-[#F5EBDA] to-[#F7DFCE] rounded-3xl p-10 md:p-14 text-center border border-neutral-200/70 relative overflow-hidden">
             <div className="absolute -right-10 -top-10 w-52 h-52 rounded-full bg-white/40 blur-2xl" />

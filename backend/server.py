@@ -586,6 +586,26 @@ async def _ensure_auth_indexes():
         logger.exception('Failed to create auth indexes')
 
 
+async def _backfill_orphan_family_ids():
+    """Attach recipes/stories that have no family_id to the user's most recent
+    family. Runs at startup to fix historical orphans created before auto-attach
+    was in place. Safe to run repeatedly.
+    """
+    try:
+        for coll_name in ('recipes', 'stories'):
+            coll = db[coll_name]
+            orphans = coll.find({'$or': [{'family_id': None}, {'family_id': {'$exists': False}}]}, {'_id': 0, 'id': 1, 'user_id': 1})
+            async for orphan in orphans:
+                uid = orphan.get('user_id')
+                if not uid:
+                    continue
+                fam = await db.families.find_one({'user_id': uid}, {'_id': 0, 'id': 1}, sort=[('created_at', -1)])
+                if fam:
+                    await coll.update_one({'id': orphan['id']}, {'$set': {'family_id': fam['id']}})
+    except Exception:
+        logger.exception('Backfill of orphan family_ids failed')
+
+
 @api.post('/auth/register')
 async def auth_register(payload: dict, request: Request):
     """Create a new user with email + password. Requires OTP to have been verified first."""
@@ -1095,6 +1115,9 @@ async def smart_record(
             except Exception:
                 logger.exception('Failed to encode audio for playback')
 
+        # Auto-attach to the user's active family if none was supplied
+        family_id = await _resolve_active_family_id(family_id)
+
         doc = {
             'id': str(uuid.uuid4()),
             'user_id': current_uid.get(),
@@ -1132,6 +1155,7 @@ async def smart_record(
                 audio_src = f"data:{mime};base64,{base64.b64encode(data).decode('ascii')}"
             except Exception:
                 logger.exception('Failed to encode audio for playback')
+        family_id = await _resolve_active_family_id(family_id)
         doc = {
             'id': str(uuid.uuid4()),
             'user_id': current_uid.get(),
@@ -1198,17 +1222,23 @@ async def list_recipes():
     return [_strip_id(i) for i in items]
 
 
+async def _resolve_active_family_id(explicit: Optional[str] = None) -> Optional[str]:
+    """Pick the family_id a new recipe/story should belong to.
+    Preference: (1) the explicit id if it belongs to the current user,
+    (2) the user's most recently created family, (3) None (orphan)."""
+    uid = current_uid.get()
+    if explicit:
+        fam = await db.families.find_one({'id': explicit, 'user_id': uid}, {'_id': 0, 'id': 1})
+        if fam:
+            return fam['id']
+    fam = await db.families.find_one({'user_id': uid}, {'_id': 0, 'id': 1}, sort=[('created_at', -1)])
+    return fam['id'] if fam else None
+
+
 @api.post("/recipes")
 async def create_recipe(payload: RecipeIn):
-    limits = DEMO_USER.get('limits', {})
-    max_recipes = limits.get('max_recipes', 3)
-    existing_count = await db.recipes.count_documents({'user_id': current_uid.get()})
-    if DEMO_USER.get('plan') == 'free' and existing_count >= max_recipes:
-        raise HTTPException(
-            402,
-            f"Free plan allows only {max_recipes} recipes. Upgrade to Plus for unlimited recipes.",
-        )
     doc = payload.dict()
+    doc['family_id'] = await _resolve_active_family_id(doc.get('family_id'))
     doc.update({'id': str(uuid.uuid4()), 'user_id': current_uid.get(), 'liked': False, 'created_at': now_iso()})
     await db.recipes.insert_one(doc)
     return _strip_id(doc)
@@ -1270,6 +1300,7 @@ async def list_stories():
 @api.post("/stories")
 async def create_story(payload: StoryIn):
     doc = payload.dict()
+    doc['family_id'] = await _resolve_active_family_id(doc.get('family_id'))
     doc.update({'id': str(uuid.uuid4()), 'user_id': current_uid.get(), 'created_at': now_iso()})
     await db.stories.insert_one(doc)
     return _strip_id(doc)
@@ -1910,6 +1941,12 @@ async def auth_context_middleware(request, call_next):
         if pic_token is not None:
             current_user_picture.reset(pic_token)
     return response
+
+
+@app.on_event("startup")
+async def startup_tasks():
+    await _ensure_auth_indexes()
+    await _backfill_orphan_family_ids()
 
 
 @app.on_event("shutdown")
