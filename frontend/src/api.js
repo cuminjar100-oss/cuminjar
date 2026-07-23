@@ -3,7 +3,7 @@ import axios from 'axios';
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
-const http = axios.create({ baseURL: API });
+const http = axios.create({ baseURL: API, withCredentials: true });
 
 export const api = {
   me: () => http.get('/me').then(r => r.data),
@@ -55,6 +55,10 @@ export const api = {
 
   requestOtp: (body) => http.post('/auth/request-otp', body).then(r => r.data),
   verifyOtp: (body) => http.post('/auth/verify-otp', body).then(r => r.data),
+
+  authSession: (session_id) => http.post('/auth/session', { session_id }).then(r => r.data),
+  authMe: () => http.get('/auth/me').then(r => r.data),
+  authLogout: () => http.post('/auth/logout').then(r => r.data),
 
   listVoiceRecipes: () => http.get('/voice-recipes').then(r => r.data),
   uploadVoiceRecipe: async (file, meta) => {

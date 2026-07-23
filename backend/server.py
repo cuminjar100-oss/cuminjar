@@ -381,6 +381,117 @@ async def verify_otp(payload: dict):
     return {'ok': True, 'email': email}
 
 
+# --------------------- Emergent Google Auth (session-based) ---------------------
+from fastapi import Cookie, Request
+from fastapi.responses import JSONResponse
+import httpx as _httpx
+
+EMERGENT_AUTH_SESSION_URL = 'https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data'
+
+
+async def _get_authed_user(request: Request):
+    """Return the current user document from session_token cookie or Authorization header. None if not signed in."""
+    token = request.cookies.get('session_token')
+    if not token:
+        auth = request.headers.get('authorization') or request.headers.get('Authorization')
+        if auth and auth.lower().startswith('bearer '):
+            token = auth.split(' ', 1)[1].strip()
+    if not token:
+        return None
+    session = await db.user_sessions.find_one({'session_token': token}, {'_id': 0})
+    if not session:
+        return None
+    expires_at = session.get('expires_at')
+    if isinstance(expires_at, str):
+        try:
+            expires_at = datetime.fromisoformat(expires_at)
+        except Exception:
+            return None
+    if expires_at and expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    if expires_at and expires_at < datetime.now(timezone.utc):
+        return None
+    user = await db.users.find_one({'user_id': session['user_id']}, {'_id': 0})
+    return user
+
+
+@api.post('/auth/session')
+async def auth_session(payload: dict):
+    """Exchange an Emergent session_id for a persistent session_token cookie."""
+    session_id = (payload or {}).get('session_id')
+    if not session_id:
+        raise HTTPException(400, 'Missing session_id')
+    try:
+        async with _httpx.AsyncClient(timeout=15) as client:
+            r = await client.get(EMERGENT_AUTH_SESSION_URL, headers={'X-Session-ID': session_id})
+    except Exception as e:
+        raise HTTPException(502, f'Auth service unreachable: {e}')
+    if r.status_code != 200:
+        raise HTTPException(401, 'Invalid or expired session_id')
+    data = r.json() or {}
+    email = (data.get('email') or '').lower()
+    name = data.get('name') or ''
+    picture = data.get('picture') or ''
+    session_token = data.get('session_token')
+    if not email or not session_token:
+        raise HTTPException(502, 'Auth service returned incomplete data')
+
+    now = datetime.now(timezone.utc)
+    existing = await db.users.find_one({'email': email}, {'_id': 0})
+    if existing:
+        user_id = existing['user_id']
+        await db.users.update_one({'user_id': user_id}, {'$set': {'name': name, 'picture': picture, 'last_login_at': now.isoformat()}})
+    else:
+        user_id = f"user_{uuid.uuid4().hex[:12]}"
+        await db.users.insert_one({
+            'user_id': user_id,
+            'email': email,
+            'name': name,
+            'picture': picture,
+            'created_at': now.isoformat(),
+            'last_login_at': now.isoformat(),
+        })
+
+    expires_at = now + timedelta(days=7)
+    await db.user_sessions.insert_one({
+        'user_id': user_id,
+        'session_token': session_token,
+        'created_at': now.isoformat(),
+        'expires_at': expires_at.isoformat(),
+    })
+
+    user_doc = await db.users.find_one({'user_id': user_id}, {'_id': 0})
+    resp = JSONResponse({'user': user_doc})
+    resp.set_cookie(
+        key='session_token',
+        value=session_token,
+        max_age=7 * 24 * 3600,
+        httponly=True,
+        secure=True,
+        samesite='none',
+        path='/',
+    )
+    return resp
+
+
+@api.get('/auth/me')
+async def auth_me(request: Request):
+    user = await _get_authed_user(request)
+    if not user:
+        raise HTTPException(401, 'Not authenticated')
+    return user
+
+
+@api.post('/auth/logout')
+async def auth_logout(request: Request):
+    token = request.cookies.get('session_token')
+    if token:
+        await db.user_sessions.delete_one({'session_token': token})
+    resp = JSONResponse({'ok': True})
+    resp.delete_cookie('session_token', path='/', samesite='none', secure=True)
+    return resp
+
+
 
 
 @api.post("/family/{family_id}/share")

@@ -133,10 +133,12 @@ export default function AppShell({ children, active, onOpenRecord }) {
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
-                  onClick={() => {
+                  onClick={async () => {
+                    try { await api.authLogout(); } catch { /* ignore */ }
                     try {
                       localStorage.removeItem('cuminjar_verified_email');
                       localStorage.removeItem('cuminjar_active_family');
+                      localStorage.removeItem('cuminjar_user');
                     } catch { /* ignore */ }
                     navigate('/login');
                   }}

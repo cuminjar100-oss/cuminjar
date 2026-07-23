@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Logo from '../components/Logo';
+import GoogleSignInButton from '../components/GoogleSignInButton';
 import { Mail, Lock, User, Eye, EyeOff, CheckCircle2, Loader2, ArrowLeft } from 'lucide-react';
 import api from '../api';
 import { useToast } from '../hooks/use-toast';
@@ -113,7 +114,17 @@ export default function GetStarted() {
             <h1 className="font-serif-display text-[38px] font-semibold text-neutral-900">Create your account</h1>
             <p className="text-neutral-600 mt-2">Start free. Set up your family jar in minutes.</p>
 
-            <form onSubmit={submitForm} className="mt-8 space-y-4">
+            <div className="mt-6">
+              <GoogleSignInButton label="Continue with Google" />
+            </div>
+
+            <div className="flex items-center gap-3 my-6 text-[12px] text-neutral-400 uppercase tracking-wider">
+              <span className="flex-1 h-px bg-neutral-200" />
+              or sign up with email
+              <span className="flex-1 h-px bg-neutral-200" />
+            </div>
+
+            <form onSubmit={submitForm} className="space-y-4">
               <label className="block">
                 <span className="text-[13px] font-semibold text-neutral-800">Your Name</span>
                 <div className="relative mt-1.5">

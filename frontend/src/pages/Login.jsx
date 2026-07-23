@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Logo from '../components/Logo';
+import GoogleSignInButton from '../components/GoogleSignInButton';
 import { Mail, Lock, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
 
 export default function Login() {
@@ -28,7 +29,17 @@ export default function Login() {
           <h1 className="font-serif-display text-[38px] font-semibold text-neutral-900">Welcome back</h1>
           <p className="text-neutral-600 mt-2">Log in to your family jar.</p>
 
-          <form onSubmit={submit} className="mt-8 space-y-4">
+          <div className="mt-6">
+            <GoogleSignInButton label="Continue with Google" />
+          </div>
+
+          <div className="flex items-center gap-3 my-6 text-[12px] text-neutral-400 uppercase tracking-wider">
+            <span className="flex-1 h-px bg-neutral-200" />
+            or use email
+            <span className="flex-1 h-px bg-neutral-200" />
+          </div>
+
+          <form onSubmit={submit} className="space-y-4">
             <label className="block">
               <span className="text-[13px] font-semibold text-neutral-800">Email</span>
               <div className="relative mt-1.5">
