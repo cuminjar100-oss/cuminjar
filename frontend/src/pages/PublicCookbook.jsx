@@ -4,7 +4,7 @@ import { Loader2, ChefHat, BookOpen, PartyPopper, Clock, Users as UsersIcon, Sha
 import api from '../api';
 import RecipeDetailModal from '../components/RecipeDetailModal';
 import StoryDetailModal from '../components/StoryDetailModal';
-import { shareWithImage, buildRecipeShareText, buildStoryShareText } from '../utils/share';
+import { shareWithImage, buildRecipeShareText, buildStoryShareText, shareCookbookLink } from '../utils/share';
 
 export default function PublicCookbook() {
   const { token } = useParams();
@@ -45,16 +45,7 @@ export default function PublicCookbook() {
   const { family, recipes, stories } = state;
 
   const shareCookbook = () => {
-    if (typeof navigator !== 'undefined' && navigator.share) {
-      navigator.share({
-        title: `${family.name} — Family Cookbook`,
-        text: `Browse ${family.name}'s recipes and stories on CuminJar 🫙`,
-        url: window.location.href,
-      }).catch(() => {});
-    } else {
-      navigator.clipboard.writeText(window.location.href).catch(() => {});
-      window.alert('Link copied to clipboard');
-    }
+    shareCookbookLink({ family, url: window.location.href });
   };
 
   return (

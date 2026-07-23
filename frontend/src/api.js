@@ -53,6 +53,9 @@ export const api = {
 
   submitContact: (body) => http.post('/contact', body).then(r => r.data),
 
+  requestOtp: (body) => http.post('/auth/request-otp', body).then(r => r.data),
+  verifyOtp: (body) => http.post('/auth/verify-otp', body).then(r => r.data),
+
   listVoiceRecipes: () => http.get('/voice-recipes').then(r => r.data),
   uploadVoiceRecipe: async (file, meta) => {
     const fd = new FormData();

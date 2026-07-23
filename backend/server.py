@@ -8,12 +8,15 @@ from pathlib import Path
 from pydantic import BaseModel, Field
 from typing import List, Optional
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import asyncio
 import io
+import re
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
+
+EMAIL_RE = re.compile(r'^[^\s@]+@[^\s@]+\.[^\s@]+$')
 
 # MongoDB connection
 mongo_url = os.environ['MONGO_URL']
@@ -255,6 +258,129 @@ async def delete_family(family_id: str):
 
 # --------------------- Public cookbook sharing ---------------------
 import secrets as _secrets
+import hashlib as _hashlib
+import random as _random
+
+
+# --------------------- Email OTP (signup verification) ---------------------
+async def _send_otp_email(email: str, code: str) -> dict:
+    if not RESEND_API_KEY:
+        return {'ok': False, 'error': 'RESEND_API_KEY not configured'}
+    subject = f"Your CuminJar verification code: {code}"
+    html = f"""<!doctype html>
+<html>
+  <body style="margin:0;padding:0;background:#FBF7F1;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1F1B16;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#FBF7F1;padding:40px 16px;">
+      <tr><td align="center">
+        <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="max-width:480px;width:100%;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #ececec;">
+          <tr><td style="padding:32px 40px 8px 40px;">
+            <div style="font-family:'Fraunces',Georgia,serif;font-size:24px;font-weight:600;">
+              <span style="color:#C46B4A;">Cumin</span><span style="color:#3D5A3A;">Jar</span>
+            </div>
+          </td></tr>
+          <tr><td style="padding:12px 40px 8px 40px;">
+            <h1 style="font-family:'Fraunces',Georgia,serif;font-size:22px;line-height:1.3;margin:0 0 12px 0;color:#1F1B16;font-weight:600;">Verify your email</h1>
+            <p style="margin:0 0 16px 0;font-size:15px;line-height:1.6;color:#4b5563;">
+              Welcome to CuminJar! Enter this 6-digit code to finish creating your account.
+            </p>
+            <div style="margin:24px 0;padding:20px;background:#F5EDDD;border-radius:12px;text-align:center;">
+              <div style="font-family:'SF Mono','Consolas',monospace;font-size:32px;font-weight:700;letter-spacing:8px;color:#3D5A3A;">{code}</div>
+            </div>
+            <p style="margin:0 0 16px 0;font-size:13px;line-height:1.6;color:#6b7280;">This code expires in 10 minutes. If you didn't request it, you can safely ignore this email.</p>
+          </td></tr>
+          <tr><td style="padding:20px 40px 32px 40px;border-top:1px solid #f0f0f0;">
+            <p style="margin:0;font-size:12px;color:#9ca3af;">Preserve. Share. Treasure. — The CuminJar Team</p>
+          </td></tr>
+        </table>
+      </td></tr>
+    </table>
+  </body>
+</html>"""
+
+    def _send():
+        import resend
+        resend.api_key = RESEND_API_KEY
+        try:
+            resp = resend.Emails.send({
+                'from': RESEND_FROM_EMAIL,
+                'to': [email],
+                'subject': subject,
+                'html': html,
+            })
+            return {'ok': True, 'id': (resp or {}).get('id')}
+        except Exception as e:
+            logger.exception('OTP email send failed')
+            return {'ok': False, 'error': str(e)}
+    return await asyncio.to_thread(_send)
+
+
+@api.post("/auth/request-otp")
+async def request_otp(payload: dict):
+    email = (payload.get('email') or '').strip().lower()
+    name = (payload.get('name') or '').strip()
+    if not email or not EMAIL_RE.match(email):
+        raise HTTPException(400, 'Please provide a valid email address')
+
+    # Rate-limit: max 3 requests per email per 10 minutes
+    now = datetime.now(timezone.utc)
+    since = (now - timedelta(minutes=10)).isoformat()
+    recent = await db.email_otps.count_documents({'email': email, 'created_at': {'$gt': since}})
+    if recent >= 3:
+        raise HTTPException(429, 'Too many attempts. Please wait a few minutes before trying again.')
+
+    code = f"{_random.randint(0, 999999):06d}"
+    expires_at = (now + timedelta(minutes=10)).isoformat()
+    doc = {
+        'id': str(uuid.uuid4()),
+        'email': email,
+        'name': name or None,
+        'code_hash': _hashlib.sha256(code.encode()).hexdigest(),
+        'attempts': 0,
+        'verified': False,
+        'created_at': now.isoformat(),
+        'expires_at': expires_at,
+    }
+    # Invalidate any previous unverified codes for this email
+    await db.email_otps.update_many({'email': email, 'verified': False}, {'$set': {'expires_at': now.isoformat()}})
+    await db.email_otps.insert_one(doc)
+
+    result = await _send_otp_email(email, code)
+    if not result.get('ok'):
+        raise HTTPException(500, f"Could not send verification email: {result.get('error')}")
+    return {'ok': True, 'expires_in_minutes': 10}
+
+
+@api.post("/auth/verify-otp")
+async def verify_otp(payload: dict):
+    email = (payload.get('email') or '').strip().lower()
+    code = (payload.get('code') or '').strip()
+    if not email or not code:
+        raise HTTPException(400, 'Email and code are required')
+    if not code.isdigit() or len(code) != 6:
+        raise HTTPException(400, 'Enter the 6-digit code from your email')
+
+    now = datetime.now(timezone.utc)
+    otp = await db.email_otps.find_one(
+        {'email': email, 'verified': False, 'expires_at': {'$gt': now.isoformat()}},
+        sort=[('created_at', -1)],
+    )
+    if not otp:
+        raise HTTPException(400, 'Code expired. Please request a new one.')
+
+    if otp.get('attempts', 0) >= 5:
+        await db.email_otps.update_one({'id': otp['id']}, {'$set': {'expires_at': now.isoformat()}})
+        raise HTTPException(429, 'Too many wrong attempts. Please request a new code.')
+
+    provided_hash = _hashlib.sha256(code.encode()).hexdigest()
+    if provided_hash != otp['code_hash']:
+        await db.email_otps.update_one({'id': otp['id']}, {'$inc': {'attempts': 1}})
+        remaining = 5 - (otp.get('attempts', 0) + 1)
+        raise HTTPException(400, f'Incorrect code. {max(remaining, 0)} attempts left.')
+
+    await db.email_otps.update_one({'id': otp['id']}, {'$set': {'verified': True, 'verified_at': now.isoformat()}})
+    return {'ok': True, 'email': email}
+
+
 
 
 @api.post("/family/{family_id}/share")
@@ -305,6 +431,249 @@ async def public_cookbook(token: str):
         'recipes': [_clean(r) for r in recipes],
         'stories': [_clean(s) for s in stories],
     }
+
+
+# --------------------- Public voice playback (for QR codes) ---------------------
+from fastapi.responses import Response, HTMLResponse, StreamingResponse
+
+
+@api.get("/public/cookbook/{token}/voice/{kind}/{item_id}")
+async def public_voice_page(token: str, kind: str, item_id: str):
+    """Small mobile-friendly page that plays a single recipe/story voice recording.
+    Rendered when a QR code from the printed book is scanned.
+    """
+    fam = await db.families.find_one({'share_token': token})
+    if not fam:
+        return HTMLResponse('<h1>Link revoked</h1>', status_code=404)
+    coll = db.recipes if kind == 'recipe' else db.stories
+    item = await coll.find_one({'id': item_id, 'family_id': fam['id']})
+    if not item:
+        return HTMLResponse('<h1>Not found</h1>', status_code=404)
+    audio_src = item.get('audio_src') or ''
+    title = (item.get('title') or 'Family voice').replace('<', '&lt;').replace('>', '&gt;')
+    author = (item.get('author') or '').replace('<', '&lt;').replace('>', '&gt;')
+    if not audio_src:
+        return HTMLResponse(
+            f'''<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>{title}</title></head>
+<body style="font-family:-apple-system,sans-serif;background:#FBF7F1;color:#1F1B16;padding:40px 20px;text-align:center;">
+  <h1 style="font-family:Georgia,serif;">{title}</h1>
+  <p>No voice recording available for this entry.</p>
+</body></html>''', status_code=200)
+
+    html = f'''<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>{title} · CuminJar</title></head>
+<body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#FBF7F1;color:#1F1B16;padding:40px 20px;max-width:520px;margin:0 auto;">
+  <div style="text-align:center;">
+    <div style="font-family:Georgia,serif;font-size:22px;font-weight:600;"><span style="color:#C46B4A;">Cumin</span><span style="color:#3D5A3A;">Jar</span></div>
+    <p style="margin-top:8px;font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#C46B4A;">Family voice</p>
+    <h1 style="font-family:Georgia,serif;font-size:28px;margin:12px 0 4px 0;">{title}</h1>
+    <p style="margin:0;color:#6b7280;font-size:14px;">By {author}</p>
+  </div>
+  <div style="margin-top:32px;background:#fff;border:1px solid #E9DEC6;border-radius:16px;padding:20px;">
+    <audio autoplay controls src="{audio_src}" style="width:100%;">Your browser cannot play this audio.</audio>
+  </div>
+  <p style="margin-top:24px;font-size:12px;color:#9ca3af;text-align:center;">Preserved on CuminJar 🫙</p>
+</body></html>'''
+    return HTMLResponse(html)
+
+
+# --------------------- Printable Cookbook (PDF with QR voice codes) ---------------------
+def _fetch_recipe_cover_bytes(cover: str) -> Optional[bytes]:
+    if not cover:
+        return None
+    if cover.startswith('data:'):
+        try:
+            import base64 as _b64
+            return _b64.b64decode(cover.split(',', 1)[1])
+        except Exception:
+            return None
+    return None
+
+
+def _build_cookbook_pdf(base_url: str, token: str, family: dict, recipes: list, stories: list) -> bytes:
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import cm
+    from reportlab.lib.colors import HexColor
+    from reportlab.platypus import (
+        SimpleDocTemplate, Paragraph, Spacer, PageBreak, Image, Table, TableStyle, KeepTogether
+    )
+    import qrcode as _qr
+
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buf, pagesize=A4,
+        leftMargin=2.2 * cm, rightMargin=2.2 * cm,
+        topMargin=2.0 * cm, bottomMargin=2.0 * cm,
+        title=f"{family.get('name', 'Family')} Cookbook",
+    )
+
+    green = HexColor('#3D5A3A')
+    terracotta = HexColor('#C46B4A')
+    cream = HexColor('#FBF7F1')
+    ink = HexColor('#1F1B16')
+
+    styles = getSampleStyleSheet()
+    h_family = ParagraphStyle('h_family', parent=styles['Title'], fontName='Times-Bold', fontSize=44, leading=50, textColor=ink, alignment=1)
+    kicker = ParagraphStyle('kicker', parent=styles['Normal'], fontSize=10, textColor=terracotta, alignment=1, spaceAfter=8)
+    subtitle = ParagraphStyle('sub', parent=styles['Normal'], fontSize=12, textColor=HexColor('#6b7280'), alignment=1, spaceAfter=6, leading=18)
+    h_recipe = ParagraphStyle('h_recipe', parent=styles['Heading1'], fontName='Times-Bold', fontSize=26, leading=30, textColor=ink, spaceAfter=6)
+    h_section = ParagraphStyle('h_sec', parent=styles['Heading2'], fontName='Times-Bold', fontSize=14, textColor=green, spaceBefore=10, spaceAfter=4)
+    meta = ParagraphStyle('meta', parent=styles['Normal'], fontSize=10, textColor=HexColor('#6b7280'), spaceAfter=10)
+    ing_style = ParagraphStyle('ing', parent=styles['Normal'], fontSize=11, textColor=ink, leading=16)
+    step_style = ParagraphStyle('step', parent=styles['Normal'], fontSize=11, textColor=ink, leading=16, spaceAfter=6)
+    story_text = ParagraphStyle('story', parent=styles['Normal'], fontSize=11, textColor=ink, leading=16, spaceAfter=6)
+    qr_caption = ParagraphStyle('qrcap', parent=styles['Normal'], fontSize=9, textColor=HexColor('#6b7280'), alignment=1, leading=12)
+
+    def make_qr(url: str, size_cm: float = 3.2) -> Image:
+        img = _qr.make(url)
+        b = io.BytesIO()
+        img.save(b, format='PNG')
+        b.seek(0)
+        return Image(b, width=size_cm * cm, height=size_cm * cm)
+
+    story_pdf = []
+
+    # Cover page
+    story_pdf.append(Spacer(1, 5 * cm))
+    story_pdf.append(Paragraph('THE FAMILY COOKBOOK', kicker))
+    story_pdf.append(Paragraph(family.get('name') or 'Our Family', h_family))
+    story_pdf.append(Spacer(1, 0.4 * cm))
+    if family.get('description'):
+        story_pdf.append(Paragraph(family['description'], subtitle))
+    story_pdf.append(Spacer(1, 1 * cm))
+    story_pdf.append(Paragraph('Preserved with love · Voices, recipes and stories', subtitle))
+    story_pdf.append(Spacer(1, 3 * cm))
+    story_pdf.append(Paragraph('Scan any QR code inside to hear your loved one\'s voice.', subtitle))
+    story_pdf.append(Paragraph('Preserved on CuminJar 🫙', qr_caption))
+
+    # Table of contents
+    if recipes or stories:
+        story_pdf.append(PageBreak())
+        story_pdf.append(Paragraph('Contents', h_recipe))
+        story_pdf.append(Spacer(1, 0.3 * cm))
+        if recipes:
+            story_pdf.append(Paragraph('Recipes', h_section))
+            for r in recipes:
+                story_pdf.append(Paragraph(f"• {r.get('title', 'Untitled')}", ing_style))
+        if stories:
+            story_pdf.append(Paragraph('Stories & Festivals', h_section))
+            for s in stories:
+                story_pdf.append(Paragraph(f"• {s.get('title', 'Untitled')}", ing_style))
+
+    # Recipe pages
+    for r in recipes:
+        story_pdf.append(PageBreak())
+        story_pdf.append(Paragraph('RECIPE', kicker))
+        story_pdf.append(Paragraph(r.get('title') or 'Untitled Recipe', h_recipe))
+        meta_bits = []
+        if r.get('author'):
+            meta_bits.append(f"By {r['author']}")
+        if r.get('region'):
+            meta_bits.append(r['region'])
+        if r.get('serves'):
+            meta_bits.append(f"Serves {r['serves']}")
+        if r.get('time'):
+            meta_bits.append(str(r['time']))
+        if meta_bits:
+            story_pdf.append(Paragraph(' · '.join(meta_bits), meta))
+
+        cover_bytes = _fetch_recipe_cover_bytes(r.get('cover') or '')
+        qr_url = f"{base_url}/api/public/cookbook/{token}/voice/recipe/{r['id']}"
+        has_audio = bool(r.get('audio_src'))
+        top_cells = []
+        if cover_bytes:
+            try:
+                img = Image(io.BytesIO(cover_bytes), width=9 * cm, height=6 * cm, kind='proportional')
+                top_cells.append(img)
+            except Exception:
+                top_cells.append(Paragraph('', ing_style))
+        else:
+            top_cells.append(Paragraph('', ing_style))
+        if has_audio:
+            qr_cell = [make_qr(qr_url), Paragraph('Scan to hear this in the family voice', qr_caption)]
+            top_cells.append(qr_cell)
+        else:
+            top_cells.append(Paragraph('', ing_style))
+        if any(top_cells):
+            tbl = Table([top_cells], colWidths=[10 * cm, 5.6 * cm])
+            tbl.setStyle(TableStyle([
+                ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                ('LEFTPADDING', (0, 0), (-1, -1), 0),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+                ('TOPPADDING', (0, 0), (-1, -1), 0),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+            ]))
+            story_pdf.append(tbl)
+
+        story_pdf.append(Paragraph('Ingredients', h_section))
+        ings = r.get('ingredients') or []
+        if ings:
+            for ing in ings:
+                story_pdf.append(Paragraph(f"•&nbsp;&nbsp;{ing}", ing_style))
+        else:
+            story_pdf.append(Paragraph('—', ing_style))
+
+        story_pdf.append(Paragraph('Method', h_section))
+        steps = r.get('steps') or []
+        if steps:
+            for i, step in enumerate(steps, 1):
+                story_pdf.append(Paragraph(f"<b>{i}.</b>&nbsp;&nbsp;{step}", step_style))
+        else:
+            transcript = r.get('transcript_en') or ''
+            for para in [p for p in transcript.split('\n') if p.strip()]:
+                story_pdf.append(Paragraph(para, step_style))
+
+    # Story pages
+    for s in stories:
+        story_pdf.append(PageBreak())
+        story_pdf.append(Paragraph('STORY' if s.get('kind') != 'festival' else 'FESTIVAL', kicker))
+        story_pdf.append(Paragraph(s.get('title') or 'Untitled', h_recipe))
+        if s.get('author'):
+            story_pdf.append(Paragraph(f"By {s['author']}", meta))
+
+        qr_url = f"{base_url}/api/public/cookbook/{token}/voice/story/{s['id']}"
+        if s.get('audio_src'):
+            qr_block = KeepTogether([make_qr(qr_url), Paragraph('Scan to hear this in the family voice', qr_caption), Spacer(1, 0.4 * cm)])
+            story_pdf.append(qr_block)
+
+        text = s.get('excerpt') or s.get('transcript_en') or ''
+        for para in [p for p in text.split('\n') if p.strip()]:
+            story_pdf.append(Paragraph(para, story_text))
+
+    def _bg(canvas, _doc):
+        canvas.saveState()
+        canvas.setFillColor(cream)
+        canvas.rect(0, 0, A4[0], A4[1], fill=1, stroke=0)
+        # Footer
+        canvas.setFillColor(HexColor('#9ca3af'))
+        canvas.setFont('Helvetica', 8)
+        canvas.drawCentredString(A4[0] / 2, 1.2 * cm, f"CuminJar · {family.get('name', 'Family')} Cookbook")
+        canvas.restoreState()
+
+    doc.build(story_pdf, onFirstPage=_bg, onLaterPages=_bg)
+    return buf.getvalue()
+
+
+@api.get("/public/cookbook/{token}/book.pdf")
+async def public_cookbook_pdf(token: str):
+    fam = await db.families.find_one({'share_token': token})
+    if not fam:
+        raise HTTPException(404, 'Cookbook not found or link revoked')
+    family = {
+        'id': fam['id'],
+        'name': fam.get('name'),
+        'description': fam.get('description'),
+    }
+    recipes = await db.recipes.find({'family_id': fam['id']}).sort('created_at', 1).to_list(500)
+    stories = await db.stories.find({'family_id': fam['id']}).sort('created_at', 1).to_list(500)
+    base_url = APP_BASE_URL.rstrip('/')
+    pdf_bytes = await asyncio.to_thread(_build_cookbook_pdf, base_url, token, family, recipes, stories)
+    safe = ''.join(c for c in (family.get('name') or 'Family') if c.isalnum() or c in ' -_').strip() or 'Family'
+    return Response(
+        content=pdf_bytes,
+        media_type='application/pdf',
+        headers={'Content-Disposition': f'inline; filename="{safe}-Cookbook.pdf"'},
+    )
 
 
 
@@ -568,8 +937,6 @@ async def create_album(payload: AlbumIn):
 
 
 # --------------------- Invites (email invitations) ---------------------
-import re
-EMAIL_RE = re.compile(r'^[^\s@]+@[^\s@]+\.[^\s@]+$')
 
 
 def _build_invite_email_html(inviter_name: str, family_name: str, invitee_name: str | None, relation: str | None, join_url: str) -> str:

@@ -7,7 +7,7 @@ import InviteFamilyModal from '../components/InviteFamilyModal';
 import SmartRecordModal from '../components/SmartRecordModal';
 import RecipeDetailModal from '../components/RecipeDetailModal';
 import StoryDetailModal from '../components/StoryDetailModal';
-import { shareWithImage, buildRecipeShareText, buildStoryShareText } from '../utils/share';
+import { shareWithImage, buildRecipeShareText, buildStoryShareText, shareCookbookLink } from '../utils/share';
 
 export default function Dashboard() {
   const [families, setFamilies] = useState([]);
@@ -297,13 +297,19 @@ function ShareCookbookButton({ family }) {
     setCopied(false);
   }, [family?.share_token, family?.id]);
 
+  const ensureUrl = async () => {
+    if (url) return url;
+    const r = await api.shareFamily(family.id);
+    const link = `${window.location.origin}${r.path}`;
+    setUrl(link);
+    return link;
+  };
+
   const enable = async () => {
     if (busy) return;
     setBusy(true);
     try {
-      const r = await api.shareFamily(family.id);
-      const link = `${window.location.origin}${r.path}`;
-      setUrl(link);
+      const link = await ensureUrl();
       try {
         await navigator.clipboard.writeText(link);
         setCopied(true);
@@ -324,17 +330,37 @@ function ShareCookbookButton({ family }) {
     } catch { /* clipboard denied */ }
   };
 
+  const shareToWhatsApp = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const link = await ensureUrl();
+      await shareCookbookLink({ family, url: link });
+    } catch (e) {
+      toast({ title: 'Could not share', description: e?.response?.data?.detail || e?.message });
+    } finally { setBusy(false); }
+  };
+
   if (!url) {
     return (
-      <button type="button" onClick={enable} disabled={busy} data-testid="share-cookbook-enable" className="inline-flex items-center gap-1.5 text-[12px] px-3 py-1.5 rounded-full bg-cumin-green text-white hover:bg-[#324A2F] transition-colors disabled:opacity-70">
-        {busy ? <Loader2 size={12} className="animate-spin" /> : <Link2 size={12} />} Share cookbook
-      </button>
+      <div className="flex items-center gap-1.5">
+        <button type="button" onClick={enable} disabled={busy} data-testid="share-cookbook-enable" className="inline-flex items-center gap-1.5 text-[12px] px-3 py-1.5 rounded-full bg-cumin-green text-white hover:bg-[#324A2F] transition-colors disabled:opacity-70">
+          {busy ? <Loader2 size={12} className="animate-spin" /> : <Link2 size={12} />} Share cookbook
+        </button>
+      </div>
     );
   }
 
   return (
-    <button type="button" onClick={copyExisting} data-testid="share-cookbook-copy" title={url} className="inline-flex items-center gap-1.5 text-[12px] px-3 py-1.5 rounded-full border border-cumin-green text-cumin-green hover:bg-cumin-green hover:text-white transition-colors">
-      {copied ? <><Check size={12} /> Copied</> : <><Copy size={12} /> Copy link</>}
-    </button>
+    <div className="flex items-center gap-1.5">
+      <button type="button" onClick={shareToWhatsApp} data-testid="share-cookbook-whatsapp" title="Share the cookbook link on WhatsApp" className="inline-flex items-center gap-1.5 text-[12px] px-3 py-1.5 rounded-full bg-[#25D366] text-white hover:bg-[#1EBE5B] transition-colors disabled:opacity-70">
+        <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/></svg>
+        WhatsApp
+      </button>
+      <button type="button" onClick={copyExisting} data-testid="share-cookbook-copy" title={url} className="inline-flex items-center gap-1.5 text-[12px] px-3 py-1.5 rounded-full border border-cumin-green text-cumin-green hover:bg-cumin-green hover:text-white transition-colors">
+        {copied ? <><Check size={12} /> Copied</> : <><Copy size={12} /> Copy link</>}
+      </button>
+    </div>
   );
 }
+
