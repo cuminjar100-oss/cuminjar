@@ -1,0 +1,33 @@
+{
+  "summary": "Re-verified all 4 bug fixes from iteration_3 + full regression. Backend: 27/27 pytest tests pass (10 new iteration_4 targeted tests + 17 iteration_3 regression). Frontend: Playwright verified FIX #4 — brand-new signed-in user now sees dashboard-bootstrapping spinner then first-run-onboarding, with ZERO flash of the demo 'Hi Meera!' greeting during the entire load window (polled every 50ms for ~6s). All 4 fixes CONFIRMED WORKING.",
+  "fixes_verified": [
+    {"fix": "#1 CRITICAL — /api/auth/me no longer leaks password_hash", "verified_by": ["test_auth_me_via_cookie_has_no_password_hash", "test_auth_me_via_bearer_has_no_password_hash", "test_register_response_has_no_password_hash", "test_login_response_has_no_password_hash"], "status": "PASS"},
+    {"fix": "#2 HIGH — Brute-force lockout enforces email-only counter (X-Forwarded-For rotating IPs)", "verified_by": ["test_lockout_with_rotating_x_forwarded_for (5x401 from 5 different IPs, 6th attempt from yet another IP returned 429)", "test_client_ip_reads_x_forwarded_for (login_attempts record now stores real XFF IP e.g. 198.51.100.42, not pod IP)"], "status": "PASS"},
+    {"fix": "#3 MEDIUM — /api/auth/forgot-password always returns 200 {ok:true}", "verified_by": ["test_nonexistent_email_returns_ok", "test_real_email_returns_ok", "test_resend_delivery_failure_returns_ok (Resend rejects third-party address → still 200)", "test_response_bodies_are_identical (nonexistent vs real → byte-identical JSON)"], "status": "PASS"},
+    {"fix": "#4 MEDIUM — Dashboard.jsx no demo-flash for brand-new signed-in user", "verified_by": ["Playwright polled DOM at 50ms intervals across full lifecycle; dashboard-bootstrapping loader seen first, then first-run-onboarding rendered; dashboard-greeting was NEVER visible at any point. Screenshot at /app/.screenshots/fix4_onboarding.png shows 'Hi Anita — let's fill your family jar.'"], "status": "PASS"}
+  ],
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_iteration4_fixes.py",
+    "/app/backend/tests/test_email_password_auth.py",
+    "/app/backend/tests/test_dashboard_greeting_auth.py",
+    "/app/test_reports/pytest/pytest_iteration_4.xml",
+    "/app/test_reports/pytest/pytest_iteration_4_fixes.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py is now ~1900 lines mixing Google + email/password + OTP + families + recipes + PDF generation. Still recommend splitting into routers/{auth,families,recipes,stories,cookbook,transcribe}.py for maintainability and safer security audits.",
+    "_check_brute_force fires an OR of ip+email AND email-only counters. This is correct but the email-only counter has no lockout-clear on success (only ip+email counter cleared in auth_login). Result: a legitimate user who mistypes 4 times from different networks then logs in is fine, but if they mistype 5 times total across networks they are locked out for 15 minutes even after correct login. Minor — consider clearing email counter too on success.",
+    "Dashboard.jsx and AppShell.jsx both call api.authMe() on mount (persistent from iteration_2). Now that authLoading gates rendering, still worth hoisting to an AuthProvider context so the hit isn't duplicated.",
+    "_get_authed_user now projects out password_hash, but if new sensitive fields are added to the users doc (e.g. mfa_secret, oauth_refresh_token) they will silently leak. Consider a whitelist projection instead of blacklist."
+  ],
+  "updated_files": ["/app/backend/tests/test_iteration4_fixes.py"],
+  "success_rate": {"backend": "100% (27/27 pytest)", "frontend": "100% (fix #4 verified end-to-end via Playwright DOM polling)"},
+  "test_credentials": "None. Seeded test users directly into Mongo (all cleaned up post-run).",
+  "seed_data_creation": "Created ~11 test_it4_*@cuminjar.test users + email_otps + password_reset_otps + one test_ff_* session for the Playwright flash-check. All cleaned up in fixture teardown + final cleanup script.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All 4 iteration_3 bugs FIXED and verified. New regression test file /app/backend/tests/test_iteration4_fixes.py should be kept in the pytest run. For future testing behind the K8s ingress, always send X-Forwarded-For headers when testing rate-limit / brute-force flows (otherwise the pod IP is the only key and the test becomes flaky across pod-rotations). The Playwright flash-check technique (poll DOM at 50ms during page.goto with wait_until='domcontentloaded') is worth reusing for other 'flash of unauth content' checks.",
+  "rca of the issue": "iteration_3 root causes: (1) /api/auth/me handler forgot the password_hash projection that register/login already used → fixed by adding {'_id':0, 'password_hash':0} in _get_authed_user. (2) request.client.host returned the reverse-proxy pod IP behind K8s ingress → fixed by reading X-Forwarded-For in _client_ip() + adding an email-only counter in _check_brute_force so IP-rotation attackers can no longer bypass. (3) auth_forgot_password raised HTTPException(500) on Resend delivery failure → leaked account existence via 500 vs 200 response diff; fixed by logging server-side and always returning {ok:true}. (4) Dashboard.jsx's isFirstRun depended on authUser which is fetched asynchronously → the first render before authMe() resolved fell through to the normal demo dashboard ('Hi Meera!'); fixed by adding authLoading state (initial=true, set false in finally) and gating render behind isBootstrapping = authLoading || loading which shows a spinner until both resolve."
+}

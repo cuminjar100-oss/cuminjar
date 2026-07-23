@@ -417,7 +417,7 @@ async def _get_authed_user(request: Request):
         expires_at = expires_at.replace(tzinfo=timezone.utc)
     if expires_at and expires_at < datetime.now(timezone.utc):
         return None
-    user = await db.users.find_one({'user_id': session['user_id']}, {'_id': 0})
+    user = await db.users.find_one({'user_id': session['user_id']}, {'_id': 0, 'password_hash': 0})
     return user
 
 
@@ -541,18 +541,33 @@ def _cookie_response(payload: dict, session_token: str):
     return resp
 
 
+def _client_ip(request: Request) -> str:
+    """Real client IP from X-Forwarded-For (behind ingress) with fallback."""
+    xff = request.headers.get('x-forwarded-for') or request.headers.get('X-Forwarded-For')
+    if xff:
+        # First IP in the list is the real client
+        return xff.split(',')[0].strip() or 'unknown'
+    real_ip = request.headers.get('x-real-ip') or request.headers.get('X-Real-IP')
+    if real_ip:
+        return real_ip.strip()
+    return request.client.host if request.client else 'unknown'
+
+
 async def _check_brute_force(email: str, request: Request):
-    """Lock out after 5 failed attempts within 15 minutes."""
-    ip = request.client.host if request.client else 'unknown'
-    identifier = f"{ip}:{email}"
+    """Lock out after 5 failed attempts within 15 minutes.
+    We check both (ip+email) AND email-only counters so behind a reverse-proxy that
+    rotates source IPs (K8s ingress) an attacker still gets throttled.
+    """
+    ip = _client_ip(request)
     cutoff = (datetime.now(timezone.utc) - timedelta(minutes=15)).isoformat()
-    fails = await db.login_attempts.count_documents({'identifier': identifier, 'ts': {'$gt': cutoff}, 'success': False})
-    if fails >= 5:
+    ip_email_fails = await db.login_attempts.count_documents({'identifier': f"{ip}:{email}", 'ts': {'$gt': cutoff}, 'success': False})
+    email_fails = await db.login_attempts.count_documents({'email': email, 'ts': {'$gt': cutoff}, 'success': False})
+    if ip_email_fails >= 5 or email_fails >= 5:
         raise HTTPException(429, 'Too many failed attempts. Please try again in 15 minutes.')
 
 
 async def _record_attempt(email: str, request: Request, success: bool):
-    ip = request.client.host if request.client else 'unknown'
+    ip = _client_ip(request)
     await db.login_attempts.insert_one({
         'identifier': f"{ip}:{email}",
         'ip': ip,
@@ -636,7 +651,7 @@ async def auth_login(payload: dict, request: Request):
 
     await _record_attempt(email, request, True)
     # Clear all prior failures for this identifier
-    ip = request.client.host if request.client else 'unknown'
+    ip = _client_ip(request)
     await db.login_attempts.delete_many({'identifier': f"{ip}:{email}", 'success': False})
 
     await db.users.update_one({'user_id': user['user_id']}, {'$set': {'last_login_at': datetime.now(timezone.utc).isoformat()}})
@@ -676,7 +691,10 @@ async def auth_forgot_password(payload: dict):
 
     result = await _send_otp_email(email, code)  # reuse the branded OTP mailer
     if not result.get('ok'):
-        raise HTTPException(500, f"Could not send reset email: {result.get('error')}")
+        # Do NOT surface delivery failure to the client — it would leak which
+        # emails have accounts. Log server-side and still return ok:true so the
+        # UI can transition to the reset stage.
+        logger.warning('Reset email delivery failed for %s: %s', email, result.get('error'))
     return {'ok': True}
 
 

@@ -22,6 +22,7 @@ export default function Dashboard() {
   const [openRecipe, setOpenRecipe] = useState(null);
   const [openStory, setOpenStory] = useState(null);
   const [authUser, setAuthUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const { toast } = useToast();
 
   const active = families.find(f => f.id === activeFamilyId) || null;
@@ -48,7 +49,10 @@ export default function Dashboard() {
 
   useEffect(() => {
     let cancelled = false;
-    api.authMe().then((u) => { if (!cancelled) setAuthUser(u); }).catch(() => { if (!cancelled) setAuthUser(null); });
+    api.authMe()
+      .then((u) => { if (!cancelled) setAuthUser(u); })
+      .catch(() => { if (!cancelled) setAuthUser(null); })
+      .finally(() => { if (!cancelled) setAuthLoading(false); });
     return () => { cancelled = true; };
   }, []);
 
@@ -59,11 +63,18 @@ export default function Dashboard() {
     else if (r?.item) setStories(prev => [r.item, ...prev]);
   };
 
-  const isFirstRun = !!authUser && !loading && families.length === 0 && recipes.length === 0 && stories.length === 0;
+  const isFirstRun = !!authUser && !loading && !authLoading && families.length === 0 && recipes.length === 0 && stories.length === 0;
+  const isBootstrapping = authLoading || loading;
 
   return (
     <AppShell active="home" onOpenRecord={() => setShowRecord(true)}>
       <div className="px-3 lg:px-8 py-3 lg:py-6 max-w-4xl mx-auto">
+        {isBootstrapping ? (
+          <div className="py-24 flex items-center justify-center text-neutral-400" data-testid="dashboard-bootstrapping">
+            <Loader2 size={22} className="animate-spin" />
+          </div>
+        ) : (
+        <>
         {isFirstRun && (
           <FirstRunEmptyState
             userName={authUser?.name}
@@ -194,6 +205,8 @@ export default function Dashboard() {
             </div>
           )}
         </section>
+        </>
+        )}
         </>
         )}
       </div>
