@@ -927,6 +927,399 @@ def test_voice_recipes():
     except Exception as e:
         log_fail("POST /api/voice-recipes (REGRESSION)", f"Exception: {str(e)}")
 
+def test_smart_record():
+    """Test 12: Smart Record endpoint - full pipeline (transcribe → structure → generate image → save)"""
+    print("\n=== Testing Smart Record Endpoint (NEW FEATURE) ===")
+    
+    # Test 1: POST /api/smart-record with kind=recipe, generate_image=false
+    print("  Test 1: Smart record with kind=recipe (generate_image=false)...")
+    audio_data = generate_silent_wav(duration_seconds=2)
+    
+    files = {
+        'file': ('test_audio.wav', io.BytesIO(audio_data), 'audio/wav')
+    }
+    data = {
+        'kind': 'recipe',
+        'media_kind': 'audio',
+        'generate_image': 'false'
+    }
+    
+    try:
+        print("    Uploading audio for smart-record (may take 10-30 seconds)...")
+        resp = requests.post(f"{BASE_URL}/smart-record", files=files, data=data, timeout=90)
+        if resp.status_code == 200:
+            result = resp.json()
+            if result.get('kind') == 'recipe' and 'item' in result:
+                item = result['item']
+                required_fields = ['id', 'title', 'ingredients', 'steps', 'serves', 'time', 'region', 'tags', 'transcript_en']
+                missing = [f for f in required_fields if f not in item]
+                
+                if not missing:
+                    log_pass("POST /api/smart-record (recipe)", f"Returns 200 with kind=recipe, item has all required fields (id={item['id']}, title='{item['title']}')")
+                else:
+                    log_fail("POST /api/smart-record (recipe)", f"Missing fields in item: {missing}")
+            else:
+                log_fail("POST /api/smart-record (recipe)", f"Unexpected response structure: {result}")
+        elif resp.status_code == 422:
+            error = resp.json()
+            if 'could not understand' in error.get('detail', '').lower():
+                log_pass("POST /api/smart-record (recipe)", f"Returns 422 for empty transcript (silent audio) - acceptable: {error.get('detail')}")
+            else:
+                log_fail("POST /api/smart-record (recipe)", f"Returns 422 but unexpected detail: {error.get('detail')}")
+        else:
+            log_fail("POST /api/smart-record (recipe)", f"Status {resp.status_code}: {resp.text}")
+    except requests.exceptions.Timeout:
+        log_fail("POST /api/smart-record (recipe)", "Request timed out after 90 seconds")
+    except Exception as e:
+        log_fail("POST /api/smart-record (recipe)", f"Exception: {str(e)}")
+    
+    # Test 2: POST /api/smart-record with kind=story, generate_image=false
+    print("  Test 2: Smart record with kind=story (generate_image=false)...")
+    audio_data = generate_silent_wav(duration_seconds=2)
+    
+    files = {
+        'file': ('test_audio.wav', io.BytesIO(audio_data), 'audio/wav')
+    }
+    data = {
+        'kind': 'story',
+        'media_kind': 'audio',
+        'generate_image': 'false'
+    }
+    
+    try:
+        print("    Uploading audio for smart-record story (may take 10-30 seconds)...")
+        resp = requests.post(f"{BASE_URL}/smart-record", files=files, data=data, timeout=90)
+        if resp.status_code == 200:
+            result = resp.json()
+            if result.get('kind') == 'story' and 'item' in result:
+                item = result['item']
+                required_fields = ['id', 'title', 'excerpt', 'mins', 'transcript_en']
+                missing = [f for f in required_fields if f not in item]
+                
+                if not missing:
+                    log_pass("POST /api/smart-record (story)", f"Returns 200 with kind=story, item has all required fields (id={item['id']}, title='{item['title']}')")
+                else:
+                    log_fail("POST /api/smart-record (story)", f"Missing fields in item: {missing}")
+            else:
+                log_fail("POST /api/smart-record (story)", f"Unexpected response structure: {result}")
+        elif resp.status_code == 422:
+            error = resp.json()
+            if 'could not understand' in error.get('detail', '').lower():
+                log_pass("POST /api/smart-record (story)", f"Returns 422 for empty transcript (silent audio) - acceptable: {error.get('detail')}")
+            else:
+                log_fail("POST /api/smart-record (story)", f"Returns 422 but unexpected detail: {error.get('detail')}")
+        else:
+            log_fail("POST /api/smart-record (story)", f"Status {resp.status_code}: {resp.text}")
+    except requests.exceptions.Timeout:
+        log_fail("POST /api/smart-record (story)", "Request timed out after 90 seconds")
+    except Exception as e:
+        log_fail("POST /api/smart-record (story)", f"Exception: {str(e)}")
+    
+    # Test 3: POST /api/smart-record with kind=festival, generate_image=false
+    print("  Test 3: Smart record with kind=festival (generate_image=false)...")
+    audio_data = generate_silent_wav(duration_seconds=2)
+    
+    files = {
+        'file': ('test_audio.wav', io.BytesIO(audio_data), 'audio/wav')
+    }
+    data = {
+        'kind': 'festival',
+        'media_kind': 'audio',
+        'generate_image': 'false'
+    }
+    
+    try:
+        print("    Uploading audio for smart-record festival (may take 10-30 seconds)...")
+        resp = requests.post(f"{BASE_URL}/smart-record", files=files, data=data, timeout=90)
+        if resp.status_code == 200:
+            result = resp.json()
+            if result.get('kind') == 'festival' and 'item' in result:
+                item = result['item']
+                required_fields = ['id', 'title', 'excerpt', 'mins', 'transcript_en']
+                missing = [f for f in required_fields if f not in item]
+                
+                if not missing:
+                    # Check if item has kind=festival
+                    if item.get('kind') == 'festival':
+                        log_pass("POST /api/smart-record (festival)", f"Returns 200 with kind=festival, item has all required fields and kind=festival (id={item['id']}, title='{item['title']}')")
+                    else:
+                        log_fail("POST /api/smart-record (festival)", f"Item missing kind=festival field: {item.get('kind')}")
+                else:
+                    log_fail("POST /api/smart-record (festival)", f"Missing fields in item: {missing}")
+            else:
+                log_fail("POST /api/smart-record (festival)", f"Unexpected response structure: {result}")
+        elif resp.status_code == 422:
+            error = resp.json()
+            if 'could not understand' in error.get('detail', '').lower():
+                log_pass("POST /api/smart-record (festival)", f"Returns 422 for empty transcript (silent audio) - acceptable: {error.get('detail')}")
+            else:
+                log_fail("POST /api/smart-record (festival)", f"Returns 422 but unexpected detail: {error.get('detail')}")
+        else:
+            log_fail("POST /api/smart-record (festival)", f"Status {resp.status_code}: {resp.text}")
+    except requests.exceptions.Timeout:
+        log_fail("POST /api/smart-record (festival)", "Request timed out after 90 seconds")
+    except Exception as e:
+        log_fail("POST /api/smart-record (festival)", f"Exception: {str(e)}")
+    
+    # Test 4: POST /api/smart-record with empty file → 400
+    print("  Test 4: Smart record with empty file (should return 400)...")
+    files = {
+        'file': ('empty.wav', io.BytesIO(b''), 'audio/wav')
+    }
+    data = {
+        'kind': 'recipe',
+        'media_kind': 'audio',
+        'generate_image': 'false'
+    }
+    
+    try:
+        resp = requests.post(f"{BASE_URL}/smart-record", files=files, data=data, timeout=10)
+        if resp.status_code == 400:
+            error = resp.json()
+            if 'empty file' in error.get('detail', '').lower():
+                log_pass("POST /api/smart-record (empty file)", "Returns 400 with 'Empty file'")
+            else:
+                log_fail("POST /api/smart-record (empty file)", f"Returns 400 but wrong detail: {error.get('detail')}")
+        else:
+            log_fail("POST /api/smart-record (empty file)", f"Expected 400, got {resp.status_code}: {resp.text}")
+    except Exception as e:
+        log_fail("POST /api/smart-record (empty file)", f"Exception: {str(e)}")
+
+
+def test_recipe_patch():
+    """Test 13: PATCH /api/recipes/{id} - update recipe cover"""
+    print("\n=== Testing Recipe PATCH Endpoint ===")
+    
+    # First, create a test recipe to get an ID
+    new_recipe = {
+        "title": "Test Recipe for PATCH",
+        "author": "Test Chef",
+        "region": "South Indian",
+        "serves": "4",
+        "time": "30 mins",
+        "tags": ["Quick", "Easy"],
+        "cover": None,
+        "ingredients": ["Rice", "Lentils"],
+        "steps": ["Cook rice", "Cook lentils", "Mix together"]
+    }
+    
+    recipe_id = None
+    try:
+        resp = requests.post(f"{BASE_URL}/recipes", json=new_recipe, timeout=10)
+        if resp.status_code == 200:
+            created = resp.json()
+            if 'id' in created:
+                recipe_id = created['id']
+                log_pass("POST /api/recipes (for PATCH test)", f"Created test recipe with id={recipe_id}")
+            else:
+                log_fail("POST /api/recipes (for PATCH test)", f"No id in response: {created}")
+        else:
+            log_fail("POST /api/recipes (for PATCH test)", f"Status {resp.status_code}: {resp.text}")
+    except Exception as e:
+        log_fail("POST /api/recipes (for PATCH test)", f"Exception: {str(e)}")
+    
+    # Now PATCH the recipe with a cover image
+    if recipe_id:
+        # Generate a small base64 PNG
+        png_data = base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==')
+        cover_data_url = f"data:image/png;base64,{base64.b64encode(png_data).decode('utf-8')}"
+        
+        patch_payload = {
+            "cover": cover_data_url
+        }
+        
+        try:
+            resp = requests.patch(f"{BASE_URL}/recipes/{recipe_id}", json=patch_payload, timeout=10)
+            if resp.status_code == 200:
+                updated = resp.json()
+                if 'cover' in updated and updated['cover'] == cover_data_url:
+                    log_pass("PATCH /api/recipes/{id}", f"Updated recipe cover successfully (cover field present and matches)")
+                elif 'cover' in updated:
+                    log_warning("PATCH /api/recipes/{id}", f"Cover field present but doesn't match exactly (may be processed)")
+                else:
+                    log_fail("PATCH /api/recipes/{id}", f"Cover field missing in response: {updated}")
+            else:
+                log_fail("PATCH /api/recipes/{id}", f"Status {resp.status_code}: {resp.text}")
+        except Exception as e:
+            log_fail("PATCH /api/recipes/{id}", f"Exception: {str(e)}")
+
+
+def test_plan_limits_regression():
+    """Test 14: Plan limits regression (verify limits still enforced)"""
+    print("\n=== Testing Plan Limits Regression ===")
+    
+    # Test GET /api/me - verify plan and limits fields present
+    try:
+        resp = requests.get(f"{BASE_URL}/me", timeout=10)
+        if resp.status_code == 200:
+            user = resp.json()
+            if 'plan' in user and 'limits' in user:
+                plan = user.get('plan')
+                limits = user.get('limits', {})
+                max_families = limits.get('max_families')
+                max_recipes = limits.get('max_recipes')
+                max_family_members = limits.get('max_family_members')
+                
+                if plan and max_families is not None and max_recipes is not None and max_family_members is not None:
+                    log_pass("GET /api/me (plan limits)", f"Returns plan='{plan}' with limits (max_families={max_families}, max_recipes={max_recipes}, max_family_members={max_family_members})")
+                else:
+                    log_fail("GET /api/me (plan limits)", f"Plan or limits fields incomplete: plan={plan}, limits={limits}")
+            else:
+                log_fail("GET /api/me (plan limits)", f"Missing 'plan' or 'limits' field: {user}")
+        else:
+            log_fail("GET /api/me (plan limits)", f"Status {resp.status_code}: {resp.text}")
+    except Exception as e:
+        log_fail("GET /api/me (plan limits)", f"Exception: {str(e)}")
+    
+    # Test GET /api/families - should work
+    try:
+        resp = requests.get(f"{BASE_URL}/families", timeout=10)
+        if resp.status_code == 200:
+            families = resp.json()
+            if isinstance(families, list):
+                log_pass("GET /api/families (regression)", f"Returns list with {len(families)} families")
+            else:
+                log_fail("GET /api/families (regression)", f"Expected list, got: {type(families)}")
+        else:
+            log_fail("GET /api/families (regression)", f"Status {resp.status_code}: {resp.text}")
+    except Exception as e:
+        log_fail("GET /api/families (regression)", f"Exception: {str(e)}")
+    
+    # Test POST /api/family - should return 402 if at limit (free plan allows 1 family)
+    # Note: This test may pass or fail depending on current state
+    family_data = {
+        "name": "Test Family for Limit Check",
+        "description": "",
+        "language": "English"
+    }
+    
+    try:
+        resp = requests.post(f"{BASE_URL}/family", json=family_data, timeout=10)
+        if resp.status_code == 200:
+            family = resp.json()
+            log_warning("POST /api/family (limit check)", f"Created family (may be first family or limit not enforced): {family.get('id')}")
+        elif resp.status_code == 402:
+            error = resp.json()
+            if 'free plan' in error.get('detail', '').lower() and '1 family' in error.get('detail', '').lower():
+                log_pass("POST /api/family (limit check)", f"Returns 402 with correct free plan limit message: {error.get('detail')}")
+            else:
+                log_fail("POST /api/family (limit check)", f"Returns 402 but unexpected detail: {error.get('detail')}")
+        else:
+            log_fail("POST /api/family (limit check)", f"Status {resp.status_code}: {resp.text}")
+    except Exception as e:
+        log_fail("POST /api/family (limit check)", f"Exception: {str(e)}")
+    
+    # Test GET /api/recipes - should work
+    try:
+        resp = requests.get(f"{BASE_URL}/recipes", timeout=10)
+        if resp.status_code == 200:
+            recipes = resp.json()
+            if isinstance(recipes, list):
+                log_pass("GET /api/recipes (regression)", f"Returns list with {len(recipes)} recipes")
+            else:
+                log_fail("GET /api/recipes (regression)", f"Expected list, got: {type(recipes)}")
+        else:
+            log_fail("GET /api/recipes (regression)", f"Status {resp.status_code}: {resp.text}")
+    except Exception as e:
+        log_fail("GET /api/recipes (regression)", f"Exception: {str(e)}")
+    
+    # Test POST /api/recipes - should return 402 if at limit (free plan allows 3 recipes)
+    # Note: This test may pass or fail depending on current state
+    recipe_data = {
+        "title": "Test Recipe for Limit Check",
+        "author": "Test Chef",
+        "region": "Test",
+        "serves": "1",
+        "time": "10 mins",
+        "tags": [],
+        "cover": None,
+        "ingredients": ["Test ingredient"],
+        "steps": ["Test step"]
+    }
+    
+    try:
+        resp = requests.post(f"{BASE_URL}/recipes", json=recipe_data, timeout=10)
+        if resp.status_code == 200:
+            recipe = resp.json()
+            log_warning("POST /api/recipes (limit check)", f"Created recipe (may be under limit or limit not enforced): {recipe.get('id')}")
+        elif resp.status_code == 402:
+            error = resp.json()
+            if 'free plan' in error.get('detail', '').lower() and '3 recipe' in error.get('detail', '').lower():
+                log_pass("POST /api/recipes (limit check)", f"Returns 402 with correct free plan limit message: {error.get('detail')}")
+            else:
+                log_fail("POST /api/recipes (limit check)", f"Returns 402 but unexpected detail: {error.get('detail')}")
+        else:
+            log_fail("POST /api/recipes (limit check)", f"Status {resp.status_code}: {resp.text}")
+    except Exception as e:
+        log_fail("POST /api/recipes (limit check)", f"Exception: {str(e)}")
+    
+    # Test POST /api/invites - should return 402 (free plan allows 1 member = demo user only)
+    invite_data = {
+        "email": "test-limit@example.com",
+        "name": "Test User",
+        "relation": "Test"
+    }
+    
+    try:
+        resp = requests.post(f"{BASE_URL}/invites", json=invite_data, timeout=10)
+        if resp.status_code == 402:
+            error = resp.json()
+            if 'free plan' in error.get('detail', '').lower():
+                log_pass("POST /api/invites (limit check)", f"Returns 402 with correct free plan limit message: {error.get('detail')}")
+            else:
+                log_fail("POST /api/invites (limit check)", f"Returns 402 but unexpected detail: {error.get('detail')}")
+        elif resp.status_code == 200:
+            log_fail("POST /api/invites (limit check)", "Expected 402 for free plan, got 200")
+        else:
+            log_fail("POST /api/invites (limit check)", f"Status {resp.status_code}: {resp.text}")
+    except Exception as e:
+        log_fail("POST /api/invites (limit check)", f"Exception: {str(e)}")
+    
+    # Test POST /api/transcribe - should work (NOT gated)
+    audio_data = generate_silent_wav(duration_seconds=2)
+    files = {
+        'file': ('test_audio.wav', io.BytesIO(audio_data), 'audio/wav')
+    }
+    data = {
+        'kind': 'audio',
+        'language_code': 'en-IN'
+    }
+    
+    try:
+        resp = requests.post(f"{BASE_URL}/transcribe", files=files, data=data, timeout=60)
+        if resp.status_code == 200:
+            result = resp.json()
+            if 'transcript' in result and 'transcript_en' in result:
+                log_pass("POST /api/transcribe (NOT gated)", "Returns 200 (transcription not gated by plan limits)")
+            else:
+                log_fail("POST /api/transcribe (NOT gated)", f"Missing fields: {result}")
+        else:
+            log_fail("POST /api/transcribe (NOT gated)", f"Status {resp.status_code}: {resp.text}")
+    except Exception as e:
+        log_fail("POST /api/transcribe (NOT gated)", f"Exception: {str(e)}")
+    
+    # Test POST /api/contact - should work (NOT gated)
+    contact_data = {
+        "name": "Test User",
+        "email": "test@example.com",
+        "subject": "Test",
+        "message": "Test message for regression"
+    }
+    
+    try:
+        resp = requests.post(f"{BASE_URL}/contact", json=contact_data, timeout=10)
+        if resp.status_code == 200:
+            result = resp.json()
+            if result.get('ok') == True:
+                log_pass("POST /api/contact (NOT gated)", "Returns 200 (contact not gated by plan limits)")
+            else:
+                log_fail("POST /api/contact (NOT gated)", f"Unexpected response: {result}")
+        else:
+            log_fail("POST /api/contact (NOT gated)", f"Status {resp.status_code}: {resp.text}")
+    except Exception as e:
+        log_fail("POST /api/contact (NOT gated)", f"Exception: {str(e)}")
+
+
 def print_summary():
     """Print test summary"""
     print("\n" + "="*70)
@@ -971,6 +1364,9 @@ if __name__ == "__main__":
     test_contact()
     test_transcribe_endpoint()  # CHANGE 2: Universal transcription endpoint
     test_voice_recipes()  # CHANGE 3: Regression test
+    test_smart_record()  # NEW: Smart record endpoint
+    test_recipe_patch()  # NEW: Recipe PATCH endpoint
+    test_plan_limits_regression()  # Regression: Plan limits
     
     # Print summary
     print_summary()

@@ -20,7 +20,7 @@ export default function StoriesPage() {
 
   return (
     <AppShell active="stories">
-      <div className="px-8 py-6">
+      <div className="px-4 lg:px-8 py-4 lg:py-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="font-serif-display text-[32px] font-semibold text-neutral-900">Family Stories</h1>

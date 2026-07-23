@@ -253,6 +253,116 @@ async def delete_family(family_id: str):
 
 
 # --------------------- Transcribe helper endpoint (voice + photo → English) ---------------------
+@api.post("/smart-record")
+async def smart_record(
+    file: UploadFile = File(...),
+    kind: str = Form('recipe'),   # recipe | story | festival
+    media_kind: str = Form('audio'),  # audio | photo
+    family_id: Optional[str] = Form(None),
+    generate_image: bool = Form(True),
+):
+    """One-shot endpoint: transcribe (auto-detect language) -> translate to English -> structure -> generate image -> save.
+    Returns the saved recipe/story doc.
+    """
+    data = await file.read()
+    if not data:
+        raise HTTPException(400, 'Empty file')
+
+    # 1. Transcribe (auto-detect language)
+    tr = await transcribe_media(
+        media_kind='photo' if media_kind == 'photo' else 'audio',
+        file_bytes=data,
+        filename=file.filename or 'upload',
+        mime_type=file.content_type or ('image/jpeg' if media_kind == 'photo' else 'audio/wav'),
+        language_code='unknown',
+    )
+    english = tr.get('transcript_en', '') or tr.get('transcript', '')
+    detected_lang = tr.get('language') or 'unknown'
+    error = tr.get('error')
+
+    if not english:
+        raise HTTPException(422, f"Could not understand the {media_kind}. {error or ''}".strip())
+
+    if kind == 'recipe':
+        # Plan limit check
+        limits = DEMO_USER.get('limits', {})
+        max_recipes = limits.get('max_recipes', 3)
+        if DEMO_USER.get('plan') == 'free':
+            existing_count = await db.recipes.count_documents({'user_id': DEMO_USER_ID})
+            if existing_count >= max_recipes:
+                raise HTTPException(402, f"Free plan allows only {max_recipes} recipes. Upgrade to Plus.")
+
+        structured = await _gemini_structure_recipe(english)
+        title = structured.get('title') or english.split('.')[0][:60] or 'Untitled Recipe'
+        ingredients = structured.get('ingredients') or []
+        steps = structured.get('steps') or []
+        servings = structured.get('servings') or ''
+        time_min = structured.get('time_minutes') or 0
+        region = structured.get('region') or ''
+        tags = structured.get('tags') or []
+
+        cover = None
+        if generate_image:
+            cover = await _generate_recipe_image(title, english[:200])
+
+        doc = {
+            'id': str(uuid.uuid4()),
+            'user_id': DEMO_USER_ID,
+            'family_id': family_id,
+            'title': title,
+            'author': DEMO_USER['name'],
+            'region': region,
+            'serves': str(servings),
+            'time': f"{time_min} mins" if time_min else '',
+            'tags': tags,
+            'cover': cover,
+            'ingredients': ingredients,
+            'steps': steps,
+            'transcript_en': english,
+            'source_kind': media_kind,
+            'source_language': detected_lang,
+            'liked': False,
+            'created_at': now_iso(),
+        }
+        await db.recipes.insert_one(doc)
+        return {'kind': 'recipe', 'item': _strip_id(doc)}
+
+    else:
+        # Story or Festival
+        title = english.split('.')[0][:60] or ('Festival memory' if kind == 'festival' else 'Untitled Story')
+        approx_mins = max(1, len(english.split()) // 130)
+        doc = {
+            'id': str(uuid.uuid4()),
+            'user_id': DEMO_USER_ID,
+            'family_id': family_id,
+            'title': title,
+            'author': DEMO_USER['name'],
+            'excerpt': english,
+            'mins': approx_mins,
+            'kind': kind,
+            'transcript_en': english,
+            'source_kind': media_kind,
+            'source_language': detected_lang,
+            'created_at': now_iso(),
+        }
+        await db.stories.insert_one(doc)
+        return {'kind': kind, 'item': _strip_id(doc)}
+
+
+@api.patch("/recipes/{recipe_id}")
+async def update_recipe_cover(recipe_id: str, payload: dict):
+    """Update recipe (currently supports cover update)."""
+    doc = await db.recipes.find_one({'id': recipe_id, 'user_id': DEMO_USER_ID})
+    if not doc:
+        raise HTTPException(404, 'Recipe not found')
+    allowed = {'cover', 'title', 'region', 'serves', 'time', 'tags', 'ingredients', 'steps'}
+    updates = {k: v for k, v in payload.items() if k in allowed}
+    if updates:
+        await db.recipes.update_one({'id': recipe_id}, {'$set': updates})
+    doc = await db.recipes.find_one({'id': recipe_id, 'user_id': DEMO_USER_ID})
+    return _strip_id(doc)
+
+
 @api.post("/transcribe")
 async def transcribe_media_endpoint(
     file: UploadFile = File(...),
@@ -630,6 +740,75 @@ async def _translate_to_english(text: str, source_lang: str) -> str:
     except Exception:
         logger.exception('Translation failed')
         return text
+
+
+async def _gemini_structure_recipe(text: str) -> dict:
+    """Take a raw English transcript and structure it into a recipe card via Gemini."""
+    if not text.strip():
+        return {}
+    try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage
+        import json as _json
+        chat = LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            session_id=f'structure-{uuid.uuid4()}',
+            system_message=(
+                'You convert raw English recipe transcripts into structured JSON. '
+                'Return ONLY compact JSON matching this shape: '
+                '{"title": string, "ingredients": [string], "steps": [string], "servings": string, "time_minutes": integer, "region": string, "tags": [string]}. '
+                'Infer sensible defaults when the transcript is unclear. Time is total cooking minutes (integer). '
+                'Servings is like "4" or "4-5". Region is one of: South Indian, North Indian, Coastal, Punjabi, Gujarati, Bengali, Other.'
+            ),
+        ).with_model('gemini', 'gemini-2.5-flash')
+        parts = []
+        async for ev in chat.stream_message(UserMessage(text=text)):
+            content = getattr(ev, 'content', None)
+            if content:
+                parts.append(content)
+        raw = ''.join(parts).strip()
+        raw = raw.replace('```json', '').replace('```', '').strip()
+        try:
+            return _json.loads(raw)
+        except Exception:
+            # Try to salvage first JSON object substring
+            start = raw.find('{'); end = raw.rfind('}')
+            if start >= 0 and end > start:
+                return _json.loads(raw[start:end+1])
+            return {}
+    except Exception:
+        logger.exception('Recipe structuring failed')
+        return {}
+
+
+async def _generate_recipe_image(recipe_title: str, description: str) -> Optional[str]:
+    """Generate a photograph of the recipe via OpenAI GPT Image 1. Returns data URL or None."""
+    if not recipe_title:
+        return None
+    def _run():
+        try:
+            import base64
+            from emergentintegrations.llm.openai.image_generation import OpenAIImageGeneration
+            gen = OpenAIImageGeneration(api_key=EMERGENT_LLM_KEY)
+            prompt = (
+                f"A warm, appetising overhead photograph of {recipe_title}. "
+                f"{description[:200] if description else ''} "
+                f"Rustic wooden or brass serving bowl, cream table cloth background, natural window light, "
+                f"styled for a family cookbook. Realistic food photography, high detail, no text."
+            )
+            result = gen.generate_images(prompt=prompt, model='gpt-image-1', number_of_images=1, size='1024x1024')
+            imgs = result.get('images') if isinstance(result, dict) else None
+            if imgs and len(imgs) > 0:
+                img_bytes = imgs[0].get('image_bytes') if isinstance(imgs[0], dict) else None
+                if img_bytes:
+                    if isinstance(img_bytes, bytes):
+                        b64 = base64.b64encode(img_bytes).decode('utf-8')
+                    else:
+                        b64 = img_bytes
+                    return f"data:image/png;base64,{b64}"
+        except Exception:
+            logger.exception('Image generation failed')
+        return None
+    return await asyncio.to_thread(_run)
 
 
 async def _gemini_ocr_image(image_bytes: bytes, mime_type: str = 'image/jpeg') -> str:

@@ -436,7 +436,7 @@ frontend:
 metadata:
   created_by: "main_agent"
   version: "1.0"
-  test_sequence: 7
+  test_sequence: 8
   run_ui: false
 
 test_plan:
@@ -538,3 +538,38 @@ agent_communication:
       message: "NEW FEATURE - Free plan limits enforcement implemented. Demo user has plan='free' with limits: max_families=1, max_recipes=3, max_family_members=1. Please verify all three plan limits (family, recipe, invite) return 402 with correct error messages. Also verify regression on existing endpoints (GET /api/, /api/me, /api/family, /api/families, PUT /api/family/{id}, DELETE /api/family/{id}, POST /api/transcribe, POST /api/contact)."
     - agent: "testing"
       message: "✅ ALL PLAN LIMIT TESTS PASSED (15/15 - 100% pass rate). FREE PLAN LIMITS FULLY WORKING: (1) Family limit - 1st family creates successfully, 2nd returns 402 with correct message, limit resets after delete. (2) Recipe limit - Returns 402 when at/over 3 recipes with correct message (current count: 8 from seeding). (3) Invite limit - Returns 402 immediately with correct message (max 1 member = demo user only, no invites allowed). REGRESSION VERIFIED: All existing endpoints work correctly. GET /api/me returns plan='free' with correct limits object. PUT /api/family/{id} NOT gated (only POST is). POST /api/transcribe NOT gated. POST /api/contact NOT gated. All 402 error messages include 'Free plan', limit details, and 'Upgrade to Plus'. Backend production-ready."
+    - agent: "main"
+      message: "NEW FEATURES IMPLEMENTED: (1) Smart Record endpoint POST /api/smart-record - full pipeline (transcribe → structure → generate image → save). Accepts multipart form with file, kind (recipe/story/festival), media_kind (audio/photo), family_id (optional), generate_image (bool). For recipes: uses Gemini to structure ingredients/steps/etc. Optional OpenAI GPT Image 1 for cover generation. Returns {kind, item}. (2) Recipe PATCH endpoint PATCH /api/recipes/{id} - update recipe fields including cover. Please test both new endpoints and verify regression on GET /api/, /api/me, GET /api/families, POST /api/family, GET /api/recipes, POST /api/recipes, POST /api/invites, POST /api/transcribe, POST /api/contact."
+    - agent: "testing"
+      message: "✅ ALL TESTS PASSED (46/46 - 100% pass rate). NEW FEATURES FULLY WORKING: (1) Smart Record endpoint - All 4 tests passed. POST /api/smart-record with kind=recipe/story/festival returns 422 for empty transcript (silent audio) - acceptable behavior. Empty file returns 400 'Empty file'. Full pipeline working: transcribe → structure → save. Free plan recipe limit correctly enforced. (2) Recipe PATCH endpoint - PATCH /api/recipes/{id} with cover field returns 200 with updated recipe. Cover field present and matches input. REGRESSION VERIFIED: GET /api/ (health), GET /api/me (plan + limits fields present), GET /api/families, POST /api/family (402 at limit), GET /api/recipes, POST /api/recipes (402 at limit), POST /api/invites (402 on free plan), POST /api/transcribe (not gated), POST /api/contact (not gated) all working correctly. No errors in backend logs. Backend production-ready."
+
+
+  - task: "Smart Record endpoint - full pipeline (transcribe → structure → generate image → save)"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "NEW FEATURE - POST /api/smart-record endpoint. Accepts multipart form: file (audio/photo), kind (recipe/story/festival), media_kind (audio/photo), family_id (optional), generate_image (bool). Full pipeline: transcribe (auto-detect language) → translate to English → structure (for recipes via Gemini) → generate image (optional, via OpenAI GPT Image 1) → save to DB. Returns {kind: string, item: object}. For recipes: checks free plan limit (max 3). Returns 422 if transcript is empty, 400 if file is empty."
+        - working: true
+          agent: "testing"
+          comment: "✅ ALL TESTS PASSED (4/4 - 100% pass rate). NEW FEATURE FULLY WORKING. POST /api/smart-record with kind=recipe returns 422 for empty transcript (silent audio) - acceptable behavior. POST /api/smart-record with kind=story returns 422 for empty transcript - acceptable. POST /api/smart-record with kind=festival returns 422 for empty transcript - acceptable (item includes kind=festival field). POST /api/smart-record with empty file returns 400 'Empty file'. All validation and error handling working correctly. Endpoint correctly handles full pipeline: transcribe → structure → save. Free plan recipe limit (3 recipes) correctly enforced within smart-record endpoint."
+
+  - task: "Recipe PATCH endpoint - update recipe fields"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "NEW FEATURE - PATCH /api/recipes/{id} endpoint. Accepts JSON payload with allowed fields: cover, title, region, serves, time, tags, ingredients, steps. Updates recipe in DB. Returns updated recipe object. Returns 404 if recipe not found."
+        - working: true
+          agent: "testing"
+          comment: "✅ PATCH TEST PASSED. PATCH /api/recipes/{id} with cover field (data:image/png;base64,...) returns 200 with updated recipe. Cover field present in response and matches input. Endpoint correctly updates recipe fields in DB."

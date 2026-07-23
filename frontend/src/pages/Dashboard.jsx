@@ -1,291 +1,247 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import AppShell from '../components/AppShell';
-import { Users, Mic, Sparkles, Globe, Image as ImageIcon, Lightbulb, Lock, Plus, Loader2, CheckCircle2, ChevronDown } from 'lucide-react';
-import { heroImages, familyAvatars } from '../mock';
+import { Users, Mic, Sparkles, Plus, Loader2, CheckCircle2, ChefHat, BookOpen, PartyPopper, Edit2, X, Image as ImageIcon } from 'lucide-react';
 import { useToast } from '../hooks/use-toast';
 import api from '../api';
 import InviteFamilyModal from '../components/InviteFamilyModal';
+import SmartRecordModal from '../components/SmartRecordModal';
 
 export default function Dashboard() {
   const [families, setFamilies] = useState([]);
   const [activeFamilyId, setActiveFamilyId] = useState(null);
-  const [name, setName] = useState('');
-  const [lang, setLang] = useState('English');
-  const [cover, setCover] = useState(null); // base64
-  const [saving, setSaving] = useState(false);
+  const [recipes, setRecipes] = useState([]);
+  const [stories, setStories] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [showInvite, setShowInvite] = useState(false);
-  const [mode, setMode] = useState('view'); // 'view' | 'edit' | 'create'
+  const [showRecord, setShowRecord] = useState(false);
+  const [showCreateFamily, setShowCreateFamily] = useState(false);
   const { toast } = useToast();
 
   const active = families.find(f => f.id === activeFamilyId) || null;
 
-  const loadFamilies = useCallback(async () => {
+  const loadEverything = useCallback(async () => {
+    setLoading(true);
     try {
-      const list = await api.listFamilies();
-      setFamilies(list);
-      if (list.length === 0) {
-        setMode('create');
-        setActiveFamilyId(null);
-      } else {
-        // Pick previously-selected from localStorage if present, else first
+      const [fam, rec, sto] = await Promise.all([
+        api.listFamilies(), api.listRecipes(), api.listStories()
+      ]);
+      setFamilies(fam);
+      setRecipes(rec);
+      setStories(sto);
+      if (fam.length > 0) {
         const saved = localStorage.getItem('cuminjar_active_family');
-        const target = list.find(f => f.id === saved) || list[0];
+        const target = fam.find(f => f.id === saved) || fam[0];
         setActiveFamilyId(target.id);
-        setMode('view');
       }
     } catch (e) { console.error(e); }
+    setLoading(false);
   }, []);
 
-  useEffect(() => { loadFamilies(); }, [loadFamilies]);
+  useEffect(() => { loadEverything(); }, [loadEverything]);
 
-  // Sync form fields to the active family
-  useEffect(() => {
-    if (active) {
-      setName(active.name || '');
-      setLang(active.language || 'English');
-      setCover(active.coverPhoto || null);
-      localStorage.setItem('cuminjar_active_family', active.id);
-    } else if (mode === 'create') {
-      setName(''); setLang('English'); setCover(null);
-    }
-  }, [active, mode]);
+  useEffect(() => { if (active) localStorage.setItem('cuminjar_active_family', active.id); }, [active]);
 
-  const handleFile = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      toast({ title: 'File too large', description: 'Please pick an image up to 5MB.' });
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => setCover(reader.result);
-    reader.readAsDataURL(file);
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!name.trim()) {
-      toast({ title: 'Family Group Name required', description: 'Please add a name for your family space.' });
-      return;
-    }
-    try {
-      setSaving(true);
-      const body = { name, description: '', language: lang, coverPhoto: cover };
-      let saved;
-      if (mode === 'edit' && active) {
-        saved = await api.updateFamily(active.id, body);
-        toast({ title: 'Family updated!' });
-      } else {
-        saved = await api.createFamily(body);
-        toast({ title: 'Family created!', description: `${saved.name} is ready.` });
-      }
-      await loadFamilies();
-      setActiveFamilyId(saved.id);
-      setMode('view');
-    } catch (err) {
-      toast({ title: 'Save failed', description: err?.response?.data?.detail || err?.message || 'Please try again.' });
-    } finally {
-      setSaving(false);
-    }
+  const handleRecordSaved = (r) => {
+    if (r?.kind === 'recipe' && r.item) setRecipes(prev => [r.item, ...prev]);
+    else if (r?.item) setStories(prev => [r.item, ...prev]);
   };
 
   return (
-    <AppShell active="home">
-      <div className="px-8 py-6">
-        <div className="bg-[#F7DFCE]/60 rounded-2xl px-8 py-6 flex items-center justify-between gap-8 overflow-hidden relative">
-          <div className="max-w-lg z-10">
-            <h1 className="font-serif-display text-[32px] md:text-[36px] font-semibold text-neutral-900 leading-tight">
-              Welcome to CuminJar, Meera! <span className="inline-block">👋</span>
-            </h1>
-            <p className="mt-2 text-[15px] text-neutral-700">{families.length > 0 ? 'Your family spaces are ready. Switch, edit, or create another anytime below.' : 'Create your first family space to preserve recipes, traditions, and stories together.'}</p>
-          </div>
-          <div className="hidden md:flex items-center gap-4 relative">
-            <img src={heroImages.claypotFrame} alt="family jar" className="h-32 w-40 object-cover rounded-xl shadow-md" />
+    <AppShell active="home" onOpenRecord={() => setShowRecord(true)}>
+      <div className="px-4 lg:px-8 py-4 lg:py-6">
+        {/* Welcome + Big Record button */}
+        <div className="bg-gradient-to-br from-[#F7DFCE]/70 to-[#F1E8D8] rounded-3xl p-6 lg:p-8 text-center">
+          <h1 className="font-serif-display text-[28px] lg:text-[36px] font-semibold text-neutral-900 leading-tight">
+            Hi Meera! What memory shall we preserve today?
+          </h1>
+          <p className="mt-2 text-[14px] lg:text-[15px] text-neutral-700 max-w-xl mx-auto">Tap Record and just talk in any Indian language. We handle transcription, translation and formatting.</p>
+
+          <button
+            onClick={() => setShowRecord(true)}
+            className="mt-6 inline-flex flex-col items-center gap-2 group"
+          >
+            <span className="w-28 h-28 lg:w-32 lg:h-32 rounded-full bg-cumin-green text-white flex items-center justify-center shadow-2xl group-hover:scale-105 transition-transform">
+              <Mic size={44} />
+            </span>
+            <span className="text-cumin-green font-semibold text-[15px]">Tap to Record</span>
+          </button>
+
+          <div className="mt-5 flex items-center justify-center gap-3 lg:gap-5 flex-wrap text-[12px] text-neutral-600">
+            <span className="flex items-center gap-1.5"><ChefHat size={13} className="text-terracotta"/> Recipe</span>
+            <span className="flex items-center gap-1.5"><BookOpen size={13} className="text-[#5D7A4E]"/> Story</span>
+            <span className="flex items-center gap-1.5"><PartyPopper size={13} className="text-[#7A6FB0]"/> Festival</span>
           </div>
         </div>
 
-        {/* Family switcher */}
-        {families.length > 0 && (
-          <div className="mt-6 bg-white rounded-2xl border border-neutral-200/70 p-4 flex flex-wrap items-center gap-3">
-            <span className="text-[13px] font-semibold text-neutral-700 mr-1">Your family groups:</span>
-            {families.map(f => (
-              <button
-                key={f.id}
-                type="button"
-                onClick={() => { setActiveFamilyId(f.id); setMode('view'); }}
-                className={`inline-flex items-center gap-2 text-[13px] px-3 py-1.5 rounded-full transition-colors ${
-                  f.id === activeFamilyId
-                    ? 'bg-cumin-green text-white'
-                    : 'bg-[#F5EDDD] text-neutral-800 hover:bg-[#EFE3CB]'
-                }`}
-              >
-                {f.coverPhoto ? <img src={f.coverPhoto} alt="" className="w-5 h-5 rounded-full object-cover" /> : <Users size={13} />}
-                {f.name}
-              </button>
-            ))}
+        {/* Family groups switcher */}
+        <div className="mt-5 bg-white rounded-2xl border border-neutral-200/70 p-4">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-[14px] font-semibold text-neutral-900 flex items-center gap-1.5"><Users size={15}/> Your family groups</p>
             <button
               type="button"
               onClick={() => {
                 if (families.length >= 1) {
-                  toast({ title: 'Upgrade required', description: 'Free plan allows only 1 family group. Upgrade to Plus to create more.' });
+                  toast({ title: 'Upgrade required', description: 'Free plan allows only 1 family group. Upgrade to Plus.' });
                   return;
                 }
-                setMode('create');
-                setActiveFamilyId(null);
+                setShowCreateFamily(true);
               }}
-              className="inline-flex items-center gap-1.5 text-[13px] px-3 py-1.5 rounded-full border border-dashed border-neutral-300 text-neutral-500 hover:border-terracotta hover:text-terracotta transition-colors"
-              title="Free plan is limited to 1 family group. Upgrade to Plus for unlimited."
+              className="text-[12.5px] font-medium text-cumin-green flex items-center gap-1 hover:underline"
             >
-              <Plus size={13} /> New family <span className="ml-1 text-[10px] bg-terracotta text-white px-1.5 py-0.5 rounded-full">PLUS</span>
+              <Plus size={13}/> New <span className="text-[10px] bg-terracotta text-white px-1.5 py-0.5 rounded-full ml-0.5">PLUS</span>
             </button>
           </div>
-        )}
-
-        <div className="grid lg:grid-cols-3 gap-6 mt-6">
-          <form onSubmit={handleSubmit} className="lg:col-span-2 bg-white rounded-2xl border border-neutral-200/70 p-8">
-            <div className="flex items-start justify-between">
-              <div>
-                <h2 className="font-serif-display text-[28px] font-semibold text-neutral-900">
-                  {mode === 'create' ? 'Create a family group' : mode === 'edit' ? 'Edit family group' : (active?.name || 'Your family group')}
-                </h2>
-                <p className="text-[14px] text-neutral-500 mt-2">Step 1 of 3</p>
-                <p className="text-[14px] text-neutral-700 mt-0.5">Tell us about your family</p>
-              </div>
-              <div className="flex items-center gap-2">
-                {active && mode === 'view' && (
-                  <>
-                    <span className="inline-flex items-center gap-1 text-[12px] font-semibold text-cumin-green bg-[#DFEAD8] px-3 py-1 rounded-full"><CheckCircle2 size={13}/> Saved</span>
-                    <button type="button" onClick={() => setMode('edit')} className="text-[12px] font-medium text-cumin-green hover:underline">Edit</button>
-                  </>
-                )}
-              </div>
+          {families.length === 0 ? (
+            <div className="text-center py-4">
+              <p className="text-[13.5px] text-neutral-500 mb-3">Create your first family space to start saving memories.</p>
+              <button onClick={() => setShowCreateFamily(true)} className="bg-cumin-green text-white px-4 py-2 rounded-lg text-[13.5px] font-medium hover:bg-[#324A2F] transition-colors">Create Family Group</button>
             </div>
-
-            <div className="flex items-center gap-2 mt-6 max-w-md">
-              {[1,2,3].map((n, idx) => (
-                <React.Fragment key={n}>
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[13px] font-semibold border ${
-                    n === 1 ? 'bg-cumin-green text-white border-cumin-green' : 'bg-white text-neutral-400 border-neutral-300'
-                  }`}>{n}</div>
-                  {idx < 2 && <div className="flex-1 h-[2px] bg-neutral-200 rounded" />}
-                </React.Fragment>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {families.map(f => (
+                <button key={f.id} onClick={() => setActiveFamilyId(f.id)} className={`inline-flex items-center gap-2 text-[13px] px-3 py-1.5 rounded-full transition-colors ${f.id === activeFamilyId ? 'bg-cumin-green text-white' : 'bg-[#F5EDDD] text-neutral-800 hover:bg-[#EFE3CB]'}`}>
+                  {f.coverPhoto ? <img src={f.coverPhoto} alt="" className="w-5 h-5 rounded-full object-cover" /> : <Users size={13} />}
+                  {f.name}
+                </button>
               ))}
+              <button onClick={() => setShowInvite(true)} className="text-[13px] px-3 py-1.5 rounded-full border border-dashed border-neutral-300 text-neutral-700 hover:border-cumin-green hover:text-cumin-green transition-colors">+ Invite family</button>
             </div>
+          )}
+        </div>
 
-            <div className="mt-8">
-              <label className="text-[14px] font-semibold text-neutral-900">Family Group Name <span className="text-terracotta">*</span></label>
-              <p className="text-[13px] text-neutral-500 mt-0.5">What would you like to call your family group?</p>
-              <div className="relative mt-2">
-                <input value={name} onChange={e => setName(e.target.value.slice(0, 50))} placeholder="e.g., Rao Family" className="w-full bg-white border border-neutral-200 rounded-lg px-4 py-3 text-[14px] placeholder:text-neutral-400 focus:outline-none focus:border-cumin-green focus:ring-2 focus:ring-cumin-green/10 transition-all" />
-                <span className="absolute right-3 -bottom-5 text-[11px] text-neutral-400">{name.length}/50</span>
-              </div>
+        {/* Recent recipes */}
+        <section className="mt-6">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-serif-display text-[22px] font-semibold text-neutral-900">Recent recipes</h2>
+            <a href="/app/recipes" className="text-[13px] text-cumin-green font-medium hover:underline">See all</a>
+          </div>
+          {loading ? (
+            <div className="py-6 flex justify-center"><Loader2 className="animate-spin text-neutral-400" size={20} /></div>
+          ) : recipes.length === 0 ? (
+            <div className="bg-white border border-neutral-200/70 rounded-2xl p-6 text-center">
+              <p className="text-[14px] text-neutral-500">No recipes yet. Tap the big <b>Record</b> button above and start with your first recipe.</p>
             </div>
-
-            <div className="mt-8">
-              <label className="text-[14px] font-semibold text-neutral-900">Primary Family Language <span className="text-terracotta">*</span></label>
-              <p className="text-[13px] text-neutral-500 mt-0.5">This helps us provide the best voice and transcription experience.</p>
-              <div className="relative mt-2">
-                <Globe className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" size={17} />
-                <select value={lang} onChange={e => setLang(e.target.value)} className="w-full appearance-none bg-white border border-neutral-200 rounded-lg pl-10 pr-10 py-3 text-[14px] focus:outline-none focus:border-cumin-green focus:ring-2 focus:ring-cumin-green/10">
-                  {['English', 'Hindi', 'Tamil', 'Telugu', 'Kannada', 'Malayalam', 'Marathi', 'Bengali', 'Gujarati', 'Punjabi'].map(l => <option key={l} value={l}>{l}</option>)}
-                </select>
-              </div>
+          ) : (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              {recipes.slice(0, 4).map(r => <RecipeCardMini key={r.id} r={r} onShare={() => shareRecipe(r)} />)}
             </div>
+          )}
+        </section>
 
-            <div className="mt-6">
-              <label className="text-[14px] font-semibold text-neutral-900">Family Cover Photo</label>
-              <p className="text-[13px] text-neutral-500 mt-0.5">Add a photo that represents your family. You can change it later.</p>
-              <div className="mt-3 border border-dashed border-neutral-300 rounded-xl bg-[#FBF6EE] p-6 text-center">
-                {cover ? (
-                  <div className="flex items-center gap-4">
-                    <img src={cover} alt="cover" className="w-24 h-24 rounded-lg object-cover" />
-                    <div className="text-left flex-1">
-                      <p className="font-semibold text-neutral-900 text-[14px]">Photo added</p>
-                      <p className="text-[12px] text-neutral-500 mt-1">Looking great! You can replace it below.</p>
-                    </div>
-                    <label className="cursor-pointer bg-white border border-neutral-200 text-neutral-800 text-[13px] font-medium px-4 py-2 rounded-md hover:border-cumin-green transition-colors">
-                      Replace
-                      <input type="file" accept="image/*" onChange={handleFile} className="hidden" />
-                    </label>
+        {/* Recent stories */}
+        <section className="mt-6">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-serif-display text-[22px] font-semibold text-neutral-900">Recent stories &amp; festivals</h2>
+            <a href="/app/stories" className="text-[13px] text-cumin-green font-medium hover:underline">See all</a>
+          </div>
+          {stories.length === 0 ? (
+            <div className="bg-white border border-neutral-200/70 rounded-2xl p-6 text-center">
+              <p className="text-[14px] text-neutral-500">No stories or festival memories yet.</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {stories.slice(0, 3).map(s => (
+                <div key={s.id} className="bg-white border border-neutral-200/70 rounded-xl p-3 flex items-start gap-3">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${s.kind === 'festival' ? 'bg-[#E4DEF4]' : 'bg-[#DFEAD8]'}`}>
+                    {s.kind === 'festival' ? <PartyPopper size={16} className="text-[#7A6FB0]" /> : <BookOpen size={16} className="text-[#5D7A4E]" />}
                   </div>
-                ) : (
-                  <>
-                    <div className="w-12 h-12 mx-auto rounded-full bg-white flex items-center justify-center border border-neutral-200 mb-3">
-                      <ImageIcon size={20} className="text-terracotta" />
-                    </div>
-                    <p className="font-semibold text-neutral-900 text-[14px]">Upload a photo</p>
-                    <p className="text-[12px] text-neutral-500 mt-1">JPG, PNG up to 5MB</p>
-                    <label className="mt-3 inline-block cursor-pointer bg-white border border-neutral-200 text-neutral-800 text-[13px] font-medium px-4 py-2 rounded-md hover:border-cumin-green transition-colors">
-                      Choose File
-                      <input type="file" accept="image/*" onChange={handleFile} className="hidden" />
-                    </label>
-                  </>
-                )}
-              </div>
-            </div>
-
-            <div className="mt-6 bg-[#FCF3D9] border border-[#F4E4B0] rounded-lg px-4 py-3 flex items-start gap-2">
-              <Lightbulb size={17} className="text-[#B08238] mt-0.5" />
-              <p className="text-[13px] text-neutral-700"><span className="font-semibold">Tip:</span> You can always update these details later in Settings.</p>
-            </div>
-
-            {(mode === 'edit' || mode === 'create') && (
-              <button type="submit" disabled={saving} className="w-full mt-6 bg-cumin-green text-white text-[15px] font-medium py-3.5 rounded-lg hover:bg-[#324A2F] transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-2 disabled:opacity-70">
-                {saving && <Loader2 size={16} className="animate-spin" />}
-                {mode === 'edit' ? 'Update Family Group' : 'Create Family Group'}
-              </button>
-            )}
-            {mode === 'edit' && (
-              <button type="button" onClick={() => setMode('view')} className="w-full mt-2 text-[13px] text-neutral-500 hover:text-neutral-800">Cancel</button>
-            )}
-            <p className="mt-3 text-[12px] text-neutral-500 flex items-center justify-center gap-1.5"><Lock size={12} /> Your family space is private and secure.</p>
-          </form>
-
-          <aside className="bg-white rounded-2xl border border-neutral-200/70 p-6 h-fit">
-            <h3 className="font-serif-display text-[22px] font-semibold text-neutral-900">What happens next?</h3>
-            <p className="text-[13.5px] text-neutral-600 mt-2">In the next few steps, you’ll set up your family space and invite others.</p>
-            <div className="mt-6 space-y-6">
-              {[
-                { n: 1, icon: Users, title: 'Invite Your Family', desc: 'Invite family members to join your private space.', tint: 'bg-[#F7DFCE]', iconClass: 'text-terracotta' },
-                { n: 2, icon: Mic, title: 'Collect Voice Recipes', desc: 'Record recipes and stories in your family’s voice.', tint: 'bg-[#DFEAD8]', iconClass: 'text-[#5D7A4E]' },
-                { n: 3, icon: Sparkles, title: 'Save & Cherish Memories', desc: 'Organize, relive, and pass down your legacy.', tint: 'bg-[#E4DEF4]', iconClass: 'text-[#7A6FB0]' }
-              ].map((s, i) => (
-                <div key={s.n} className="text-center">
-                  <div className={`w-14 h-14 mx-auto rounded-full ${s.tint} flex items-center justify-center`}>
-                    <s.icon size={22} className={s.iconClass} />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-[14px] text-neutral-900 truncate">{s.title}</p>
+                    <p className="text-[12.5px] text-neutral-500 line-clamp-2">{s.excerpt || s.transcript_en}</p>
                   </div>
-                  <p className="font-semibold text-neutral-900 text-[14.5px] mt-3">{s.n}. {s.title}</p>
-                  <p className="text-[13px] text-neutral-600 mt-1">{s.desc}</p>
-                  {i < 2 && <div className="w-px h-6 mx-auto mt-3 border-l border-dashed border-neutral-300" />}
+                  <button onClick={() => shareStory(s)} className="text-[11px] text-[#25D366] font-medium">Share</button>
                 </div>
               ))}
             </div>
-            <div className="mt-6 rounded-xl overflow-hidden">
-              <img src={heroImages.recipeJournal} alt="recipe journal" className="w-full h-40 object-cover" />
-            </div>
-          </aside>
-        </div>
-
-        <div className="mt-6 bg-[#F7EFE3] rounded-2xl px-8 py-5 flex flex-wrap items-center justify-between gap-6">
-          <div className="flex items-start gap-3 max-w-xl">
-            <span className="font-serif-display text-[40px] leading-none text-terracotta">“</span>
-            <div>
-              <p className="text-[14.5px] text-neutral-700 italic">“Recipes are more than ingredients. They’re our history, our love, and our way of staying close.”</p>
-              <p className="text-[12px] text-neutral-500 mt-1">– Meera R.</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="flex -space-x-2">
-              {familyAvatars.map((src) => <img key={src} src={src} alt="member" className="w-9 h-9 rounded-full border-2 border-white object-cover" />)}
-            </div>
-            <button onClick={() => setShowInvite(true)} className="w-10 h-10 rounded-full bg-[#F7DFCE] flex items-center justify-center text-terracotta hover:bg-[#F0C9B0] transition-colors">
-              <Plus size={16} />
-            </button>
-            <button onClick={() => setShowInvite(true)} className="text-[13px] text-neutral-700 leading-tight text-left hover:text-cumin-green transition-colors">Invite<br />Family</button>
-          </div>
-        </div>
+          )}
+        </section>
       </div>
+
       {showInvite && <InviteFamilyModal onClose={() => setShowInvite(false)} />}
+      {showRecord && <SmartRecordModal onClose={() => setShowRecord(false)} familyId={active?.id} onSaved={handleRecordSaved} />}
+      {showCreateFamily && (
+        <CreateFamilyModal onClose={() => setShowCreateFamily(false)} onCreated={async () => { setShowCreateFamily(false); await loadEverything(); }} />
+      )}
     </AppShell>
+  );
+}
+
+function shareRecipe(r) {
+  const body = `${r.title}\n\nBy ${r.author || 'CuminJar family'}${r.serves ? ` · Serves ${r.serves}` : ''}${r.time ? ` · ${r.time}` : ''}\n\n${(r.ingredients || []).length ? 'Ingredients:\n' + r.ingredients.map(i => `• ${i}`).join('\n') + '\n\n' : ''}${(r.steps || []).length ? 'Steps:\n' + r.steps.map((s, i) => `${i + 1}. ${s}`).join('\n') + '\n\n' : ''}Saved on CuminJar 🫙`;
+  window.open(`https://wa.me/?text=${encodeURIComponent(body)}`, '_blank');
+}
+function shareStory(s) {
+  const body = `${s.title}\n\n${(s.excerpt || s.transcript_en || '').slice(0, 800)}\n\nSaved on CuminJar 🫙`;
+  window.open(`https://wa.me/?text=${encodeURIComponent(body)}`, '_blank');
+}
+
+function RecipeCardMini({ r, onShare }) {
+  return (
+    <div className="bg-white rounded-xl border border-neutral-200/70 overflow-hidden">
+      <div className="aspect-square bg-neutral-100 relative">
+        {r.cover ? <img src={r.cover} alt={r.title} className="w-full h-full object-cover" /> : (
+          <div className="w-full h-full flex items-center justify-center text-neutral-300"><ChefHat size={30} /></div>
+        )}
+        <button onClick={onShare} className="absolute bottom-2 right-2 w-8 h-8 rounded-full bg-white/90 backdrop-blur flex items-center justify-center text-[#25D366] hover:bg-white transition-colors" title="Share on WhatsApp">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/></svg>
+        </button>
+      </div>
+      <div className="p-2.5">
+        <p className="font-semibold text-[13px] text-neutral-900 truncate">{r.title}</p>
+        <p className="text-[11px] text-neutral-500 truncate">{r.serves ? `Serves ${r.serves}` : ''}{r.time ? ` · ${r.time}` : ''}</p>
+      </div>
+    </div>
+  );
+}
+
+function CreateFamilyModal({ onClose, onCreated }) {
+  const [name, setName] = useState('');
+  const [lang, setLang] = useState('English');
+  const [cover, setCover] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const { toast } = useToast();
+
+  const handleFile = (e) => {
+    const f = e.target.files?.[0]; if (!f) return;
+    const reader = new FileReader();
+    reader.onload = () => setCover(reader.result);
+    reader.readAsDataURL(f);
+  };
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await api.createFamily({ name, description: '', language: lang, coverPhoto: cover });
+      toast({ title: 'Family created!' });
+      onCreated();
+    } catch (err) {
+      toast({ title: 'Could not create', description: err?.response?.data?.detail || err?.message });
+    } finally { setSaving(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center sm:p-4">
+      <form onSubmit={submit} className="bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-3xl">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100">
+          <h3 className="font-serif-display text-[22px] font-semibold">Create family group</h3>
+          <button type="button" onClick={onClose} className="w-9 h-9 rounded-full hover:bg-neutral-100 flex items-center justify-center"><X size={18} /></button>
+        </div>
+        <div className="p-5 space-y-3">
+          <input required autoFocus value={name} onChange={e => setName(e.target.value.slice(0, 50))} placeholder="Family name (e.g., Rao Family)" className="w-full border border-neutral-200 rounded-lg px-3 py-3 text-[15px] focus:outline-none focus:border-cumin-green" />
+          <select value={lang} onChange={e => setLang(e.target.value)} className="w-full border border-neutral-200 rounded-lg px-3 py-3 text-[15px] focus:outline-none focus:border-cumin-green">
+            {['English', 'Hindi', 'Tamil', 'Telugu', 'Kannada', 'Malayalam', 'Marathi', 'Bengali', 'Gujarati', 'Punjabi'].map(l => <option key={l}>{l}</option>)}
+          </select>
+          <label className="flex items-center gap-3 border border-dashed border-neutral-300 rounded-lg px-3 py-3 cursor-pointer text-[13.5px] text-neutral-600">
+            {cover ? <img src={cover} alt="cover" className="w-14 h-14 rounded object-cover" /> : <div className="w-14 h-14 rounded bg-neutral-100 flex items-center justify-center"><ImageIcon size={18} className="text-neutral-400"/></div>}
+            <span>Add family cover photo</span>
+            <input type="file" accept="image/*" onChange={handleFile} className="hidden" />
+          </label>
+          <button disabled={saving} type="submit" className="w-full mt-2 bg-cumin-green text-white py-3.5 rounded-lg font-medium hover:bg-[#324A2F] transition-colors flex items-center justify-center gap-2 disabled:opacity-70">
+            {saving && <Loader2 size={15} className="animate-spin" />} Create
+          </button>
+        </div>
+      </form>
+    </div>
   );
 }

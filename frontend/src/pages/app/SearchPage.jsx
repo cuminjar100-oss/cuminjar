@@ -20,7 +20,7 @@ export default function SearchPage() {
 
   return (
     <AppShell active="search">
-      <div className="px-8 py-6">
+      <div className="px-4 lg:px-8 py-4 lg:py-6">
         <h1 className="font-serif-display text-[32px] font-semibold text-neutral-900">Search your jar</h1>
         <p className="text-neutral-500 text-[14px] mt-1">Find recipes, stories and family members instantly.</p>
 
