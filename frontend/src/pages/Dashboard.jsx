@@ -7,6 +7,7 @@ import InviteFamilyModal from '../components/InviteFamilyModal';
 import SmartRecordModal from '../components/SmartRecordModal';
 import RecipeDetailModal from '../components/RecipeDetailModal';
 import StoryDetailModal from '../components/StoryDetailModal';
+import FirstRunEmptyState from '../components/FirstRunEmptyState';
 import { shareWithImage, buildRecipeShareText, buildStoryShareText, shareCookbookLink } from '../utils/share';
 
 export default function Dashboard() {
@@ -58,9 +59,20 @@ export default function Dashboard() {
     else if (r?.item) setStories(prev => [r.item, ...prev]);
   };
 
+  const isFirstRun = !!authUser && !loading && families.length === 0 && recipes.length === 0 && stories.length === 0;
+
   return (
     <AppShell active="home" onOpenRecord={() => setShowRecord(true)}>
       <div className="px-3 lg:px-8 py-3 lg:py-6 max-w-4xl mx-auto">
+        {isFirstRun && (
+          <FirstRunEmptyState
+            userName={authUser?.name}
+            onCreateFamily={() => setShowCreateFamily(true)}
+            onRecord={() => setShowRecord(true)}
+          />
+        )}
+        {!isFirstRun && (
+        <>
         {/* Compact welcome + big Record button */}
         <div className="bg-gradient-to-br from-[#F7DFCE]/70 to-[#F1E8D8] rounded-2xl p-4 lg:p-8 text-center">
           <h1 className="font-serif-display text-[22px] lg:text-[34px] font-semibold text-neutral-900 leading-tight" data-testid="dashboard-greeting">
@@ -182,6 +194,8 @@ export default function Dashboard() {
             </div>
           )}
         </section>
+        </>
+        )}
       </div>
 
       {showInvite && <InviteFamilyModal onClose={() => setShowInvite(false)} />}

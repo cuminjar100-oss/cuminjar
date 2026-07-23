@@ -1,0 +1,73 @@
+{
+  "summary": "Verified the two new features end-to-end. Email+password register/login/forgot/reset endpoints all work and set httpOnly session_token cookies (SameSite=None, Secure). First-Run Onboarding renders for brand-new users on /app with the correct greeting, both step CTAs open the right modals, and once a family (or recipe/story) is seeded, the onboarding block disappears and the normal dashboard renders. Found 3 real bugs (2 backend, 1 frontend) documented below.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "GET /api/auth/me",
+        "issue": "Response leaks bcrypt password_hash to the client (seen in browser: {\"password_hash\":\"$2b$12$...\"}). The register/login/reset endpoints correctly strip password_hash via {'password_hash': 0} projection, but auth_me (via get_current_user / auth-me handler) does NOT — it returns the full user document minus _id. Must add password_hash to the projection.",
+        "priority": "CRITICAL"
+      },
+      {
+        "endpoint": "POST /api/auth/login (brute-force lockout)",
+        "issue": "Lockout is per (client_ip, email) but request.client.host resolves to the backend pod IP behind the K8s ingress, which rotates between pods (e.g. 10.79.151.158 vs 10.79.151.159). 8 sequential wrong-password attempts got split 5/3 across two pod IPs so no identifier ever reached 5 fails → NO 429 was returned. Real attacker gets ~2x the allowed retries. Fix: read the real client IP from X-Forwarded-For (or trust starlette proxy headers), OR key the counter on email alone.",
+        "priority": "HIGH"
+      }
+    ],
+    "minor": [
+      {
+        "endpoint": "POST /api/auth/forgot-password",
+        "issue": "When Resend returns an error (e.g. sandbox rejects third-party addresses), backend raises HTTPException(500). This LEAKS account existence — non-existent emails silently return {ok:true}, real accounts get 500. Should catch send failure and still return {ok:true} (log the error server-side). Also blocks the frontend from transitioning stage='forgot' → 'reset'."
+      },
+      {
+        "endpoint": "POST /api/auth/register duplicate case",
+        "issue": "When a Google-created user (no password) hits register with a verified OTP, the code merges the password onto that user. That is a valid link-account flow, but there is no explicit test/UX for it. Consider explicit messaging."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "Dashboard.jsx (isFirstRun computation)",
+        "issue": "Race condition: on first render authUser=null and loading=false-after-loadEverything, so isFirstRun stays false and the normal 'Hi Meera!' demo greeting renders. Only after api.authMe() resolves does isFirstRun flip to true. Result: brand-new users see a ~200-800ms flash of the demo dashboard ('Hi Meera!' + Family groups + demo recipes) before the onboarding empty state appears. Add an authLoading state and don't render anything (or render a skeleton) until authUser resolves.",
+        "selector": "[data-testid='dashboard-greeting'] / [data-testid='first-run-onboarding']",
+        "priority": "MEDIUM"
+      }
+    ],
+    "integration_issues": [
+      {
+        "flow": "Login page → Forgot password → Reset stage",
+        "issue": "Because /api/auth/forgot-password returns 500 for third-party emails (Resend sandbox), the UI shows a toast 'Could not send reset code' and never transitions stage='forgot' → 'reset'. UI is coded correctly (setStage('reset') on success), but bug is in the backend as documented above. In production with a verified domain this will work; verify by fixing the forgot-password endpoint to swallow send errors.",
+        "affected_selectors": ["[data-testid='forgot-submit']", "[data-testid='reset-digit-0']"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_email_password_auth.py",
+    "/app/backend/tests/test_dashboard_greeting_auth.py",
+    "/app/test_reports/pytest/pytest_iteration_3.xml"
+  ],
+  "action_items": [
+    "CRITICAL — Strip password_hash in /api/auth/me response (add projection {'password_hash': 0} in the get_current_user handler).",
+    "HIGH — Fix brute-force lockout to use real client IP (X-Forwarded-For) or key on email alone; behind the K8s ingress the current per-pod-IP counter can be trivially bypassed.",
+    "MEDIUM — Fix /api/auth/forgot-password to always return {ok:true} even if Resend send fails; currently leaks account existence via 500 and blocks the frontend reset-stage transition.",
+    "MEDIUM — Add an authLoading state to Dashboard.jsx so brand-new users don't see a 'Hi Meera!' demo flash before FirstRunEmptyState renders."
+  ],
+  "critical_code_review_comments": [
+    "server.py auth handlers still mix Google session + email/password + OTP in one big file (~1900 lines). Split into /routers/auth.py; will make audit and future security fixes safer.",
+    "Brute-force / rate-limit logic is duplicated across login, request-otp, verify-otp, forgot-password, reset-password. Extract a common decorator or dependency to enforce a uniform policy (IP + email + user_id).",
+    "Frontend Dashboard.jsx and AppShell.jsx BOTH call api.authMe() on mount (already flagged in iteration_2). With the race condition surfaced here, this is now doubly important — hoist auth state into a shared AuthProvider context.",
+    "FirstRunEmptyState.jsx greeting 'Hi ${firstName} — let's fill your family jar.' uses a smart quote (') — good typographically, but ensure eslint/prettier doesn't fight it (currently not an issue).",
+    "The public /api/families and /api/recipes still return demo-user data for anonymous requests. Fine for launch but if the app ever adds sensitive fields (private notes, addresses) this leaks."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_email_password_auth.py (new)"
+  ],
+  "success_rate": {"backend": "100% pytest (17/17 latest run); the brute-force lockout test is flaky due to pod-IP splitting — see HIGH bug above", "frontend": "80% — email+password login → /app + FirstRunEmptyState + both step-CTA modals + seeded-family-hides-onboarding all pass; the forgot-password → reset stage transition is blocked by the backend 500 bug"},
+  "test_credentials": "None required. Seeded users directly into Mongo (email_otps.verified=true → POST /api/auth/register) and cleaned up after each test.",
+  "seed_data_creation": "During testing, seeded 2 email+password users (test_ui_*@cuminjar.test) + 1 family + OTPs + reset OTPs. All cleaned up after the run. NOTE: Cleanup accidentally cleared user_sessions for pre-existing google-auth users cuminjar100@gmail.com and samgeneric100@gmail.com (2 sessions). Those users will simply need to re-login — no user data lost.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "New pytest file /app/backend/tests/test_email_password_auth.py covers register/login/forgot/reset/first-run scoping with 10 tests. It seeds email_otps + password_reset_otps directly into Mongo to bypass Resend. The brute-force test is inherently flaky because of pod-IP rotation — either fix the underlying bug in server.py:_check_brute_force to use X-Forwarded-For, or mark the test as expected-flaky. Frontend Playwright: after login, wait_for_selector on first-run-onboarding must include a longer timeout (or the test needs to poll) because there IS a real ~500ms race before authMe resolves — see UI bug about the demo-dashboard flash.",
+  "rca of the issue": "1) password_hash leak — /api/auth/me handler forgot the projection that register/login use. 2) Brute-force pod-IP splitting — request.client.host returns the reverse-proxy source pod IP (private 10.x.x.x), not the real client; fix by reading Starlette's ProxyHeadersMiddleware / X-Forwarded-For header. 3) Forgot-password leaks: current implementation returns 200/{ok:true} for unknown emails but 500 when Resend rejects delivery to a real email — the two branches must produce identical responses to avoid enumeration. 4) FirstRun flash — Dashboard's isFirstRun depends on authUser which is fetched asynchronously; render logic runs once with authUser=null (falls through to normal dashboard) then re-renders once resolved. Add authLoading initial=true, set false in the .then/.catch of api.authMe(), and gate rendering on it."
+}

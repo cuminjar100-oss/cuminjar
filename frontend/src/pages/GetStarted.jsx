@@ -67,12 +67,18 @@ export default function GetStarted() {
     setBusy(true);
     try {
       await api.verifyOtp({ email: form.email.trim().toLowerCase(), code: codeStr });
-      toast({ title: 'Email verified!', description: 'Welcome to CuminJar.' });
-      // Persist verified email locally (demo user still hardcoded on backend)
+      // Now create the account with the password the user chose
+      await api.authRegister({
+        email: form.email.trim().toLowerCase(),
+        password: form.password,
+        name: form.name.trim(),
+      });
+      toast({ title: 'Welcome to CuminJar!', description: 'Your account is ready.' });
       try { localStorage.setItem('cuminjar_verified_email', form.email.toLowerCase()); } catch { /* ignore */ }
       navigate('/app');
     } catch (e) {
-      toast({ title: 'Verification failed', description: e?.response?.data?.detail || 'Please check the code.' });
+      const msg = e?.response?.data?.detail;
+      toast({ title: 'Sign-up failed', description: (typeof msg === 'string' ? msg : null) || e?.message || 'Please try again.' });
       setCode(['', '', '', '', '', '']);
       inputsRef.current[0]?.focus();
     } finally { setBusy(false); }
