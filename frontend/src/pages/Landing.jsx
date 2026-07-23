@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import MarketingHeader from '../components/MarketingHeader';
 import MarketingFooter from '../components/MarketingFooter';
-import { Play, Mic, Sparkles, ImagePlus, Users, UserPlus, Heart, Star, ArrowRight, BookHeart } from 'lucide-react';
+import { Play, Mic, Sparkles, ImagePlus, Users, UserPlus, Heart, Star, ArrowRight, BookHeart, QrCode, CheckCircle2 } from 'lucide-react';
 import { features, steps, testimonials, pressLogos, heroImages, familyAvatars } from '../mock';
 import { StarAnise, Cardamom, CinnamonStick, LeafSprig } from '../components/Spices';
 
@@ -135,6 +135,75 @@ export default function Landing() {
                 </div>
               );
             })}
+          </div>
+        </div>
+      </section>
+
+      {/* FAMILY LEGACY BOOK */}
+      <section className="py-20 bg-cream relative overflow-hidden" data-testid="legacy-book-section">
+        <div className="absolute -top-10 left-0 w-64 h-64 rounded-full bg-terracotta/5 blur-3xl" aria-hidden="true" />
+        <div className="absolute -bottom-10 right-0 w-72 h-72 rounded-full bg-cumin-green/5 blur-3xl" aria-hidden="true" />
+
+        <div className="max-w-7xl mx-auto px-6 lg:px-10 relative">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            <div className="relative">
+              <img
+                src="/legacy-book-recipe.jpg"
+                alt="Open Family Legacy Book showing Paati's Morkuzhambu recipe with a QR code that plays her voice"
+                className="w-full rounded-3xl shadow-2xl border border-neutral-200/70"
+              />
+              <div className="hidden md:flex absolute -bottom-6 -left-6 bg-white rounded-2xl border border-neutral-200 shadow-xl px-4 py-3 items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-[#F5EDDD] flex items-center justify-center">
+                  <QrCode size={19} className="text-terracotta" />
+                </div>
+                <div>
+                  <p className="text-[11px] uppercase tracking-wider text-neutral-500 font-semibold">On every page</p>
+                  <p className="text-[13.5px] font-semibold text-neutral-900">Scan to hear Paati&rsquo;s voice</p>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <span className="inline-block bg-[#F7DFCE] text-terracotta text-[11px] font-semibold tracking-[0.22em] px-4 py-2 rounded-full">FAMILY LEGACY BOOK</span>
+              <h2 className="mt-6 font-serif-display text-[36px] md:text-[48px] font-semibold text-neutral-900 leading-[1.05]">
+                A hardbound heirloom for the <span className="text-terracotta italic">next generation</span>.
+              </h2>
+              <p className="mt-5 text-[16px] text-neutral-700 leading-relaxed">
+                When your family jar feels full, we turn it into a beautiful printed cookbook — every recipe,
+                every story, every festival tradition, elegantly typeset on cream paper with olive-green fabric binding.
+              </p>
+              <p className="mt-4 text-[15.5px] text-neutral-600 leading-relaxed">
+                Beside the English text on every single page there&rsquo;s a small QR code. Point any phone at it and
+                hear the original recording — Paati&rsquo;s voice reading the recipe herself, Nani telling the story in
+                the language she grew up with. English for the young ones, voice for the soul.
+              </p>
+
+              <ul className="mt-7 space-y-3">
+                {[
+                  'Printed & bound in India, delivered worldwide',
+                  'QR code on every page plays the original recording',
+                  'Recipes, stories, festivals — organised by generation',
+                  'Elegant serif typography on warm cream paper',
+                ].map(t => (
+                  <li key={t} className="flex items-start gap-2.5 text-[14.5px] text-neutral-800">
+                    <CheckCircle2 size={17} className="text-cumin-green flex-shrink-0 mt-0.5" /> {t}
+                  </li>
+                ))}
+              </ul>
+
+              <div className="mt-8 flex flex-wrap items-center gap-4">
+                <Link
+                  to="/pricing"
+                  className="bg-cumin-green text-white px-6 py-3 rounded-lg font-medium hover:bg-[#324A2F] transition-colors"
+                  data-testid="legacy-book-cta"
+                >
+                  See pricing
+                </Link>
+                <Link to="/features" className="text-cumin-green font-medium hover:underline flex items-center gap-1">
+                  How it&rsquo;s made <ArrowRight size={15} />
+                </Link>
+              </div>
+            </div>
           </div>
         </div>
       </section>
