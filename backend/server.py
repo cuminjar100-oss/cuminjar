@@ -12,11 +12,17 @@ from datetime import datetime, timezone, timedelta
 import asyncio
 import io
 import re
+from contextvars import ContextVar
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
 EMAIL_RE = re.compile(r'^[^\s@]+@[^\s@]+\.[^\s@]+$')
+
+# Per-request user context (set by AuthContextMiddleware from cookie or Bearer)
+current_uid: ContextVar[str] = ContextVar('current_uid', default='demo-user')
+current_user_name: ContextVar[str] = ContextVar('current_user_name', default='Meera R.')
+current_user_picture: ContextVar[Optional[str]] = ContextVar('current_user_picture', default=None)
 
 # MongoDB connection
 mongo_url = os.environ['MONGO_URL']
@@ -191,7 +197,7 @@ async def _seed_if_empty():
 # --------------------- Health & User ---------------------
 @api.get("/")
 async def root():
-    return {"message": "CuminJar API", "user": DEMO_USER['name']}
+    return {"message": "CuminJar API", "user": current_user_name.get()}
 
 
 @api.get("/me")
@@ -204,13 +210,13 @@ async def me():
 @api.get("/family")
 async def get_family():
     """Return the most-recent family group (backwards compatible)."""
-    doc = await db.families.find_one({'user_id': DEMO_USER_ID}, sort=[('created_at', -1)])
+    doc = await db.families.find_one({'user_id': current_uid.get()}, sort=[('created_at', -1)])
     return _strip_id(doc)
 
 
 @api.get("/families")
 async def list_families():
-    items = await db.families.find({'user_id': DEMO_USER_ID}).sort('created_at', -1).to_list(200)
+    items = await db.families.find({'user_id': current_uid.get()}).sort('created_at', -1).to_list(200)
     return [_strip_id(i) for i in items]
 
 
@@ -219,7 +225,7 @@ async def create_family(payload: FamilyIn):
     """Create a NEW family group. Free plan is limited to 1 family group."""
     limits = DEMO_USER.get('limits', {})
     max_families = limits.get('max_families', 1)
-    existing_count = await db.families.count_documents({'user_id': DEMO_USER_ID})
+    existing_count = await db.families.count_documents({'user_id': current_uid.get()})
     if DEMO_USER.get('plan') == 'free' and existing_count >= max_families:
         raise HTTPException(
             402,
@@ -228,7 +234,7 @@ async def create_family(payload: FamilyIn):
     data = payload.dict()
     data.update({
         'id': str(uuid.uuid4()),
-        'user_id': DEMO_USER_ID,
+        'user_id': current_uid.get(),
         'created_at': now_iso(),
         'updated_at': now_iso(),
     })
@@ -238,19 +244,19 @@ async def create_family(payload: FamilyIn):
 
 @api.put("/family/{family_id}")
 async def update_family(family_id: str, payload: FamilyIn):
-    existing = await db.families.find_one({'id': family_id, 'user_id': DEMO_USER_ID})
+    existing = await db.families.find_one({'id': family_id, 'user_id': current_uid.get()})
     if not existing:
         raise HTTPException(404, 'Family not found')
     data = payload.dict()
     data['updated_at'] = now_iso()
-    await db.families.update_one({'id': family_id, 'user_id': DEMO_USER_ID}, {'$set': data})
-    doc = await db.families.find_one({'id': family_id, 'user_id': DEMO_USER_ID})
+    await db.families.update_one({'id': family_id, 'user_id': current_uid.get()}, {'$set': data})
+    doc = await db.families.find_one({'id': family_id, 'user_id': current_uid.get()})
     return _strip_id(doc)
 
 
 @api.delete("/family/{family_id}")
 async def delete_family(family_id: str):
-    res = await db.families.delete_one({'id': family_id, 'user_id': DEMO_USER_ID})
+    res = await db.families.delete_one({'id': family_id, 'user_id': current_uid.get()})
     if res.deleted_count == 0:
         raise HTTPException(404, 'Family not found')
     return {'ok': True}
@@ -497,7 +503,7 @@ async def auth_logout(request: Request):
 @api.post("/family/{family_id}/share")
 async def enable_family_share(family_id: str):
     """Generate (or reuse) a public share token for a family cookbook."""
-    fam = await db.families.find_one({'id': family_id, 'user_id': DEMO_USER_ID})
+    fam = await db.families.find_one({'id': family_id, 'user_id': current_uid.get()})
     if not fam:
         raise HTTPException(404, 'Family not found')
     token = fam.get('share_token') or _secrets.token_urlsafe(12)
@@ -507,7 +513,7 @@ async def enable_family_share(family_id: str):
 
 @api.post("/family/{family_id}/unshare")
 async def disable_family_share(family_id: str):
-    fam = await db.families.find_one({'id': family_id, 'user_id': DEMO_USER_ID})
+    fam = await db.families.find_one({'id': family_id, 'user_id': current_uid.get()})
     if not fam:
         raise HTTPException(404, 'Family not found')
     await db.families.update_one({'id': family_id}, {'$set': {'share_token': None, 'shared_at': None}})
@@ -824,7 +830,7 @@ async def smart_record(
         limits = DEMO_USER.get('limits', {})
         max_recipes = limits.get('max_recipes', 3)
         if DEMO_USER.get('plan') == 'free':
-            existing_count = await db.recipes.count_documents({'user_id': DEMO_USER_ID})
+            existing_count = await db.recipes.count_documents({'user_id': current_uid.get()})
             if existing_count >= max_recipes:
                 raise HTTPException(402, f"Free plan allows only {max_recipes} recipes. Upgrade to Plus.")
 
@@ -853,10 +859,10 @@ async def smart_record(
 
         doc = {
             'id': str(uuid.uuid4()),
-            'user_id': DEMO_USER_ID,
+            'user_id': current_uid.get(),
             'family_id': family_id,
             'title': title,
-            'author': DEMO_USER['name'],
+            'author': current_user_name.get(),
             'region': region,
             'serves': str(servings),
             'time': f"{time_min} mins" if time_min else '',
@@ -890,10 +896,10 @@ async def smart_record(
                 logger.exception('Failed to encode audio for playback')
         doc = {
             'id': str(uuid.uuid4()),
-            'user_id': DEMO_USER_ID,
+            'user_id': current_uid.get(),
             'family_id': family_id,
             'title': title,
-            'author': DEMO_USER['name'],
+            'author': current_user_name.get(),
             'excerpt': english,
             'mins': approx_mins,
             'kind': kind,
@@ -911,14 +917,14 @@ async def smart_record(
 @api.patch("/recipes/{recipe_id}")
 async def update_recipe_cover(recipe_id: str, payload: dict):
     """Update recipe (currently supports cover update)."""
-    doc = await db.recipes.find_one({'id': recipe_id, 'user_id': DEMO_USER_ID})
+    doc = await db.recipes.find_one({'id': recipe_id, 'user_id': current_uid.get()})
     if not doc:
         raise HTTPException(404, 'Recipe not found')
     allowed = {'cover', 'title', 'region', 'serves', 'time', 'tags', 'ingredients', 'steps'}
     updates = {k: v for k, v in payload.items() if k in allowed}
     if updates:
         await db.recipes.update_one({'id': recipe_id}, {'$set': updates})
-    doc = await db.recipes.find_one({'id': recipe_id, 'user_id': DEMO_USER_ID})
+    doc = await db.recipes.find_one({'id': recipe_id, 'user_id': current_uid.get()})
     return _strip_id(doc)
 
 
@@ -950,7 +956,7 @@ async def transcribe_media_endpoint(
 @api.get("/recipes")
 async def list_recipes():
     await _seed_if_empty()
-    items = await db.recipes.find({'user_id': DEMO_USER_ID}).sort('created_at', -1).to_list(500)
+    items = await db.recipes.find({'user_id': current_uid.get()}).sort('created_at', -1).to_list(500)
     return [_strip_id(i) for i in items]
 
 
@@ -958,21 +964,21 @@ async def list_recipes():
 async def create_recipe(payload: RecipeIn):
     limits = DEMO_USER.get('limits', {})
     max_recipes = limits.get('max_recipes', 3)
-    existing_count = await db.recipes.count_documents({'user_id': DEMO_USER_ID})
+    existing_count = await db.recipes.count_documents({'user_id': current_uid.get()})
     if DEMO_USER.get('plan') == 'free' and existing_count >= max_recipes:
         raise HTTPException(
             402,
             f"Free plan allows only {max_recipes} recipes. Upgrade to Plus for unlimited recipes.",
         )
     doc = payload.dict()
-    doc.update({'id': str(uuid.uuid4()), 'user_id': DEMO_USER_ID, 'liked': False, 'created_at': now_iso()})
+    doc.update({'id': str(uuid.uuid4()), 'user_id': current_uid.get(), 'liked': False, 'created_at': now_iso()})
     await db.recipes.insert_one(doc)
     return _strip_id(doc)
 
 
 @api.post("/recipes/{recipe_id}/like")
 async def like_recipe(recipe_id: str):
-    doc = await db.recipes.find_one({'id': recipe_id, 'user_id': DEMO_USER_ID})
+    doc = await db.recipes.find_one({'id': recipe_id, 'user_id': current_uid.get()})
     if not doc:
         raise HTTPException(404, 'Recipe not found')
     new_liked = not doc.get('liked', False)
@@ -984,7 +990,7 @@ async def like_recipe(recipe_id: str):
 @api.post("/recipes/{recipe_id}/regenerate-cover")
 async def regenerate_recipe_cover(recipe_id: str):
     """Regenerate the AI cover image for a recipe using Gemini Nano Banana."""
-    doc = await db.recipes.find_one({'id': recipe_id, 'user_id': DEMO_USER_ID})
+    doc = await db.recipes.find_one({'id': recipe_id, 'user_id': current_uid.get()})
     if not doc:
         raise HTTPException(404, 'Recipe not found')
     title = doc.get('title') or 'Recipe'
@@ -1001,7 +1007,7 @@ async def regenerate_recipe_cover(recipe_id: str):
 
 @api.delete("/recipes/{recipe_id}")
 async def delete_recipe(recipe_id: str):
-    res = await db.recipes.delete_one({'id': recipe_id, 'user_id': DEMO_USER_ID})
+    res = await db.recipes.delete_one({'id': recipe_id, 'user_id': current_uid.get()})
     if res.deleted_count == 0:
         raise HTTPException(404, 'Recipe not found')
     return {'ok': True}
@@ -1009,7 +1015,7 @@ async def delete_recipe(recipe_id: str):
 
 @api.delete("/stories/{story_id}")
 async def delete_story(story_id: str):
-    res = await db.stories.delete_one({'id': story_id, 'user_id': DEMO_USER_ID})
+    res = await db.stories.delete_one({'id': story_id, 'user_id': current_uid.get()})
     if res.deleted_count == 0:
         raise HTTPException(404, 'Story not found')
     return {'ok': True}
@@ -1019,14 +1025,14 @@ async def delete_story(story_id: str):
 @api.get("/stories")
 async def list_stories():
     await _seed_if_empty()
-    items = await db.stories.find({'user_id': DEMO_USER_ID}).sort('created_at', -1).to_list(500)
+    items = await db.stories.find({'user_id': current_uid.get()}).sort('created_at', -1).to_list(500)
     return [_strip_id(i) for i in items]
 
 
 @api.post("/stories")
 async def create_story(payload: StoryIn):
     doc = payload.dict()
-    doc.update({'id': str(uuid.uuid4()), 'user_id': DEMO_USER_ID, 'created_at': now_iso()})
+    doc.update({'id': str(uuid.uuid4()), 'user_id': current_uid.get(), 'created_at': now_iso()})
     await db.stories.insert_one(doc)
     return _strip_id(doc)
 
@@ -1035,14 +1041,14 @@ async def create_story(payload: StoryIn):
 @api.get("/albums")
 async def list_albums():
     await _seed_if_empty()
-    items = await db.albums.find({'user_id': DEMO_USER_ID}).sort('created_at', -1).to_list(500)
+    items = await db.albums.find({'user_id': current_uid.get()}).sort('created_at', -1).to_list(500)
     return [_strip_id(i) for i in items]
 
 
 @api.post("/albums")
 async def create_album(payload: AlbumIn):
     doc = payload.dict()
-    doc.update({'id': str(uuid.uuid4()), 'user_id': DEMO_USER_ID, 'count': 0, 'created_at': now_iso()})
+    doc.update({'id': str(uuid.uuid4()), 'user_id': current_uid.get(), 'count': 0, 'created_at': now_iso()})
     await db.albums.insert_one(doc)
     return _strip_id(doc)
 
@@ -1118,7 +1124,7 @@ async def _send_invite_email(email: str, invitee_name: str | None, relation: str
 
 @api.get("/invites")
 async def list_invites():
-    items = await db.invites.find({'user_id': DEMO_USER_ID}).sort('created_at', -1).to_list(200)
+    items = await db.invites.find({'user_id': current_uid.get()}).sort('created_at', -1).to_list(200)
     return [_strip_id(i) for i in items]
 
 
@@ -1131,21 +1137,21 @@ async def create_invite(payload: InviteIn):
     # Free plan can only have 1 family member (themselves) — no invites allowed
     limits = DEMO_USER.get('limits', {})
     max_members = limits.get('max_family_members', 1)
-    current_invites = await db.invites.count_documents({'user_id': DEMO_USER_ID})
+    current_invites = await db.invites.count_documents({'user_id': current_uid.get()})
     if DEMO_USER.get('plan') == 'free' and (max_members - 1) <= current_invites:
         raise HTTPException(
             402,
             "Free plan doesn't allow inviting more family members. Upgrade to Plus to invite family.",
         )
 
-    existing = await db.invites.find_one({'user_id': DEMO_USER_ID, 'email': email})
+    existing = await db.invites.find_one({'user_id': current_uid.get(), 'email': email})
     if existing:
         raise HTTPException(409, 'This email is already invited')
 
     # Determine family + inviter names
-    family_doc = await db.families.find_one({'user_id': DEMO_USER_ID})
+    family_doc = await db.families.find_one({'user_id': current_uid.get()})
     family_name = (family_doc or {}).get('name') or 'our family'
-    inviter_name = DEMO_USER['name']
+    inviter_name = current_user_name.get()
 
     # Send email via Resend
     send_result = await _send_invite_email(
@@ -1158,7 +1164,7 @@ async def create_invite(payload: InviteIn):
 
     doc = {
         'id': str(uuid.uuid4()),
-        'user_id': DEMO_USER_ID,
+        'user_id': current_uid.get(),
         'email': email,
         'name': (payload.name or '').strip() or None,
         'relation': (payload.relation or '').strip() or None,
@@ -1177,7 +1183,7 @@ async def create_invite(payload: InviteIn):
         notif_desc = f'Invite saved for {email} (email delivery pending: {send_result.get("error", "unknown error")})'
     await db.notifications.insert_one({
         'id': str(uuid.uuid4()),
-        'user_id': DEMO_USER_ID,
+        'user_id': current_uid.get(),
         'icon': 'Users',
         'title': 'Family invite sent' if send_result.get('ok') else 'Family invite saved',
         'desc': notif_desc,
@@ -1190,7 +1196,7 @@ async def create_invite(payload: InviteIn):
 
 @api.delete("/invites/{invite_id}")
 async def delete_invite(invite_id: str):
-    res = await db.invites.delete_one({'id': invite_id, 'user_id': DEMO_USER_ID})
+    res = await db.invites.delete_one({'id': invite_id, 'user_id': current_uid.get()})
     if res.deleted_count == 0:
         raise HTTPException(404, 'Invite not found')
     return {'ok': True}
@@ -1220,14 +1226,14 @@ async def create_contact(payload: ContactIn):
 @api.get("/family-tree")
 async def get_family_tree():
     await _seed_if_empty()
-    items = await db.family_tree.find({'user_id': DEMO_USER_ID}).to_list(500)
+    items = await db.family_tree.find({'user_id': current_uid.get()}).to_list(500)
     return [_strip_id(i) for i in items]
 
 
 @api.post("/family-tree")
 async def add_family_member(payload: FamilyMemberIn):
     doc = payload.dict()
-    doc.update({'id': str(uuid.uuid4()), 'user_id': DEMO_USER_ID, 'created_at': now_iso()})
+    doc.update({'id': str(uuid.uuid4()), 'user_id': current_uid.get(), 'created_at': now_iso()})
     await db.family_tree.insert_one(doc)
     return _strip_id(doc)
 
@@ -1236,14 +1242,14 @@ async def add_family_member(payload: FamilyMemberIn):
 @api.get("/notifications")
 async def list_notifications():
     await _seed_if_empty()
-    items = await db.notifications.find({'user_id': DEMO_USER_ID}).sort('created_at', -1).to_list(200)
-    unread = await db.notifications.count_documents({'user_id': DEMO_USER_ID, 'read': False})
+    items = await db.notifications.find({'user_id': current_uid.get()}).sort('created_at', -1).to_list(200)
+    unread = await db.notifications.count_documents({'user_id': current_uid.get(), 'read': False})
     return {'items': [_strip_id(i) for i in items], 'unread': unread}
 
 
 @api.post("/notifications/mark-read")
 async def mark_read():
-    await db.notifications.update_many({'user_id': DEMO_USER_ID}, {'$set': {'read': True}})
+    await db.notifications.update_many({'user_id': current_uid.get()}, {'$set': {'read': True}})
     return {'ok': True}
 
 
@@ -1546,7 +1552,7 @@ async def transcribe_media(
 
 @api.get("/voice-recipes")
 async def list_voice_recipes():
-    items = await db.voice_recipes.find({'user_id': DEMO_USER_ID}).sort('created_at', -1).to_list(200)
+    items = await db.voice_recipes.find({'user_id': current_uid.get()}).sort('created_at', -1).to_list(200)
     return [_strip_id(i) for i in items]
 
 
@@ -1573,7 +1579,7 @@ async def create_voice_recipe(
 
     doc = {
         'id': str(uuid.uuid4()),
-        'user_id': DEMO_USER_ID,
+        'user_id': current_uid.get(),
         'title': title,
         'author': author,
         'language': result.get('language') or language_code,
@@ -1587,7 +1593,7 @@ async def create_voice_recipe(
 
     await db.notifications.insert_one({
         'id': str(uuid.uuid4()),
-        'user_id': DEMO_USER_ID,
+        'user_id': current_uid.get(),
         'icon': 'Sparkles',
         'title': 'AI transcription complete',
         'desc': f'Your recording \u201c{title}\u201d has been transcribed.',
@@ -1600,7 +1606,7 @@ async def create_voice_recipe(
 
 @api.delete("/voice-recipes/{vid}")
 async def delete_voice_recipe(vid: str):
-    res = await db.voice_recipes.delete_one({'id': vid, 'user_id': DEMO_USER_ID})
+    res = await db.voice_recipes.delete_one({'id': vid, 'user_id': current_uid.get()})
     if res.deleted_count == 0:
         raise HTTPException(404, 'Not found')
     return {'ok': True}
@@ -1615,6 +1621,57 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def auth_context_middleware(request, call_next):
+    """Resolve the current user from the session cookie (or Bearer) and set ContextVars.
+    Falls back to the demo user when no valid session is present, preserving the demo experience
+    for anonymous browsing.
+    """
+    token = request.cookies.get('session_token')
+    if not token:
+        auth = request.headers.get('authorization') or request.headers.get('Authorization')
+        if auth and auth.lower().startswith('bearer '):
+            token = auth.split(' ', 1)[1].strip()
+
+    uid_token = None
+    name_token = None
+    pic_token = None
+    if token:
+        try:
+            session = await db.user_sessions.find_one({'session_token': token}, {'_id': 0})
+        except Exception:
+            session = None
+        if session:
+            expires_at = session.get('expires_at')
+            if isinstance(expires_at, str):
+                try:
+                    expires_at = datetime.fromisoformat(expires_at)
+                except Exception:
+                    expires_at = None
+            if expires_at and expires_at.tzinfo is None:
+                expires_at = expires_at.replace(tzinfo=timezone.utc)
+            if expires_at and expires_at > datetime.now(timezone.utc):
+                try:
+                    user = await db.users.find_one({'user_id': session['user_id']}, {'_id': 0})
+                except Exception:
+                    user = None
+                if user:
+                    uid_token = current_uid.set(user['user_id'])
+                    name_token = current_user_name.set(user.get('name') or user.get('email') or 'You')
+                    pic_token = current_user_picture.set(user.get('picture'))
+
+    try:
+        response = await call_next(request)
+    finally:
+        if uid_token is not None:
+            current_uid.reset(uid_token)
+        if name_token is not None:
+            current_user_name.reset(name_token)
+        if pic_token is not None:
+            current_user_picture.reset(pic_token)
+    return response
 
 
 @app.on_event("shutdown")

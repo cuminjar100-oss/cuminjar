@@ -18,10 +18,12 @@ export default function AppShell({ children, active, onOpenRecord }) {
   const navigate = useNavigate();
   const [drawer, setDrawer] = useState(false);
   const [, setUnread] = useState(0);
+  const [authUser, setAuthUser] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
     api.listNotifications().then((d) => { if (!cancelled) setUnread(d?.unread || 0); }).catch((e) => console.error(e));
+    api.authMe().then((u) => { if (!cancelled) setAuthUser(u); }).catch(() => { if (!cancelled) setAuthUser(null); });
     return () => { cancelled = true; };
   }, [location.pathname]);
 
@@ -114,15 +116,15 @@ export default function AppShell({ children, active, onOpenRecord }) {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button data-testid="user-menu-trigger" className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-full hover:bg-neutral-100 transition-colors">
-                  <img src={currentUser.avatar} alt={currentUser.name} className="w-8 h-8 rounded-full object-cover" />
-                  <span className="hidden lg:inline text-[14px] font-medium text-neutral-800">{currentUser.name}</span>
+                  <img src={authUser?.picture || currentUser.avatar} alt={authUser?.name || currentUser.name} className="w-8 h-8 rounded-full object-cover" onError={(e) => { e.currentTarget.src = currentUser.avatar; }} />
+                  <span className="hidden lg:inline text-[14px] font-medium text-neutral-800">{authUser?.name || currentUser.name}</span>
                   <ChevronDown size={15} className="hidden lg:inline text-neutral-500" />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>
-                  <div className="text-[13px] font-semibold text-neutral-900">{currentUser.name}</div>
-                  <div className="text-[11.5px] text-neutral-500 font-normal">{currentUser.email || 'meera.rao@family.com'}</div>
+                  <div className="text-[13px] font-semibold text-neutral-900">{authUser?.name || currentUser.name}</div>
+                  <div className="text-[11.5px] text-neutral-500 font-normal">{authUser?.email || currentUser.email || 'meera.rao@family.com'}</div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => navigate('/app/settings')} data-testid="user-menu-account">

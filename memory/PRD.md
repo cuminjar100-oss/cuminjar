@@ -19,17 +19,21 @@ Pixel-perfect replica of CuminJar: mobile-friendly family memory app where users
 - WhatsApp share (deep-link `https://wa.me/?text=…`) on cards
 
 ## What's implemented (2026-02)
-- **[2026-02] Recipe & Story detail modals restored** — Fixed P0: recipe cards on Dashboard, Recipes page, and story cards on Dashboard & Stories page are now clickable and open `RecipeDetailModal` / `StoryDetailModal`. Modals include cover, ingredients, steps, tags, share-on-WhatsApp, close.
-- **[2026-02] Realistic AI recipe covers via Gemini Nano Banana** — Fixed P0: `_generate_recipe_image` calls `emergentintegrations` `gemini-3.1-flash-image-preview` with a photorealistic food-photography prompt. Returns ~500KB–1.2MB base64 JPEG. Falls back to emoji SVG on failure. Stories/festivals keep emoji SVG covers by design.
-- Pixel-perfect landing / auth / dashboard / recipes / stories / albums / family-tree / notifications / settings pages
-- Sarvam STT with `pydub` audio chunking (25s chunks) to bypass 30s API limit
-- Gemini 2.5-flash translation + JSON structuring
-- Resend email invites (real emails)
-- Family groups with cover photos, active-family localStorage persistence
-- Mobile responsive rebuild (drawer + bottom nav + FAB)
-- All plan / vault / Sarvam / mamascript restrictions removed
-- Security fixes (XSS, React hook deps)
-- Backend tests scaffold at `/app/backend/tests/`
+- **[2026-02] Emergent Google Sign-In**: Full OAuth flow (`/api/auth/session`, `/auth/me`, `/auth/logout`), synchronous `#session_id=` router detection, `AuthCallback` page, Google button on `/login` + `/get-started`, httpOnly session cookie (7-day expiry). Documentation: `/app/auth_testing.md`.
+- **[2026-02] Per-user data scoping**: New `AuthContextMiddleware` reads the session cookie/bearer on every request and sets `current_uid` / `current_user_name` / `current_user_picture` ContextVars. All 42 route touch-points now scope to the signed-in Google user (empty jar for new users); anonymous browsers still see the demo user's data (backward compat).
+- **[2026-02] Header shows Google profile**: `AppShell` fetches `/api/auth/me` on mount and swaps the avatar & name with the signed-in user's Google picture + name (falls back to demo user when anonymous).
+- **[2026-02] Resend domain setup docs**: `/app/docs/RESEND_DOMAIN_SETUP.md` shows the exact DNS steps for verifying the cuminjar.com domain so OTP emails deliver to any recipient.
+- **[2026-02] OTP signup**: `/api/auth/request-otp` + `/api/auth/verify-otp` wired to the `/get-started` screen with a 6-digit OTP UI, 45s resend timer, and rate limits.
+- **[2026-02] Cookbook WhatsApp share + branding**: Native Web Share with cover-image ribbon watermark ("CuminJar 🫙"), branded fallback card via Nano Banana at `/cuminjar-share.png`, dedicated WhatsApp button on Dashboard + PublicCookbook.
+- **[2026-02] Cookbook printable PDF**: `/api/public/cookbook/{token}/book.pdf` generates a warm cookbook (cover + TOC + recipe pages with cover image + QR-voice code + ingredients + numbered steps + story pages) using reportlab + qrcode. QR codes route to `/api/public/cookbook/{token}/voice/{kind}/{id}` — a small autoplay page.
+- **[2026-02] Public cookbook**: `/cookbook/:token` route + `POST /family/{id}/share` for the family owner + `readOnly` RecipeDetailModal.
+- **[2026-02] Logout works**: shadcn user dropdown in AppShell with red "Log out" that calls `/api/auth/logout` and clears local storage.
+- **[2026-02] "?" tooltip**: HelpCircle in header now has a "Help & support" tooltip and routes to /contact.
+- **[2026-02] Recipe/Story delete + inline edit**: Both modals now support open, share (with image), delete (story), and inline edit (recipe).
+- **[2026-02] Realistic AI recipe covers via Gemini Nano Banana** with regenerate button.
+- **[2026-02] Fixed double-save + empty ingredients/steps** via uploadingRef guard and non-streaming Gemini structuring.
+- **[2026-02] About page hero** now uses a custom Nano Banana portrait of a fair-skinned Indian grandmother with grandchild in a warm upper-middle-class living room.
+- Base app: pixel-perfect landing/auth pages, Sarvam STT with pydub chunking, Gemini translation & structuring, Resend invites, mobile-first bottom nav & FAB.
 
 ## Prioritized backlog
 
