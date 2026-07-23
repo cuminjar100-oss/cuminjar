@@ -19,16 +19,16 @@ const plans = [
     price: '₹299',
     cadence: '/ month',
     desc: 'Grow your jar. Unlock the full experience.',
-    features: ['Unlimited family groups', 'Unlimited family members', 'Unlimited voice recipes', '50 GB storage', 'Advanced AI + translation', 'Family Tree', 'Priority support'],
+    features: ['Unlimited family groups', 'Unlimited family members', 'Unlimited voice recipes', '50 GB storage', 'Advanced AI + translation', 'Priority support'],
     cta: 'Start 14-day trial',
     highlighted: true
   },
   {
     name: 'Family Legacy',
-    price: '₹2,999',
+    price: '₹3,999',
     cadence: '/ year',
     desc: 'Preserve forever. Best value for large families.',
-    features: ['Everything in Plus', 'Unlimited family groups', 'Unlimited family members', '200 GB storage', 'Concierge onboarding', 'Print-ready cookbook export', 'Yearly heritage backup'],
+    features: ['Everything in Plus', 'Unlimited family groups', 'Unlimited family members', '200 GB storage', 'Print-ready cookbook export', 'Yearly heritage backup'],
     cta: 'Talk to us',
     highlighted: false
   }
