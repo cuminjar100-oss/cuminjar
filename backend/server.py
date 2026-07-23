@@ -306,6 +306,16 @@ async def smart_record(
         if generate_image:
             cover = await _generate_recipe_image(title, english[:200], tags, region)
 
+        # Store the original audio as a data URL so we can play it back later
+        audio_src = None
+        if media_kind == 'audio':
+            try:
+                import base64
+                mime = file.content_type or 'audio/webm'
+                audio_src = f"data:{mime};base64,{base64.b64encode(data).decode('ascii')}"
+            except Exception:
+                logger.exception('Failed to encode audio for playback')
+
         doc = {
             'id': str(uuid.uuid4()),
             'user_id': DEMO_USER_ID,
@@ -322,6 +332,7 @@ async def smart_record(
             'transcript_en': english,
             'source_kind': media_kind,
             'source_language': detected_lang,
+            'audio_src': audio_src,
             'liked': False,
             'created_at': now_iso(),
         }
@@ -334,6 +345,14 @@ async def smart_record(
         approx_mins = max(1, len(english.split()) // 130)
         story_emoji = '🪔' if kind == 'festival' else '📖'
         cover = _emoji_cover_svg(story_emoji, FAMILY_TINTS[(hash(title) % len(FAMILY_TINTS))])
+        audio_src = None
+        if media_kind == 'audio':
+            try:
+                import base64
+                mime = file.content_type or 'audio/webm'
+                audio_src = f"data:{mime};base64,{base64.b64encode(data).decode('ascii')}"
+            except Exception:
+                logger.exception('Failed to encode audio for playback')
         doc = {
             'id': str(uuid.uuid4()),
             'user_id': DEMO_USER_ID,
@@ -347,6 +366,7 @@ async def smart_record(
             'transcript_en': english,
             'source_kind': media_kind,
             'source_language': detected_lang,
+            'audio_src': audio_src,
             'created_at': now_iso(),
         }
         await db.stories.insert_one(doc)
@@ -424,6 +444,40 @@ async def like_recipe(recipe_id: str):
     await db.recipes.update_one({'id': recipe_id}, {'$set': {'liked': new_liked}})
     doc['liked'] = new_liked
     return _strip_id(doc)
+
+
+@api.post("/recipes/{recipe_id}/regenerate-cover")
+async def regenerate_recipe_cover(recipe_id: str):
+    """Regenerate the AI cover image for a recipe using Gemini Nano Banana."""
+    doc = await db.recipes.find_one({'id': recipe_id, 'user_id': DEMO_USER_ID})
+    if not doc:
+        raise HTTPException(404, 'Recipe not found')
+    title = doc.get('title') or 'Recipe'
+    description = doc.get('transcript_en') or ''
+    tags = doc.get('tags') or []
+    region = doc.get('region') or ''
+    cover = await _generate_recipe_image(title, description[:250], tags, region)
+    if not cover:
+        raise HTTPException(500, 'Could not generate cover')
+    await db.recipes.update_one({'id': recipe_id}, {'$set': {'cover': cover}})
+    doc['cover'] = cover
+    return _strip_id(doc)
+
+
+@api.delete("/recipes/{recipe_id}")
+async def delete_recipe(recipe_id: str):
+    res = await db.recipes.delete_one({'id': recipe_id, 'user_id': DEMO_USER_ID})
+    if res.deleted_count == 0:
+        raise HTTPException(404, 'Recipe not found')
+    return {'ok': True}
+
+
+@api.delete("/stories/{story_id}")
+async def delete_story(story_id: str):
+    res = await db.stories.delete_one({'id': story_id, 'user_id': DEMO_USER_ID})
+    if res.deleted_count == 0:
+        raise HTTPException(404, 'Story not found')
+    return {'ok': True}
 
 
 # --------------------- Stories ---------------------
@@ -734,12 +788,16 @@ async def _translate_to_english(text: str, source_lang: str) -> str:
             session_id=f'translate-{uuid.uuid4()}',
             system_message='You are a professional translator. Translate the given text to natural, fluent English. Preserve the meaning, tone and any recipe/cooking instructions. Return ONLY the translated English text, no preface.',
         ).with_model('gemini', 'gemini-2.5-flash')
-        parts = []
-        async for ev in chat.stream_message(UserMessage(text=text)):
-            content = getattr(ev, 'content', None)
-            if content:
-                parts.append(content)
-        translated = ''.join(parts).strip()
+        try:
+            translated = (await chat.send_message(UserMessage(text=text))) or ''
+        except Exception:
+            parts = []
+            async for ev in chat.stream_message(UserMessage(text=text)):
+                content = getattr(ev, 'content', None)
+                if content:
+                    parts.append(content)
+            translated = ''.join(parts)
+        translated = (translated or '').strip()
         return translated or text
     except Exception:
         logger.exception('Translation failed')
@@ -753,32 +811,57 @@ async def _gemini_structure_recipe(text: str) -> dict:
     try:
         from emergentintegrations.llm.chat import LlmChat, UserMessage
         import json as _json
+        import re as _re
         chat = LlmChat(
             api_key=EMERGENT_LLM_KEY,
             session_id=f'structure-{uuid.uuid4()}',
             system_message=(
-                'You convert raw English recipe transcripts into structured JSON. '
-                'Return ONLY compact JSON matching this shape: '
-                '{"title": string, "ingredients": [string], "steps": [string], "servings": string, "time_minutes": integer, "region": string, "tags": [string]}. '
-                'Infer sensible defaults when the transcript is unclear. Time is total cooking minutes (integer). '
-                'Servings is like "4" or "4-5". Region is one of: South Indian, North Indian, Coastal, Punjabi, Gujarati, Bengali, Other.'
+                'You convert raw English recipe transcripts into a STRICT, VALID JSON object — nothing else.\n'
+                'The JSON MUST match this exact shape:\n'
+                '{"title": string, "ingredients": [string], "steps": [string], "servings": string, "time_minutes": integer, "region": string, "tags": [string]}\n\n'
+                'Rules:\n'
+                '1. Return ONLY the JSON object, no prose, no code fences, no comments.\n'
+                '2. Use double quotes only. No trailing commas. No single quotes.\n'
+                '3. Escape any double-quote inside a string with a backslash.\n'
+                '4. "ingredients" MUST be an ordered list of strings where each item includes the QUANTITY + UNIT + NAME (e.g. "2 tbsp grated coconut", "1/2 tsp cumin seeds", "1 cup thick curd"). Extract quantities from the transcript; if a quantity is vague, use "to taste" or a reasonable inferred amount.\n'
+                '5. "steps" MUST be an ordered list of concise, complete instruction sentences (no numbering, no bullet points — the array position IS the number).\n'
+                '6. "time_minutes" is an integer total minutes.\n'
+                '7. "servings" is a string like "4" or "3-4".\n'
+                '8. "region" is one of: South Indian, North Indian, Coastal, Punjabi, Gujarati, Bengali, Other.\n'
+                '9. "tags" 2–4 short labels (e.g., "Lentils", "Vegan", "Comfort").\n'
+                '10. "title" is a clean recipe name (e.g., "Morkuzhambu"), NOT the transcript preamble.'
             ),
         ).with_model('gemini', 'gemini-2.5-flash')
-        parts = []
-        async for ev in chat.stream_message(UserMessage(text=text)):
-            content = getattr(ev, 'content', None)
-            if content:
-                parts.append(content)
-        raw = ''.join(parts).strip()
-        raw = raw.replace('```json', '').replace('```', '').strip()
         try:
-            return _json.loads(raw)
+            raw = (await chat.send_message(UserMessage(text=text))) or ''
         except Exception:
-            # Try to salvage first JSON object substring
-            start = raw.find('{'); end = raw.rfind('}')
-            if start >= 0 and end > start:
-                return _json.loads(raw[start:end+1])
-            return {}
+            # Fallback to streaming if non-streaming fails
+            parts = []
+            async for ev in chat.stream_message(UserMessage(text=text)):
+                content = getattr(ev, 'content', None)
+                if content:
+                    parts.append(content)
+            raw = ''.join(parts)
+        raw = (raw or '').strip()
+        # Clean common wrappers
+        raw = raw.replace('```json', '').replace('```', '').strip()
+        # Extract the first top-level { ... } if there's stray prose
+        start = raw.find('{')
+        end = raw.rfind('}')
+        if start >= 0 and end > start:
+            raw = raw[start:end + 1]
+        # Attempt parse; fall back through progressively lenient repairs
+        for candidate in (
+            raw,
+            _re.sub(r',(\s*[\]}])', r'\1', raw),  # strip trailing commas
+            _re.sub(r'([{,]\s*)([A-Za-z_][A-Za-z0-9_]*)\s*:', r'\1"\2":', _re.sub(r',(\s*[\]}])', r'\1', raw)),  # quote unquoted keys
+        ):
+            try:
+                return _json.loads(candidate)
+            except Exception:
+                continue
+        logger.warning('Gemini structuring: could not parse JSON. Raw head: %s', raw[:300])
+        return {}
     except Exception:
         logger.exception('Recipe structuring failed')
         return {}
@@ -883,12 +966,16 @@ async def _gemini_ocr_image(image_bytes: bytes, mime_type: str = 'image/jpeg') -
             text='Please transcribe and translate this image to English.',
             file_contents=[ImageContent(image_base64=b64)],
         )
-        parts = []
-        async for ev in chat.stream_message(msg):
-            content = getattr(ev, 'content', None)
-            if content:
-                parts.append(content)
-        return ''.join(parts).strip()
+        try:
+            out = (await chat.send_message(msg)) or ''
+        except Exception:
+            parts = []
+            async for ev in chat.stream_message(msg):
+                content = getattr(ev, 'content', None)
+                if content:
+                    parts.append(content)
+            out = ''.join(parts)
+        return (out or '').strip()
     except Exception:
         logger.exception('Gemini OCR failed')
         return ''

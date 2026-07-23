@@ -1,13 +1,30 @@
-import React from 'react';
-import { X, Clock, Users as UsersIcon, Heart, ChefHat, Share2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, Clock, Users as UsersIcon, Heart, ChefHat, Share2, RefreshCw, Loader2 } from 'lucide-react';
+import api from '../api';
 
-export default function RecipeDetailModal({ recipe, onClose, onLike }) {
-  if (!recipe) return null;
-  const r = recipe;
+export default function RecipeDetailModal({ recipe, onClose, onLike, onUpdated }) {
+  const [r, setR] = useState(recipe);
+  const [regenerating, setRegenerating] = useState(false);
+
+  if (!r) return null;
 
   const share = () => {
     const body = `${r.title}\n\nBy ${r.author || 'CuminJar family'}${r.serves ? ` · Serves ${r.serves}` : ''}${r.time ? ` · ${r.time}` : ''}\n\n${(r.ingredients || []).length ? 'Ingredients:\n' + r.ingredients.map(i => `• ${i}`).join('\n') + '\n\n' : ''}${(r.steps || []).length ? 'Steps:\n' + r.steps.map((s, i) => `${i + 1}. ${s}`).join('\n') + '\n\n' : ''}Saved on CuminJar`;
     window.open(`https://wa.me/?text=${encodeURIComponent(body)}`, '_blank');
+  };
+
+  const regenerate = async () => {
+    if (regenerating) return;
+    setRegenerating(true);
+    try {
+      const updated = await api.regenerateRecipeCover(r.id);
+      setR(updated);
+      if (onUpdated) onUpdated(updated);
+    } catch (e) {
+      // Silent — button will re-enable
+    } finally {
+      setRegenerating(false);
+    }
   };
 
   return (
@@ -31,7 +48,25 @@ export default function RecipeDetailModal({ recipe, onClose, onLike }) {
                 <ChefHat size={64} />
               </div>
             )}
+            {regenerating && (
+              <div className="absolute inset-0 bg-black/40 flex items-center justify-center text-white text-[13px] gap-2">
+                <Loader2 size={16} className="animate-spin" /> Cooking up a new cover…
+              </div>
+            )}
           </div>
+
+          <button
+            type="button"
+            onClick={regenerate}
+            disabled={regenerating}
+            data-testid="recipe-detail-regenerate-cover"
+            title="Regenerate AI cover"
+            className="absolute bottom-3 left-3 inline-flex items-center gap-1.5 bg-white/90 backdrop-blur px-3 py-1.5 rounded-full text-[12px] font-medium text-neutral-800 hover:bg-white transition-colors disabled:opacity-70"
+          >
+            <RefreshCw size={13} className={regenerating ? 'animate-spin' : ''} />
+            {regenerating ? 'Generating…' : 'Regenerate cover'}
+          </button>
+
           <button
             onClick={onClose}
             data-testid="recipe-detail-close"
@@ -74,6 +109,21 @@ export default function RecipeDetailModal({ recipe, onClose, onLike }) {
             <div className="flex flex-wrap gap-1.5 mt-3">
               {r.tags.map(t => <span key={t} className="text-[11px] bg-[#F5EDDD] text-neutral-700 px-2.5 py-0.5 rounded-full">{t}</span>)}
             </div>
+          )}
+
+          {/* Voice playback */}
+          {r.audio_src && (
+            <section className="mt-5 bg-[#F7F1E5] border border-[#E9DEC6] rounded-xl p-3">
+              <p className="text-[11.5px] font-semibold text-neutral-700 uppercase tracking-wider mb-2">Original voice</p>
+              <audio
+                controls
+                src={r.audio_src}
+                className="w-full"
+                data-testid="recipe-audio-player"
+              >
+                Your browser does not support the audio element.
+              </audio>
+            </section>
           )}
 
           {(r.ingredients || []).length > 0 && (

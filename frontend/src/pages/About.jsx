@@ -1,7 +1,6 @@
 import React from 'react';
 import MarketingHeader from '../components/MarketingHeader';
 import MarketingFooter from '../components/MarketingFooter';
-import { heroImages } from '../mock';
 import { Heart, Award, Users, Globe } from 'lucide-react';
 
 const stats = [
@@ -21,7 +20,11 @@ export default function About() {
       </section>
 
       <section className="max-w-5xl mx-auto px-6 lg:px-10 py-6 grid md:grid-cols-2 gap-10 items-center">
-        <img src={heroImages.claypotFrame} alt="family jar" className="rounded-3xl w-full h-[380px] object-cover" />
+        <img
+          src="/about-grandmother.jpg"
+          alt="Fair-skinned Indian grandmother in a soft pink saree sharing a joyful moment with her granddaughter in a warmly lit modern Indian living room"
+          className="rounded-3xl w-full h-[380px] object-cover"
+        />
         <div>
           <h2 className="font-serif-display text-[32px] font-semibold text-neutral-900">Why we built CuminJar</h2>
           <p className="mt-4 text-neutral-700 text-[15.5px] leading-relaxed">

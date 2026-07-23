@@ -1,7 +1,7 @@
 import React from 'react';
-import { X, Clock, BookOpen, PartyPopper, Share2 } from 'lucide-react';
+import { X, Clock, BookOpen, PartyPopper, Share2, Trash2 } from 'lucide-react';
 
-export default function StoryDetailModal({ story, onClose }) {
+export default function StoryDetailModal({ story, onClose, onDelete }) {
   if (!story) return null;
   const s = story;
   const isFestival = s.kind === 'festival';
@@ -47,6 +47,15 @@ export default function StoryDetailModal({ story, onClose }) {
           <div className="mt-5 text-[15px] text-neutral-800 whitespace-pre-wrap leading-relaxed">
             {s.excerpt || s.transcript_en || 'No content'}
           </div>
+
+          {s.audio_src && (
+            <section className="mt-5 bg-[#F7F1E5] border border-[#E9DEC6] rounded-xl p-3">
+              <p className="text-[11.5px] font-semibold text-neutral-700 uppercase tracking-wider mb-2">Original voice</p>
+              <audio controls src={s.audio_src} className="w-full" data-testid="story-audio-player">
+                Your browser does not support the audio element.
+              </audio>
+            </section>
+          )}
 
           {s.source_language && s.source_language !== 'en-IN' && (
             <p className="mt-6 text-[11.5px] text-neutral-500 italic">Originally recorded in {s.source_language}</p>

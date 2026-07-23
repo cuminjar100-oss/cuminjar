@@ -62,6 +62,7 @@ export default function SmartRecordModal({ onClose, familyId, onSaved }) {
   const timerRef = useRef(null);
   const startedAtRef = useRef(0);
   const streamRef = useRef(null);
+  const uploadingRef = useRef(false);
   const { toast } = useToast();
 
   const fmt = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(Math.floor(s) % 60).padStart(2, '0')}`;
@@ -98,6 +99,8 @@ export default function SmartRecordModal({ onClose, familyId, onSaved }) {
   };
 
   const upload = async (blob) => {
+    if (uploadingRef.current) return;
+    uploadingRef.current = true;
     setStep('processing');
     try {
       const fd = new FormData();
@@ -122,6 +125,7 @@ export default function SmartRecordModal({ onClose, familyId, onSaved }) {
     } catch (err) {
       toast({ title: 'Save failed', description: err.message || 'Please try again.' });
       setStep('record');
+      uploadingRef.current = false;
     }
   };
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import AppShell from '../../components/AppShell';
-import { Play, Clock, Plus, X, Loader2 } from 'lucide-react';
+import { Play, Clock, Plus, X, Loader2, Trash2 } from 'lucide-react';
 import api from '../../api';
 import { useToast } from '../../hooks/use-toast';
 import MediaTranscribeInput from '../../components/MediaTranscribeInput';
@@ -19,6 +19,20 @@ export default function StoriesPage() {
     setLoading(false);
   }, [toast]);
   useEffect(() => { load(); }, [load]);
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Delete this story? This cannot be undone.')) return;
+    const prev = stories;
+    setStories(prev.filter(x => x.id !== id));
+    setOpenStory(null);
+    try {
+      await api.deleteStory(id);
+      toast({ title: 'Story deleted' });
+    } catch (e) {
+      setStories(prev);
+      toast({ title: 'Could not delete story', description: e?.response?.data?.detail || e?.message });
+    }
+  };
 
   return (
     <AppShell active="stories">
@@ -43,8 +57,19 @@ export default function StoriesPage() {
                 tabIndex={0}
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setOpenStory(s); }}
                 data-testid={`story-card-${s.id}`}
-                className="bg-white rounded-2xl border border-neutral-200/70 p-6 hover:shadow-lg transition-shadow cursor-pointer"
+                className="relative bg-white rounded-2xl border border-neutral-200/70 p-6 hover:shadow-lg transition-shadow cursor-pointer group"
               >
+                <span
+                  role="button"
+                  tabIndex={0}
+                  onClick={(e) => { e.stopPropagation(); handleDelete(s.id); }}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); handleDelete(s.id); } }}
+                  data-testid={`story-delete-${s.id}`}
+                  title="Delete story"
+                  className="absolute top-3 right-3 w-9 h-9 rounded-full bg-white border border-neutral-200 flex items-center justify-center text-neutral-500 opacity-0 group-hover:opacity-100 focus:opacity-100 hover:text-red-500 hover:border-red-200 transition-all cursor-pointer"
+                >
+                  <Trash2 size={14} />
+                </span>
                 <div className="flex items-start gap-4">
                   <span className="w-11 h-11 rounded-full bg-[#FBE3D2] flex items-center justify-center flex-shrink-0">
                     <Play size={14} className="text-terracotta ml-0.5" fill="currentColor" />
@@ -66,7 +91,13 @@ export default function StoriesPage() {
       {showModal && (
         <AddStoryModal onClose={() => setShowModal(false)} onSaved={(s) => { setStories(prev => [s, ...prev]); setShowModal(false); toast({ title: 'Story saved!' }); }} />
       )}
-      {openStory && <StoryDetailModal story={openStory} onClose={() => setOpenStory(null)} />}
+      {openStory && (
+        <StoryDetailModal
+          story={openStory}
+          onClose={() => setOpenStory(null)}
+          onDelete={handleDelete}
+        />
+      )}
     </AppShell>
   );
 }
