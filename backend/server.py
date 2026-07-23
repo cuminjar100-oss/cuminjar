@@ -488,6 +488,46 @@ async def auth_me(request: Request):
     return user
 
 
+@api.patch('/auth/me')
+async def auth_me_update(payload: dict, request: Request):
+    user = await _get_authed_user(request)
+    if not user:
+        raise HTTPException(401, 'Not authenticated')
+    updates = {}
+    if 'name' in payload:
+        name = (payload.get('name') or '').strip()
+        if not name:
+            raise HTTPException(400, 'Name cannot be empty')
+        updates['name'] = name
+    if 'picture' in payload:
+        updates['picture'] = (payload.get('picture') or '').strip() or None
+    if 'language' in payload:
+        updates['language'] = (payload.get('language') or '').strip() or None
+    if 'notification_prefs' in payload and isinstance(payload['notification_prefs'], dict):
+        updates['notification_prefs'] = {
+            'email': bool(payload['notification_prefs'].get('email', True)),
+            'inapp': bool(payload['notification_prefs'].get('inapp', True)),
+            'weekly_digest': bool(payload['notification_prefs'].get('weekly_digest', False)),
+        }
+    if not updates:
+        raise HTTPException(400, 'No updatable fields provided')
+    updates['updated_at'] = datetime.now(timezone.utc).isoformat()
+    await db.users.update_one({'user_id': user['user_id']}, {'$set': updates})
+    fresh = await db.users.find_one({'user_id': user['user_id']}, {'_id': 0, 'password_hash': 0})
+    return fresh
+
+
+@api.post('/auth/logout-all-devices')
+async def auth_logout_all(request: Request):
+    user = await _get_authed_user(request)
+    if not user:
+        raise HTTPException(401, 'Not authenticated')
+    await db.user_sessions.delete_many({'user_id': user['user_id']})
+    resp = JSONResponse({'ok': True})
+    resp.delete_cookie('session_token', path='/', samesite='none', secure=True)
+    return resp
+
+
 @api.post('/auth/logout')
 async def auth_logout(request: Request):
     token = request.cookies.get('session_token')

@@ -58,7 +58,9 @@ export const api = {
 
   authSession: (session_id) => http.post('/auth/session', { session_id }).then(r => r.data),
   authMe: () => http.get('/auth/me').then(r => r.data),
+  authUpdateMe: (body) => http.patch('/auth/me', body).then(r => r.data),
   authLogout: () => http.post('/auth/logout').then(r => r.data),
+  authLogoutAll: () => http.post('/auth/logout-all-devices').then(r => r.data),
   authRegister: (body) => http.post('/auth/register', body).then(r => r.data),
   authLogin: (body) => http.post('/auth/login', body).then(r => r.data),
   authForgotPassword: (body) => http.post('/auth/forgot-password', body).then(r => r.data),
