@@ -5,6 +5,8 @@ import { useToast } from '../hooks/use-toast';
 import api from '../api';
 import InviteFamilyModal from '../components/InviteFamilyModal';
 import SmartRecordModal from '../components/SmartRecordModal';
+import RecipeDetailModal from '../components/RecipeDetailModal';
+import StoryDetailModal from '../components/StoryDetailModal';
 
 export default function Dashboard() {
   const [families, setFamilies] = useState([]);
@@ -15,6 +17,8 @@ export default function Dashboard() {
   const [showInvite, setShowInvite] = useState(false);
   const [showRecord, setShowRecord] = useState(false);
   const [showCreateFamily, setShowCreateFamily] = useState(false);
+  const [openRecipe, setOpenRecipe] = useState(null);
+  const [openStory, setOpenStory] = useState(null);
   const { toast } = useToast();
 
   const active = families.find(f => f.id === activeFamilyId) || null;
@@ -120,7 +124,7 @@ export default function Dashboard() {
             </div>
           ) : (
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 lg:gap-3">
-              {recipes.slice(0, 4).map(r => <RecipeCardMini key={r.id} r={r} onShare={() => shareRecipe(r)} />)}
+              {recipes.slice(0, 4).map(r => <RecipeCardMini key={r.id} r={r} onOpen={() => setOpenRecipe(r)} onShare={() => shareRecipe(r)} />)}
             </div>
           )}
         </section>
@@ -138,7 +142,13 @@ export default function Dashboard() {
           ) : (
             <div className="space-y-2">
               {stories.slice(0, 3).map(s => (
-                <div key={s.id} className="bg-white border border-neutral-200/70 rounded-xl p-3 flex items-start gap-3">
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => setOpenStory(s)}
+                  data-testid={`story-mini-${s.id}`}
+                  className="w-full bg-white border border-neutral-200/70 rounded-xl p-3 flex items-start gap-3 text-left hover:border-cumin-green transition-colors"
+                >
                   <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${s.kind === 'festival' ? 'bg-[#E4DEF4]' : 'bg-[#DFEAD8]'}`}>
                     {s.kind === 'festival' ? <PartyPopper size={15} className="text-[#7A6FB0]" /> : <BookOpen size={15} className="text-[#5D7A4E]" />}
                   </div>
@@ -146,8 +156,12 @@ export default function Dashboard() {
                     <p className="font-semibold text-[13.5px] text-neutral-900 truncate">{s.title}</p>
                     <p className="text-[12px] text-neutral-500 line-clamp-2">{s.excerpt || s.transcript_en}</p>
                   </div>
-                  <button onClick={() => shareStory(s)} className="text-[11px] text-[#25D366] font-medium">Share</button>
-                </div>
+                  <span
+                    onClick={(e) => { e.stopPropagation(); shareStory(s); }}
+                    role="button"
+                    className="text-[11px] text-[#25D366] font-medium pt-0.5 cursor-pointer"
+                  >Share</span>
+                </button>
               ))}
             </div>
           )}
@@ -156,6 +170,8 @@ export default function Dashboard() {
 
       {showInvite && <InviteFamilyModal onClose={() => setShowInvite(false)} />}
       {showRecord && <SmartRecordModal onClose={() => setShowRecord(false)} familyId={active?.id} onSaved={handleRecordSaved} />}
+      {openRecipe && <RecipeDetailModal recipe={openRecipe} onClose={() => setOpenRecipe(null)} />}
+      {openStory && <StoryDetailModal story={openStory} onClose={() => setOpenStory(null)} />}
       {showCreateFamily && (
         <CreateFamilyModal onClose={() => setShowCreateFamily(false)} onCreated={async () => { setShowCreateFamily(false); await loadEverything(); }} />
       )}
@@ -172,22 +188,32 @@ function shareStory(s) {
   window.open(`https://wa.me/?text=${encodeURIComponent(body)}`, '_blank');
 }
 
-function RecipeCardMini({ r, onShare }) {
+function RecipeCardMini({ r, onOpen, onShare }) {
   return (
-    <div className="bg-white rounded-xl border border-neutral-200/70 overflow-hidden">
+    <button
+      type="button"
+      onClick={onOpen}
+      data-testid={`recipe-mini-${r.id}`}
+      className="bg-white rounded-xl border border-neutral-200/70 overflow-hidden text-left w-full hover:border-cumin-green transition-colors"
+    >
       <div className="aspect-square bg-neutral-100 relative">
         {r.cover ? <img src={r.cover} alt={r.title} className="w-full h-full object-cover" /> : (
           <div className="w-full h-full flex items-center justify-center text-neutral-300"><ChefHat size={30} /></div>
         )}
-        <button onClick={onShare} className="absolute bottom-2 right-2 w-8 h-8 rounded-full bg-white/90 backdrop-blur flex items-center justify-center text-[#25D366] hover:bg-white transition-colors" title="Share on WhatsApp">
+        <span
+          onClick={(e) => { e.stopPropagation(); onShare(); }}
+          role="button"
+          className="absolute bottom-2 right-2 w-8 h-8 rounded-full bg-white/90 backdrop-blur flex items-center justify-center text-[#25D366] hover:bg-white transition-colors cursor-pointer"
+          title="Share on WhatsApp"
+        >
           <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/></svg>
-        </button>
+        </span>
       </div>
       <div className="p-2.5">
         <p className="font-semibold text-[13px] text-neutral-900 truncate">{r.title}</p>
         <p className="text-[11px] text-neutral-500 truncate">{r.serves ? `Serves ${r.serves}` : ''}{r.time ? ` · ${r.time}` : ''}</p>
       </div>
-    </div>
+    </button>
   );
 }
 

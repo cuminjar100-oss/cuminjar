@@ -4,11 +4,13 @@ import { Play, Clock, Plus, X, Loader2 } from 'lucide-react';
 import api from '../../api';
 import { useToast } from '../../hooks/use-toast';
 import MediaTranscribeInput from '../../components/MediaTranscribeInput';
+import StoryDetailModal from '../../components/StoryDetailModal';
 
 export default function StoriesPage() {
   const [stories, setStories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [openStory, setOpenStory] = useState(null);
   const { toast } = useToast();
 
   const load = useCallback(async () => {
@@ -34,15 +36,23 @@ export default function StoriesPage() {
         ) : (
           <div className="grid md:grid-cols-2 gap-6 mt-8">
             {stories.map(s => (
-              <article key={s.id} className="bg-white rounded-2xl border border-neutral-200/70 p-6 hover:shadow-lg transition-shadow">
+              <article
+                key={s.id}
+                onClick={() => setOpenStory(s)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setOpenStory(s); }}
+                data-testid={`story-card-${s.id}`}
+                className="bg-white rounded-2xl border border-neutral-200/70 p-6 hover:shadow-lg transition-shadow cursor-pointer"
+              >
                 <div className="flex items-start gap-4">
-                  <button className="w-11 h-11 rounded-full bg-[#FBE3D2] flex items-center justify-center flex-shrink-0 hover:scale-105 transition-transform">
+                  <span className="w-11 h-11 rounded-full bg-[#FBE3D2] flex items-center justify-center flex-shrink-0">
                     <Play size={14} className="text-terracotta ml-0.5" fill="currentColor" />
-                  </button>
+                  </span>
                   <div>
                     <h3 className="font-serif-display text-[22px] font-semibold text-neutral-900">{s.title}</h3>
                     <p className="text-[12px] text-neutral-500 mt-0.5">By {s.author}</p>
-                    <p className="mt-3 text-[14px] text-neutral-700 leading-relaxed">{s.excerpt}</p>
+                    <p className="mt-3 text-[14px] text-neutral-700 leading-relaxed line-clamp-3">{s.excerpt || s.transcript_en}</p>
                     <div className="mt-3 flex items-center gap-1.5 text-[12px] text-neutral-500"><Clock size={12} /> {s.mins} min listen</div>
                   </div>
                 </div>
@@ -56,6 +66,7 @@ export default function StoriesPage() {
       {showModal && (
         <AddStoryModal onClose={() => setShowModal(false)} onSaved={(s) => { setStories(prev => [s, ...prev]); setShowModal(false); toast({ title: 'Story saved!' }); }} />
       )}
+      {openStory && <StoryDetailModal story={openStory} onClose={() => setOpenStory(null)} />}
     </AppShell>
   );
 }

@@ -821,7 +821,41 @@ def _emoji_cover_svg(emoji: str, tint: str = '#FBE3D2') -> str:
 
 
 async def _generate_recipe_image(recipe_title: str, description: str, tags=None, region: str = '') -> Optional[str]:
-    """Return an emoji-based SVG cover. Instant, free, works offline."""
+    """Generate a realistic recipe cover using Gemini Nano Banana.
+    Falls back to emoji SVG if generation fails.
+    """
+    # Build a rich, photorealistic prompt tuned for food photography
+    tag_str = ', '.join(tags or [])
+    region_str = region or 'Indian'
+    prompt = (
+        f"A photorealistic overhead food photography shot of \"{recipe_title}\", "
+        f"a homemade {region_str} dish. {description[:250]}. "
+        f"Styled on a rustic wooden table with soft natural window light, garnished traditionally, "
+        f"served in a ceramic or brass bowl, warm inviting colours, shallow depth of field, "
+        f"appetising and mouth-watering, editorial cookbook style, sharp focus, high detail. "
+        f"No text, no watermark, no logos, no hands, square composition."
+        + (f" Cuisine notes: {tag_str}." if tag_str else '')
+    )
+    try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage
+        import base64
+        chat = LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            session_id=f'recipe-img-{uuid.uuid4()}',
+            system_message='You are a professional food photographer producing photorealistic images.',
+        )
+        chat.with_model('gemini', 'gemini-3.1-flash-image-preview').with_params(modalities=['image', 'text'])
+        msg = UserMessage(text=prompt)
+        _text, images = await chat.send_message_multimodal_response(msg)
+        if images:
+            first = images[0]
+            mime = first.get('mime_type', 'image/png')
+            data = first.get('data', '')
+            if data:
+                return f"data:{mime};base64,{data}"
+    except Exception:
+        logger.exception('Gemini image generation failed; falling back to emoji cover')
+    # Fallback
     emoji = _pick_emoji(recipe_title or '', tags or [], region or '')
     tint = FAMILY_TINTS[(hash(recipe_title or '') % len(FAMILY_TINTS))]
     return _emoji_cover_svg(emoji, tint)

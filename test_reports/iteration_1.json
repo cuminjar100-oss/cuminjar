@@ -1,0 +1,45 @@
+{
+  "summary": "Verified two P0 fixes: (1) All four card-click flows open the correct detail modal (Dashboard recipe-mini, Dashboard story-mini, Recipes page card, Stories page card). (2) Backend _generate_recipe_image (Gemini Nano Banana) helper returns a realistic JPEG data URL (>50KB). Heart button on recipe cards correctly uses stopPropagation and does not open the modal, while toggling the liked state.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/smart-record (full audio flow)", "issue": "Skipped in automated test — synthetic short WAV likely rejected by Sarvam ASR. Direct helper _generate_recipe_image was validated instead and produced a ~50KB+ JPEG."},
+      {"endpoint": "PATCH /api/recipes/{id}", "issue": "Does NOT accept 'liked' field (only cover/title/region/serves/time/tags/ingredients/steps). Frontend uses POST /api/recipes/{id}/like instead which works — but the PATCH allow-list mismatch is worth noting for future consumers."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Recipes page cards", "issues": ["Recipe card is an outer <button>, and the heart/share controls inside are <span role=\"button\"> — semantically invalid to nest interactive controls inside a button. Consider changing outer element to a div with role=\"button\" tabIndex=0 (or keep button but remove nested role=button spans)."]},
+      {"screen": "Recipes page cards", "issues": ["No data-testid on the inner heart/share span buttons — testability gap. Add data-testid=\"recipe-like-{id}\" and \"recipe-share-{id}\" for reliable automation."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/backend/tests/test_recipe_image_helper.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "Add data-testid to per-card like and share buttons in RecipesPage.jsx (e.g., recipe-like-{id}, recipe-share-{id}).",
+    "Consider replacing the outer <button> for recipe cards with a div[role=button] to avoid nested interactive elements.",
+    "Optional: expand PATCH /api/recipes allow-list to include 'liked' for API consistency, OR document that liking must use POST /recipes/{id}/like."
+  ],
+  "critical_code_review_comments": [
+    "Nested interactive elements on Recipes page cards: <button> containing <span role=button>. Not fatal (works in Chromium) but violates HTML nesting rules and hurts accessibility.",
+    "_generate_recipe_image already has SVG-emoji fallback on Gemini failure — good resilience. Verified live: returned base64 JPEG ~50KB+ for 'Aloo Paratha'.",
+    "server.py is 1000+ lines — consider splitting into routers (recipes, stories, families, smart_record, media) and ai_helpers module.",
+    "@app.on_event deprecation warning — migrate to lifespan handlers."
+  ],
+  "updated_files": [
+    "/app/backend/tests/backend_test.py (new)",
+    "/app/backend/tests/test_recipe_image_helper.py (new)"
+  ],
+  "success_rate": {"backend": "100% (6/6 executed, 1 skipped by design)", "frontend": "100% (all four card-click flows + stopPropagation verified)"},
+  "test_credentials": "None — demo user hardcoded (Meera R.)",
+  "seed_data_creation": "Created 1 test story via POST /api/stories with title 'Test Story ABC' to exercise story-card / story-mini flows (no DELETE /stories endpoint exists to remove it — it will remain in the demo dataset).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend tests live at /app/backend/tests/. Use `pytest backend/tests/ -n 0` (pytest.ini forces xdist; -n 0 to serialize). test_recipe_image_helper.py directly invokes async _generate_recipe_image via asyncio.run — takes ~8s (real Gemini call). Frontend: all four card-click flows verified with Playwright; test story 'Test Story ABC' has been left in DB because no delete endpoint exists. Heart button on recipe card is a <span role=button> with no data-testid — I used a positional selector.",
+  "rca of the issue": "Both original P0s appear resolved. (1) Card openability was a missing onClick handler after a mobile refactor — main agent fixed by making cards buttons wired to setOpenRecipe/setOpenStory and mounting new RecipeDetailModal/StoryDetailModal components. Verified all four entry points. (2) Realistic covers regressed to emoji-only earlier — main agent restored Gemini Nano Banana (gemini-3.1-flash-image-preview) via emergentintegrations with a photorealistic food-photography prompt and SVG fallback. Direct helper call returned a valid JPEG data URL >50KB; new smart-record recipes will get realistic covers while story/festival remain emoji-SVG per user preference."
+}
