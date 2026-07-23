@@ -34,11 +34,11 @@ DEMO_USER = {
     'firstName': 'Meera',
     'email': 'meera.rao@family.com',
     'avatar': 'https://images.unsplash.com/photo-1489278353717-f64c6ee8a4d2?w=100&auto=format&fit=crop&q=60',
-    'plan': 'free',  # 'free' | 'plus' | 'legacy'
+    'plan': 'unlimited',
     'limits': {
-        'max_families': 1,
-        'max_recipes': 3,
-        'max_family_members': 1,
+        'max_families': 9999,
+        'max_recipes': 9999,
+        'max_family_members': 9999,
     },
 }
 
@@ -120,7 +120,8 @@ def _strip_id(doc):
 
 
 async def _seed_if_empty():
-    """Seed demo content once so UI is not empty on first load."""
+    """Seeding is DISABLED. Kept for backwards compatibility."""
+    return
     if await db.recipes.count_documents({'user_id': DEMO_USER_ID}) == 0:
         seed_recipes = [
             {'title': "Paati's Sambar", 'author': 'Lakshmi Paati', 'region': 'South Indian', 'serves': '4-5', 'time': '45 mins', 'tags': ['Lentils', 'Traditional'], 'cover': 'https://images.unsplash.com/photo-1600728257188-480e132c1610?w=800&auto=format&fit=crop&q=60'},
@@ -303,7 +304,7 @@ async def smart_record(
 
         cover = None
         if generate_image:
-            cover = await _generate_recipe_image(title, english[:200])
+            cover = await _generate_recipe_image(title, english[:200], tags, region)
 
         doc = {
             'id': str(uuid.uuid4()),
@@ -331,6 +332,8 @@ async def smart_record(
         # Story or Festival
         title = english.split('.')[0][:60] or ('Festival memory' if kind == 'festival' else 'Untitled Story')
         approx_mins = max(1, len(english.split()) // 130)
+        story_emoji = '🪔' if kind == 'festival' else '📖'
+        cover = _emoji_cover_svg(story_emoji, FAMILY_TINTS[(hash(title) % len(FAMILY_TINTS))])
         doc = {
             'id': str(uuid.uuid4()),
             'user_id': DEMO_USER_ID,
@@ -340,6 +343,7 @@ async def smart_record(
             'excerpt': english,
             'mins': approx_mins,
             'kind': kind,
+            'cover': cover,
             'transcript_en': english,
             'source_kind': media_kind,
             'source_language': detected_lang,
@@ -780,35 +784,47 @@ async def _gemini_structure_recipe(text: str) -> dict:
         return {}
 
 
-async def _generate_recipe_image(recipe_title: str, description: str) -> Optional[str]:
-    """Generate a photograph of the recipe via OpenAI GPT Image 1. Returns data URL or None."""
-    if not recipe_title:
-        return None
-    def _run():
-        try:
-            import base64
-            from emergentintegrations.llm.openai.image_generation import OpenAIImageGeneration
-            gen = OpenAIImageGeneration(api_key=EMERGENT_LLM_KEY)
-            prompt = (
-                f"A warm, appetising overhead photograph of {recipe_title}. "
-                f"{description[:200] if description else ''} "
-                f"Rustic wooden or brass serving bowl, cream table cloth background, natural window light, "
-                f"styled for a family cookbook. Realistic food photography, high detail, no text."
-            )
-            result = gen.generate_images(prompt=prompt, model='gpt-image-1', number_of_images=1, size='1024x1024')
-            imgs = result.get('images') if isinstance(result, dict) else None
-            if imgs and len(imgs) > 0:
-                img_bytes = imgs[0].get('image_bytes') if isinstance(imgs[0], dict) else None
-                if img_bytes:
-                    if isinstance(img_bytes, bytes):
-                        b64 = base64.b64encode(img_bytes).decode('utf-8')
-                    else:
-                        b64 = img_bytes
-                    return f"data:image/png;base64,{b64}"
-        except Exception:
-            logger.exception('Image generation failed')
-        return None
-    return await asyncio.to_thread(_run)
+RECIPE_EMOJIS = {
+    'south indian': '🥘', 'north indian': '🍛', 'coastal': '🐟', 'punjabi': '🫓',
+    'gujarati': '🥟', 'bengali': '🐟', 'sweet': '🍮', 'dessert': '🍮', 'breakfast': '🥞',
+    'snack': '🥟', 'dal': '🍲', 'sambar': '🍲', 'curry': '🍛', 'rice': '🍚', 'paratha': '🫓',
+    'chicken': '🍗', 'fish': '🐟', 'egg': '🍳', 'chai': '☕', 'tea': '☕',
+}
+FAMILY_TINTS = ['#FBE3D2', '#DFEAD8', '#E4DEF4', '#F9E4C3', '#F7D9DA']
+
+
+def _pick_emoji(title: str, tags, region: str) -> str:
+    text = f"{title} {' '.join(tags or [])} {region or ''}".lower()
+    for k, v in RECIPE_EMOJIS.items():
+        if k in text:
+            return v
+    return '🍽️'
+
+
+def _emoji_cover_svg(emoji: str, tint: str = '#FBE3D2') -> str:
+    """Return a data URL for a soft square SVG with a big centered emoji."""
+    import base64
+    svg = f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="{tint}"/>
+      <stop offset="100%" stop-color="#FBF7F1"/>
+    </linearGradient>
+  </defs>
+  <rect width="400" height="400" fill="url(#g)"/>
+  <circle cx="80" cy="80" r="40" fill="#ffffff" opacity="0.25"/>
+  <circle cx="330" cy="330" r="70" fill="#ffffff" opacity="0.2"/>
+  <text x="200" y="245" font-size="200" text-anchor="middle" font-family="Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, sans-serif">{emoji}</text>
+</svg>'''
+    b64 = base64.b64encode(svg.encode('utf-8')).decode('ascii')
+    return f"data:image/svg+xml;base64,{b64}"
+
+
+async def _generate_recipe_image(recipe_title: str, description: str, tags=None, region: str = '') -> Optional[str]:
+    """Return an emoji-based SVG cover. Instant, free, works offline."""
+    emoji = _pick_emoji(recipe_title or '', tags or [], region or '')
+    tint = FAMILY_TINTS[(hash(recipe_title or '') % len(FAMILY_TINTS))]
+    return _emoji_cover_svg(emoji, tint)
 
 
 async def _gemini_ocr_image(image_bytes: bytes, mime_type: str = 'image/jpeg') -> str:

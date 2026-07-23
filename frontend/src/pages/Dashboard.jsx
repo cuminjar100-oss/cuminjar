@@ -48,106 +48,103 @@ export default function Dashboard() {
 
   return (
     <AppShell active="home" onOpenRecord={() => setShowRecord(true)}>
-      <div className="px-4 lg:px-8 py-4 lg:py-6">
-        {/* Welcome + Big Record button */}
-        <div className="bg-gradient-to-br from-[#F7DFCE]/70 to-[#F1E8D8] rounded-3xl p-6 lg:p-8 text-center">
-          <h1 className="font-serif-display text-[28px] lg:text-[36px] font-semibold text-neutral-900 leading-tight">
-            Hi Meera! What memory shall we preserve today?
+      <div className="px-3 lg:px-8 py-3 lg:py-6 max-w-4xl mx-auto">
+        {/* Compact welcome + big Record button */}
+        <div className="bg-gradient-to-br from-[#F7DFCE]/70 to-[#F1E8D8] rounded-2xl p-4 lg:p-8 text-center">
+          <h1 className="font-serif-display text-[22px] lg:text-[34px] font-semibold text-neutral-900 leading-tight">
+            Hi Meera! Preserve a memory today.
           </h1>
-          <p className="mt-2 text-[14px] lg:text-[15px] text-neutral-700 max-w-xl mx-auto">Tap Record and just talk in any Indian language. We handle transcription, translation and formatting.</p>
+          <p className="mt-1 text-[13px] lg:text-[15px] text-neutral-700 max-w-md mx-auto">Tap Record and just talk. We do the rest.</p>
 
-          <button
-            onClick={() => setShowRecord(true)}
-            className="mt-6 inline-flex flex-col items-center gap-2 group"
-          >
-            <span className="w-28 h-28 lg:w-32 lg:h-32 rounded-full bg-cumin-green text-white flex items-center justify-center shadow-2xl group-hover:scale-105 transition-transform">
-              <Mic size={44} />
+          <button onClick={() => setShowRecord(true)} className="mt-4 lg:mt-6 inline-flex flex-col items-center gap-1.5 group">
+            <span className="w-24 h-24 lg:w-28 lg:h-28 rounded-full bg-cumin-green text-white flex items-center justify-center shadow-2xl group-hover:scale-105 transition-transform">
+              <Mic size={36} />
             </span>
-            <span className="text-cumin-green font-semibold text-[15px]">Tap to Record</span>
+            <span className="text-cumin-green font-semibold text-[13.5px]">Tap to Record</span>
           </button>
 
-          <div className="mt-5 flex items-center justify-center gap-3 lg:gap-5 flex-wrap text-[12px] text-neutral-600">
-            <span className="flex items-center gap-1.5"><ChefHat size={13} className="text-terracotta"/> Recipe</span>
-            <span className="flex items-center gap-1.5"><BookOpen size={13} className="text-[#5D7A4E]"/> Story</span>
-            <span className="flex items-center gap-1.5"><PartyPopper size={13} className="text-[#7A6FB0]"/> Festival</span>
+          <div className="mt-3 flex items-center justify-center gap-3 text-[11px] text-neutral-600">
+            <span className="flex items-center gap-1"><ChefHat size={12} className="text-terracotta"/> Recipe</span>
+            <span className="flex items-center gap-1"><BookOpen size={12} className="text-[#5D7A4E]"/> Story</span>
+            <span className="flex items-center gap-1"><PartyPopper size={12} className="text-[#7A6FB0]"/> Festival</span>
           </div>
         </div>
 
-        {/* Family groups switcher */}
-        <div className="mt-5 bg-white rounded-2xl border border-neutral-200/70 p-4">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-[14px] font-semibold text-neutral-900 flex items-center gap-1.5"><Users size={15}/> Your family groups</p>
-            <button
-              type="button"
-              onClick={() => {
-                if (families.length >= 1) {
-                  toast({ title: 'Upgrade required', description: 'Free plan allows only 1 family group. Upgrade to Plus.' });
-                  return;
-                }
-                setShowCreateFamily(true);
-              }}
-              className="text-[12.5px] font-medium text-cumin-green flex items-center gap-1 hover:underline"
-            >
-              <Plus size={13}/> New <span className="text-[10px] bg-terracotta text-white px-1.5 py-0.5 rounded-full ml-0.5">PLUS</span>
+        {/* Hardbound book highlight */}
+        <div className="mt-4 lg:mt-5 bg-gradient-to-br from-[#F5EBDA] to-[#F7DFCE] rounded-2xl p-4 lg:p-6 flex gap-4 items-center">
+          <div className="w-14 h-14 lg:w-20 lg:h-20 rounded-xl bg-white/60 flex items-center justify-center flex-shrink-0 text-3xl lg:text-4xl">📕</div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] font-semibold text-terracotta tracking-[0.15em] uppercase">Heirloom Book</p>
+            <h3 className="font-serif-display text-[16px] lg:text-[20px] font-semibold text-neutral-900 leading-tight mt-0.5">Print your best memories as a hardbound family book</h3>
+            <p className="text-[12px] lg:text-[13.5px] text-neutral-700 mt-1 leading-snug">Every page has a QR code — scan it and hear your loved one’s voice reading the recipe or story to you. English on paper, their voice forever.</p>
+          </div>
+        </div>
+
+        {/* Family groups */}
+        <div className="mt-4 bg-white rounded-2xl border border-neutral-200/70 p-3.5 lg:p-4">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-[13px] font-semibold text-neutral-900 flex items-center gap-1.5"><Users size={14}/> Family groups</p>
+            <button type="button" onClick={() => setShowCreateFamily(true)} className="text-[12px] font-medium text-cumin-green flex items-center gap-1 hover:underline">
+              <Plus size={12}/> New
             </button>
           </div>
           {families.length === 0 ? (
-            <div className="text-center py-4">
-              <p className="text-[13.5px] text-neutral-500 mb-3">Create your first family space to start saving memories.</p>
-              <button onClick={() => setShowCreateFamily(true)} className="bg-cumin-green text-white px-4 py-2 rounded-lg text-[13.5px] font-medium hover:bg-[#324A2F] transition-colors">Create Family Group</button>
+            <div className="text-center py-3">
+              <p className="text-[12.5px] text-neutral-500 mb-2">Create your first family space.</p>
+              <button onClick={() => setShowCreateFamily(true)} className="bg-cumin-green text-white px-3.5 py-1.5 rounded-lg text-[12.5px] font-medium">Create Family Group</button>
             </div>
           ) : (
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-1.5">
               {families.map(f => (
-                <button key={f.id} onClick={() => setActiveFamilyId(f.id)} className={`inline-flex items-center gap-2 text-[13px] px-3 py-1.5 rounded-full transition-colors ${f.id === activeFamilyId ? 'bg-cumin-green text-white' : 'bg-[#F5EDDD] text-neutral-800 hover:bg-[#EFE3CB]'}`}>
-                  {f.coverPhoto ? <img src={f.coverPhoto} alt="" className="w-5 h-5 rounded-full object-cover" /> : <Users size={13} />}
+                <button key={f.id} onClick={() => setActiveFamilyId(f.id)} className={`inline-flex items-center gap-1.5 text-[12px] px-2.5 py-1 rounded-full transition-colors ${f.id === activeFamilyId ? 'bg-cumin-green text-white' : 'bg-[#F5EDDD] text-neutral-800'}`}>
+                  {f.coverPhoto ? <img src={f.coverPhoto} alt="" className="w-4 h-4 rounded-full object-cover" /> : <Users size={11} />}
                   {f.name}
                 </button>
               ))}
-              <button onClick={() => setShowInvite(true)} className="text-[13px] px-3 py-1.5 rounded-full border border-dashed border-neutral-300 text-neutral-700 hover:border-cumin-green hover:text-cumin-green transition-colors">+ Invite family</button>
+              <button onClick={() => setShowInvite(true)} className="text-[12px] px-2.5 py-1 rounded-full border border-dashed border-neutral-300 text-neutral-600 hover:border-cumin-green hover:text-cumin-green transition-colors">+ Invite</button>
             </div>
           )}
         </div>
 
         {/* Recent recipes */}
-        <section className="mt-6">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-serif-display text-[22px] font-semibold text-neutral-900">Recent recipes</h2>
-            <a href="/app/recipes" className="text-[13px] text-cumin-green font-medium hover:underline">See all</a>
+        <section className="mt-4">
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="font-serif-display text-[18px] lg:text-[22px] font-semibold text-neutral-900">Recent recipes</h2>
+            <a href="/app/recipes" className="text-[12px] text-cumin-green font-medium">See all</a>
           </div>
           {loading ? (
-            <div className="py-6 flex justify-center"><Loader2 className="animate-spin text-neutral-400" size={20} /></div>
+            <div className="py-4 flex justify-center"><Loader2 className="animate-spin text-neutral-400" size={18} /></div>
           ) : recipes.length === 0 ? (
-            <div className="bg-white border border-neutral-200/70 rounded-2xl p-6 text-center">
-              <p className="text-[14px] text-neutral-500">No recipes yet. Tap the big <b>Record</b> button above and start with your first recipe.</p>
+            <div className="bg-white border border-neutral-200/70 rounded-xl p-4 text-center">
+              <p className="text-[13px] text-neutral-500">Nothing yet. Tap the big <b>Record</b> button above to add your first recipe.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 lg:gap-3">
               {recipes.slice(0, 4).map(r => <RecipeCardMini key={r.id} r={r} onShare={() => shareRecipe(r)} />)}
             </div>
           )}
         </section>
 
         {/* Recent stories */}
-        <section className="mt-6">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-serif-display text-[22px] font-semibold text-neutral-900">Recent stories &amp; festivals</h2>
-            <a href="/app/stories" className="text-[13px] text-cumin-green font-medium hover:underline">See all</a>
+        <section className="mt-4">
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="font-serif-display text-[18px] lg:text-[22px] font-semibold text-neutral-900">Recent stories &amp; festivals</h2>
+            <a href="/app/stories" className="text-[12px] text-cumin-green font-medium">See all</a>
           </div>
           {stories.length === 0 ? (
-            <div className="bg-white border border-neutral-200/70 rounded-2xl p-6 text-center">
-              <p className="text-[14px] text-neutral-500">No stories or festival memories yet.</p>
+            <div className="bg-white border border-neutral-200/70 rounded-xl p-4 text-center">
+              <p className="text-[13px] text-neutral-500">No stories or festival memories yet.</p>
             </div>
           ) : (
             <div className="space-y-2">
               {stories.slice(0, 3).map(s => (
                 <div key={s.id} className="bg-white border border-neutral-200/70 rounded-xl p-3 flex items-start gap-3">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${s.kind === 'festival' ? 'bg-[#E4DEF4]' : 'bg-[#DFEAD8]'}`}>
-                    {s.kind === 'festival' ? <PartyPopper size={16} className="text-[#7A6FB0]" /> : <BookOpen size={16} className="text-[#5D7A4E]" />}
+                  <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${s.kind === 'festival' ? 'bg-[#E4DEF4]' : 'bg-[#DFEAD8]'}`}>
+                    {s.kind === 'festival' ? <PartyPopper size={15} className="text-[#7A6FB0]" /> : <BookOpen size={15} className="text-[#5D7A4E]" />}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-[14px] text-neutral-900 truncate">{s.title}</p>
-                    <p className="text-[12.5px] text-neutral-500 line-clamp-2">{s.excerpt || s.transcript_en}</p>
+                    <p className="font-semibold text-[13.5px] text-neutral-900 truncate">{s.title}</p>
+                    <p className="text-[12px] text-neutral-500 line-clamp-2">{s.excerpt || s.transcript_en}</p>
                   </div>
                   <button onClick={() => shareStory(s)} className="text-[11px] text-[#25D366] font-medium">Share</button>
                 </div>

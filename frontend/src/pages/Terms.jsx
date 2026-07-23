@@ -31,7 +31,7 @@ export default function Terms() {
         </Section>
 
         <Section title="4. AI Transcription &amp; Translation">
-          To transcribe voice recordings, we use Sarvam AI (speech-to-text). To translate transcripts across languages, we use Google Gemini. These providers process audio and text only to return the transcript/translation to you — they do not retain the content for training purposes.
+          To transcribe voice recordings, we use our AI (speech-to-text). To translate transcripts across languages, we use AI translator. These providers process audio and text only to return the transcript/translation to you — they do not retain the content for training purposes.
         </Section>
 
         <Section title="5. Privacy">

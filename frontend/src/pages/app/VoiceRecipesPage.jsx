@@ -160,7 +160,7 @@ export default function VoiceRecipesPage() {
 
           {processing && (
             <div className="mt-6 flex items-center justify-center gap-2 text-neutral-600 text-[13.5px]">
-              <Loader2 size={16} className="animate-spin" /> Transcribing with Sarvam AI… (this may take a few seconds)
+              <Loader2 size={16} className="animate-spin" /> Transcribing with our AI… (this may take a few seconds)
             </div>
           )}
         </div>
@@ -219,7 +219,7 @@ export default function VoiceRecipesPage() {
                   {LANGS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
                 </select>
               </div>
-              <p className="text-[12px] text-neutral-500">We’ll transcribe using Sarvam AI and translate to English via Gemini if needed.</p>
+              <p className="text-[12px] text-neutral-500">We’ll transcribe using our AI and translate to English  if needed.</p>
             </div>
             <div className="mt-5 flex gap-2">
               <button onClick={() => setShowSaveModal(false)} className="flex-1 border border-neutral-200 py-3 rounded-lg text-[14px] text-neutral-700 hover:border-neutral-400 transition-colors">Cancel</button>

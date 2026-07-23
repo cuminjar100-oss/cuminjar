@@ -193,7 +193,7 @@ export default function MediaTranscribeInput({ onTranscribed }) {
       {mode === 'processing' && (
         <div className="text-center py-6">
           <Loader2 className="animate-spin text-cumin-green mx-auto" size={22} />
-          <p className="text-[13px] text-neutral-600 mt-2">Transcribing… (Sarvam AI + Gemini)</p>
+          <p className="text-[13px] text-neutral-600 mt-2">Transcribing… (our AI)</p>
         </div>
       )}
 

@@ -9,6 +9,49 @@ const KINDS = [
   { key: 'festival', label: 'Festival',  icon: PartyPopper, tint: 'bg-[#E4DEF4]', ic: 'text-[#7A6FB0]',      desc: 'A festival ritual, prayer, or celebration story.' },
 ];
 
+const PROC_MESSAGES = {
+  recipe: [
+    '🫙 Popping open your family jar…',
+    '👂 Listening to every word carefully…',
+    '📝 Writing it down in English…',
+    '🌶️ Sorting the ingredients…',
+    '⏱️ Estimating the cooking time…',
+    '🍽️ Deciding how many hungry people it will feed…',
+    '🎨 Drawing a little cover for it…',
+    '💌 Almost ready to preserve forever…',
+  ],
+  story: [
+    '🫙 Popping open your family jar…',
+    '👂 Listening to every word carefully…',
+    '📝 Writing it down in English…',
+    '📖 Turning it into a beautiful memory…',
+    '💌 Almost ready to preserve forever…',
+  ],
+  festival: [
+    '🫙 Popping open your family jar…',
+    '👂 Listening to every word carefully…',
+    '🪔 Capturing the festival spirit…',
+    '📝 Writing it down in English…',
+    '💌 Almost ready to preserve forever…',
+  ],
+};
+
+function ProcessingView({ kind }) {
+  const messages = PROC_MESSAGES[kind] || PROC_MESSAGES.story;
+  const [idx, setIdx] = React.useState(0);
+  React.useEffect(() => {
+    const t = setInterval(() => setIdx(i => (i + 1) % messages.length), 2400);
+    return () => clearInterval(t);
+  }, [messages.length]);
+  return (
+    <div className="text-center py-12">
+      <Loader2 className="animate-spin text-cumin-green mx-auto" size={30} />
+      <p className="mt-5 text-[15.5px] font-semibold text-neutral-900 min-h-[24px]">{messages[idx]}</p>
+      <p className="text-[12.5px] text-neutral-500 mt-1">Hold tight — this can take 20 – 40 seconds.</p>
+    </div>
+  );
+}
+
 export default function SmartRecordModal({ onClose, familyId, onSaved }) {
   const [step, setStep] = useState('choose'); // choose | record | processing | done
   const [kind, setKind] = useState(null);
@@ -141,18 +184,11 @@ export default function SmartRecordModal({ onClose, familyId, onSaved }) {
               <p className="text-[13px] text-neutral-500 mt-2">
                 {mrRef.current?.state === 'recording' ? 'Recording… tap to stop.' : `Tap the mic and start telling your ${kind}.`}
               </p>
-              <p className="text-[12px] text-neutral-400 mt-4">Speak in any Indian language — Sarvam AI transcribes, Google translates.</p>
+              <p className="text-[12px] text-neutral-400 mt-4">Speak in any Indian language — our AI transcribes, Google translates.</p>
             </div>
           )}
 
-          {step === 'processing' && (
-            <div className="text-center py-12">
-              <Loader2 className="animate-spin text-cumin-green mx-auto" size={30} />
-              <p className="mt-4 text-[15px] font-semibold text-neutral-900">Transcribing your voice…</p>
-              <p className="text-[12.5px] text-neutral-500 mt-1">Sarvam is listening. Gemini is structuring. This can take 20–40 seconds{kind === 'recipe' ? ' + a beautiful photo is being generated.' : '.'}</p>
-              <div className="mt-6 flex items-center justify-center gap-2 text-[12px] text-neutral-400"><Sparkles size={13} /> Powered by Sarvam &amp; Google Gemini</div>
-            </div>
-          )}
+          {step === 'processing' && <ProcessingView kind={kind} />}
 
           {step === 'done' && result?.item && (
             <div>
