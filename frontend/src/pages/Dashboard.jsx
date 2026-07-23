@@ -8,6 +8,7 @@ import SmartRecordModal from '../components/SmartRecordModal';
 import RecipeDetailModal from '../components/RecipeDetailModal';
 import StoryDetailModal from '../components/StoryDetailModal';
 import FirstRunEmptyState from '../components/FirstRunEmptyState';
+import { getCachedAuthUser, setCachedAuthUser, clearCachedAuthUser } from '../utils/authCache';
 import { shareWithImage, buildRecipeShareText, buildStoryShareText, shareCookbookLink } from '../utils/share';
 
 export default function Dashboard() {
@@ -21,8 +22,8 @@ export default function Dashboard() {
   const [showCreateFamily, setShowCreateFamily] = useState(false);
   const [openRecipe, setOpenRecipe] = useState(null);
   const [openStory, setOpenStory] = useState(null);
-  const [authUser, setAuthUser] = useState(null);
-  const [authLoading, setAuthLoading] = useState(true);
+  const [authUser, setAuthUser] = useState(() => getCachedAuthUser());
+  const [authLoading, setAuthLoading] = useState(() => !getCachedAuthUser());
   const { toast } = useToast();
 
   const active = families.find(f => f.id === activeFamilyId) || null;
@@ -50,8 +51,8 @@ export default function Dashboard() {
   useEffect(() => {
     let cancelled = false;
     api.authMe()
-      .then((u) => { if (!cancelled) setAuthUser(u); })
-      .catch(() => { if (!cancelled) setAuthUser(null); })
+      .then((u) => { if (!cancelled) { setAuthUser(u); setCachedAuthUser(u); } })
+      .catch(() => { if (!cancelled) { setAuthUser(null); clearCachedAuthUser(); } })
       .finally(() => { if (!cancelled) setAuthLoading(false); });
     return () => { cancelled = true; };
   }, []);

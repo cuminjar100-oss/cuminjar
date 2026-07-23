@@ -1,0 +1,52 @@
+{
+  "summary": "Verified the AppShell header + Dashboard greeting 'Meera' flash fix. Seeded a real Mongo user + user_sessions row (name='Ananya Sharma'), set the session_token httpOnly cookie and localStorage['cuminjar_user'] via Playwright, then navigated across /app, /app/recipes, /app/stories, /app/albums, /app/family-tree, /app/settings and back to /app. Polled the header username span and dashboard-greeting h1 at 30ms via setInterval + MutationObserver installed via add_init_script (fires before any React render). ZERO 'Meera' text observed on ANY route during navigation — every sample shows 'Ananya Sharma' in header and 'Hi Ananya!' greeting. Fix confirmed working.",
+  "fixes_verified": [
+    {
+      "fix": "BUG-FIX #1 — AppShell header no longer flashes 'Meera R.' between /app/* routes",
+      "how_verified": "Poller installed via page.add_init_script (runs at document_start on every navigation) sampled the [data-testid=user-menu-trigger] span every 30ms + MutationObserver. Across 7 sequential navigations (Home → Recipes → Stories → Albums → Family Tree → Settings → Home) with a valid session cookie + cached user, EVERY captured sample showed header='Ananya Sharma'. meera_hits=0 on all 7 routes.",
+      "status": "PASS"
+    },
+    {
+      "fix": "BUG-FIX #2 — Dashboard greeting shows cached 'Hi Ananya!' from first paint",
+      "how_verified": "On the two /app visits (initial + revisit after Settings), first captured sample of [data-testid=dashboard-greeting] contained 'Hi Ananya!' with zero 'Hi Meera!' occurrences.",
+      "status": "PASS"
+    },
+    {
+      "fix": "Regression #1 — Anonymous (no cookie, no cache) still shows demo 'Meera'",
+      "how_verified": "Fresh context.clear_cookies() + no localStorage: /app rendered header='Meera R.' and greet='Hi Meera! Preserve a memory today.'",
+      "status": "PASS"
+    },
+    {
+      "fix": "Regression #2 — Explicit logout clears localStorage['cuminjar_user']",
+      "how_verified": "After clicking [data-testid=user-menu-logout] and being redirected to /login, localStorage.getItem('cuminjar_user') returned null. Subsequent anonymous /app visit correctly rendered the demo 'Hi Meera!' greeting.",
+      "status": "PASS"
+    },
+    {
+      "fix": "Regression #3 — Cold reload with only localStorage cache (no cookie): first paint shows cached name",
+      "how_verified": "At t=253ms after navigation start, first captured DOM sample showed header='Ananya Sharma' (from synchronous localStorage hydration). The subsequent 'Meera R.' at t=615ms is the EXPECTED design fallback: /api/auth/me returned 401 (because we intentionally omitted the session cookie), useEffect then called clearCachedAuthUser() and setAuthUser(null), so header reverted to demo. This is correct behavior — in the real 'close and re-open tab' scenario the httpOnly session cookie would still be present and no revert would occur. First-paint assertion (no flash) IS satisfied.",
+      "status": "PASS_WITH_NOTE"
+    }
+  ],
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/scripts/seed_flash_user.py"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "AppShell.jsx line 27-29: api.authMe() is called on EVERY location.pathname change (route change), and on 401 it wipes the localStorage cache via clearCachedAuthUser(). This means if a signed-in user briefly loses network or gets a transient 401 during a route change, their cache is nuked and the next paint on the next route will flash 'Meera' until authMe() succeeds again. Consider only clearing the cache on explicit 401 with reason 'session_invalid', not on all failures (e.g. keep cache on network error / 5xx).",
+    "AppShell.jsx and Dashboard.jsx both independently call api.authMe() on mount — same request now fires TWICE on every Dashboard render (once from AppShell, once from Dashboard's own useEffect). This was flagged in iteration_4 too. Hoist to an AuthProvider context so we get a single de-duped call + shared state.",
+    "AppShell useEffect re-runs on every location.pathname change, so api.authMe() is refetched on every route hop (Home → Recipes → Stories → ...). For a user browsing 6 pages that's 6 unnecessary /api/auth/me network round-trips within a few seconds. Consider caching the promise or moving to context that fetches once.",
+    "The demo fallback 'Meera R.' / 'meera.rao@family.com' is still hardcoded in mock.js and referenced as currentUser in AppShell.jsx (line 122-130). If any future refactor forgets to pass authUser through, the demo string will silently leak into production UI for signed-in users. Consider removing the demo fallback entirely once demo data is gone, or gating it behind a NODE_ENV check.",
+    "Dashboard.jsx line 26 uses `!getCachedAuthUser()` for initial authLoading — good — but the useEffect that fetches api.authMe() doesn't skip the fetch when cache is present, so we still do a background verification. That's fine, but consider adding a stale-while-revalidate pattern with a TTL to reduce redundant calls."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (frontend-only scope)", "frontend": "100% (11/11 assertions incl. 7 route flash checks + 4 regressions)"},
+  "test_credentials": "Seeded: email='test_it5_flash@cuminjar.test', name='Ananya Sharma', session_token='tok_test_it5_*' (cleaned up post-run via /app/scripts/seed_flash_user.py clean)",
+  "seed_data_creation": "One row in users (test_it5_flash@cuminjar.test) + one row in user_sessions (tok_test_it5_*). Both cleaned up after the run. Reusable seed/clean script at /app/scripts/seed_flash_user.py.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "For flash-of-unauthenticated-content bugs, use page.add_init_script to install a setInterval(30ms) + MutationObserver poller BEFORE any navigation. Store samples on window.__flashLog and read after each page.goto. This catches even 50-100ms React re-renders that a normal wait_for_selector would miss. Reusable seed script at /app/scripts/seed_flash_user.py — seed prints a JSON with session_token you can pass into context.add_cookies. Note that AppShell.jsx wipes localStorage cache on 401 during background refresh, so if you test with only a cache but no valid session cookie, the header WILL revert to the demo name after the axios call resolves — this is intentional. Test with BOTH cookie AND cache for the happy-path signed-in flash-check.",
+  "rca_of_the_issue": "Root cause of the original bug: AppShell.jsx and Dashboard.jsx both initialized their authUser state to null (const [authUser, setAuthUser] = useState(null)) and only populated it AFTER the async api.authMe() call resolved. Between navigations, when React re-mounted the AppShell (or the Dashboard on /app), the first paint had authUser=null and fell through to `currentUser.name = 'Meera R.'` / `'Hi Meera!'` fallback — a ~200-500ms flash. Fix: added /app/frontend/src/utils/authCache.js with getCachedAuthUser/setCachedAuthUser/clearCachedAuthUser that synchronously read/write localStorage['cuminjar_user']. All auth flows (AuthCallback, Login, GetStarted, password-reset) now call setCachedAuthUser(user) immediately after a successful auth API. AppShell and Dashboard initialize their authUser state lazily from getCachedAuthUser() so the very first paint has the cached name. The background api.authMe() call still runs to verify freshness and updates the cache on success or clears it on 401. Verified working end-to-end via a 30ms polling MutationObserver across 7 route navigations — zero 'Meera' occurrences captured.",
+  "mocked_apis": "None"
+}

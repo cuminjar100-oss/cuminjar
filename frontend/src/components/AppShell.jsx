@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { sidebarLinks, currentUser } from '../mock';
 import api from '../api';
+import { getCachedAuthUser, setCachedAuthUser, clearCachedAuthUser } from '../utils/authCache';
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuLabel,
 } from './ui/dropdown-menu';
@@ -18,12 +19,14 @@ export default function AppShell({ children, active, onOpenRecord }) {
   const navigate = useNavigate();
   const [drawer, setDrawer] = useState(false);
   const [, setUnread] = useState(0);
-  const [authUser, setAuthUser] = useState(null);
+  const [authUser, setAuthUser] = useState(() => getCachedAuthUser());
 
   useEffect(() => {
     let cancelled = false;
     api.listNotifications().then((d) => { if (!cancelled) setUnread(d?.unread || 0); }).catch((e) => console.error(e));
-    api.authMe().then((u) => { if (!cancelled) setAuthUser(u); }).catch(() => { if (!cancelled) setAuthUser(null); });
+    api.authMe()
+      .then((u) => { if (!cancelled) { setAuthUser(u); setCachedAuthUser(u); } })
+      .catch(() => { if (!cancelled) { setAuthUser(null); clearCachedAuthUser(); } });
     return () => { cancelled = true; };
   }, [location.pathname]);
 
@@ -137,6 +140,7 @@ export default function AppShell({ children, active, onOpenRecord }) {
                 <DropdownMenuItem
                   onClick={async () => {
                     try { await api.authLogout(); } catch { /* ignore */ }
+                    clearCachedAuthUser();
                     try {
                       localStorage.removeItem('cuminjar_verified_email');
                       localStorage.removeItem('cuminjar_active_family');

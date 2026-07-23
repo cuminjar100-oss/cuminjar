@@ -4,6 +4,7 @@ import Logo from '../components/Logo';
 import GoogleSignInButton from '../components/GoogleSignInButton';
 import { Mail, Lock, Eye, EyeOff, CheckCircle2, Loader2, ArrowLeft } from 'lucide-react';
 import api from '../api';
+import { setCachedAuthUser } from '../utils/authCache';
 import { useToast } from '../hooks/use-toast';
 
 function formatDetail(detail, fallback) {
@@ -39,7 +40,8 @@ export default function Login() {
     if (busy) return;
     setBusy(true);
     try {
-      await api.authLogin({ email: email.trim().toLowerCase(), password });
+      const { user } = await api.authLogin({ email: email.trim().toLowerCase(), password });
+      setCachedAuthUser(user);
       toast({ title: 'Welcome back!' });
       navigate('/app');
     } catch (err) {
@@ -88,7 +90,8 @@ export default function Login() {
     if (busy) return;
     setBusy(true);
     try {
-      await api.authResetPassword({ email: resetEmail.trim().toLowerCase(), code: codeStr, password: newPassword });
+      const { user } = await api.authResetPassword({ email: resetEmail.trim().toLowerCase(), code: codeStr, password: newPassword });
+      setCachedAuthUser(user);
       toast({ title: 'Password updated', description: 'You are now signed in.' });
       navigate('/app');
     } catch (err) {

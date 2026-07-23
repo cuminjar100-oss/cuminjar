@@ -4,6 +4,7 @@ import Logo from '../components/Logo';
 import GoogleSignInButton from '../components/GoogleSignInButton';
 import { Mail, Lock, User, Eye, EyeOff, CheckCircle2, Loader2, ArrowLeft } from 'lucide-react';
 import api from '../api';
+import { setCachedAuthUser } from '../utils/authCache';
 import { useToast } from '../hooks/use-toast';
 
 export default function GetStarted() {
@@ -68,11 +69,12 @@ export default function GetStarted() {
     try {
       await api.verifyOtp({ email: form.email.trim().toLowerCase(), code: codeStr });
       // Now create the account with the password the user chose
-      await api.authRegister({
+      const { user } = await api.authRegister({
         email: form.email.trim().toLowerCase(),
         password: form.password,
         name: form.name.trim(),
       });
+      setCachedAuthUser(user);
       toast({ title: 'Welcome to CuminJar!', description: 'Your account is ready.' });
       try { localStorage.setItem('cuminjar_verified_email', form.email.toLowerCase()); } catch { /* ignore */ }
       navigate('/app');
