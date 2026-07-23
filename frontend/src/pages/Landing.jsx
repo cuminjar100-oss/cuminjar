@@ -140,9 +140,19 @@ export default function Landing() {
       </section>
 
       {/* FAMILY LEGACY BOOK */}
-      <section className="py-20 bg-cream relative overflow-hidden" data-testid="legacy-book-section">
-        <div className="absolute -top-10 left-0 w-64 h-64 rounded-full bg-terracotta/5 blur-3xl" aria-hidden="true" />
-        <div className="absolute -bottom-10 right-0 w-72 h-72 rounded-full bg-cumin-green/5 blur-3xl" aria-hidden="true" />
+      <section className="py-24 bg-[#F3E7D3] relative overflow-hidden" data-testid="legacy-book-section">
+        {/* Soft top divider curve so it separates cleanly from HOW IT WORKS above */}
+        <svg
+          className="absolute top-0 left-0 w-full h-8 pointer-events-none"
+          viewBox="0 0 1440 40"
+          preserveAspectRatio="none"
+          aria-hidden="true"
+        >
+          <path d="M0 0 C 480 40, 960 40, 1440 0 L 1440 0 L 0 0 Z" fill="#FBF7F1" />
+        </svg>
+
+        <div className="absolute -top-10 left-0 w-64 h-64 rounded-full bg-terracotta/10 blur-3xl" aria-hidden="true" />
+        <div className="absolute -bottom-10 right-0 w-72 h-72 rounded-full bg-cumin-green/10 blur-3xl" aria-hidden="true" />
 
         <div className="max-w-7xl mx-auto px-6 lg:px-10 relative">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
