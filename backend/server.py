@@ -33,7 +33,13 @@ DEMO_USER = {
     'name': 'Meera R.',
     'firstName': 'Meera',
     'email': 'meera.rao@family.com',
-    'avatar': 'https://images.unsplash.com/photo-1489278353717-f64c6ee8a4d2?w=100&auto=format&fit=crop&q=60'
+    'avatar': 'https://images.unsplash.com/photo-1489278353717-f64c6ee8a4d2?w=100&auto=format&fit=crop&q=60',
+    'plan': 'free',  # 'free' | 'plus' | 'legacy'
+    'limits': {
+        'max_families': 1,
+        'max_recipes': 3,
+        'max_family_members': 1,
+    },
 }
 
 app = FastAPI()
@@ -206,7 +212,15 @@ async def list_families():
 
 @api.post("/family")
 async def create_family(payload: FamilyIn):
-    """Create a NEW family group each time. Update via PUT /api/family/{id}."""
+    """Create a NEW family group. Free plan is limited to 1 family group."""
+    limits = DEMO_USER.get('limits', {})
+    max_families = limits.get('max_families', 1)
+    existing_count = await db.families.count_documents({'user_id': DEMO_USER_ID})
+    if DEMO_USER.get('plan') == 'free' and existing_count >= max_families:
+        raise HTTPException(
+            402,
+            f"Free plan allows only {max_families} family group. Upgrade to Plus to create more.",
+        )
     data = payload.dict()
     data.update({
         'id': str(uuid.uuid4()),
@@ -273,6 +287,14 @@ async def list_recipes():
 
 @api.post("/recipes")
 async def create_recipe(payload: RecipeIn):
+    limits = DEMO_USER.get('limits', {})
+    max_recipes = limits.get('max_recipes', 3)
+    existing_count = await db.recipes.count_documents({'user_id': DEMO_USER_ID})
+    if DEMO_USER.get('plan') == 'free' and existing_count >= max_recipes:
+        raise HTTPException(
+            402,
+            f"Free plan allows only {max_recipes} recipes. Upgrade to Plus for unlimited recipes.",
+        )
     doc = payload.dict()
     doc.update({'id': str(uuid.uuid4()), 'user_id': DEMO_USER_ID, 'liked': False, 'created_at': now_iso()})
     await db.recipes.insert_one(doc)
@@ -404,6 +426,17 @@ async def create_invite(payload: InviteIn):
     email = (payload.email or '').strip().lower()
     if not EMAIL_RE.match(email):
         raise HTTPException(400, 'Invalid email address')
+
+    # Free plan can only have 1 family member (themselves) — no invites allowed
+    limits = DEMO_USER.get('limits', {})
+    max_members = limits.get('max_family_members', 1)
+    current_invites = await db.invites.count_documents({'user_id': DEMO_USER_ID})
+    if DEMO_USER.get('plan') == 'free' and (max_members - 1) <= current_invites:
+        raise HTTPException(
+            402,
+            "Free plan doesn't allow inviting more family members. Upgrade to Plus to invite family.",
+        )
+
     existing = await db.invites.find_one({'user_id': DEMO_USER_ID, 'email': email})
     if existing:
         raise HTTPException(409, 'This email is already invited')

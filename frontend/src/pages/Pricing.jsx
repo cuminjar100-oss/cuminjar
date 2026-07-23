@@ -10,7 +10,7 @@ const plans = [
     price: '₹0',
     cadence: '/ forever',
     desc: 'Start preserving. Try CuminJar with your family.',
-    features: ['Up to 5 family members', '10 voice recipes', '2 GB storage', 'Basic AI transcription', 'Community support'],
+    features: ['1 family group', 'Only 1 family member', 'Up to 3 recipes', '2 GB storage', 'Basic AI transcription', 'Community support'],
     cta: 'Start Free',
     highlighted: false
   },
@@ -19,7 +19,7 @@ const plans = [
     price: '₹299',
     cadence: '/ month',
     desc: 'Grow your jar. Unlock the full experience.',
-    features: ['Unlimited family members', 'Unlimited voice recipes', '50 GB storage', 'Advanced AI + translation', 'Family Tree', 'Priority support'],
+    features: ['Unlimited family groups', 'Unlimited family members', 'Unlimited voice recipes', '50 GB storage', 'Advanced AI + translation', 'Family Tree', 'Priority support'],
     cta: 'Start 14-day trial',
     highlighted: true
   },
@@ -28,7 +28,7 @@ const plans = [
     price: '₹2,999',
     cadence: '/ year',
     desc: 'Preserve forever. Best value for large families.',
-    features: ['Everything in Plus', '200 GB storage', 'Concierge onboarding', 'Print-ready cookbook export', 'Yearly heritage backup'],
+    features: ['Everything in Plus', 'Unlimited family groups', 'Unlimited family members', '200 GB storage', 'Concierge onboarding', 'Print-ready cookbook export', 'Yearly heritage backup'],
     cta: 'Talk to us',
     highlighted: false
   }

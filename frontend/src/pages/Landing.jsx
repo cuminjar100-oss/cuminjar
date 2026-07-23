@@ -166,18 +166,6 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* PRESS */}
-      <section className="py-16 bg-cream">
-        <div className="max-w-7xl mx-auto px-6 lg:px-10 text-center">
-          <p className="text-terracotta text-[11px] font-semibold tracking-[0.22em] mb-8">TRUSTED BY FAMILIES</p>
-          <div className="flex flex-wrap items-center justify-center gap-10 md:gap-14 opacity-60">
-            {pressLogos.map(l => (
-              <span key={l} className="text-[18px] md:text-[22px] font-serif-display font-semibold text-neutral-500 tracking-tight">{l}</span>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* CTA */}
       <section className="pb-24">
         <div className="max-w-6xl mx-auto px-6 lg:px-10">

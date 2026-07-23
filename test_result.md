@@ -517,3 +517,24 @@ agent_communication:
       message: "THREE MAJOR CHANGES IMPLEMENTED: (1) Multiple family groups - GET /api/families, POST creates new family every time, PUT /api/family/{id}, DELETE /api/family/{id}, GET /api/family backwards compat. (2) Universal transcription endpoint POST /api/transcribe with Sarvam audio chunking (<=25s chunks) + Gemini photo OCR. (3) Voice recipe endpoint regression test. Please verify all three changes and test regression on GET /api/, /api/me, /api/recipes, POST /api/recipes, /api/stories, POST /api/stories, POST /api/invites, POST /api/contact."
     - agent: "testing"
       message: "✅ ALL TESTS PASSED (41/41 - 100% pass rate). THREE MAJOR CHANGES FULLY VERIFIED: CHANGE 1 (Multiple family groups) - All 8 tests passed. GET /api/families returns list. POST creates NEW family each time (tested 'Rao Family' + 'Kumar Family' with different IDs). PUT /api/family/{id} updates specific family. DELETE /api/family/{id} deletes family. GET /api/family returns most recent (backwards compat). DELETE non-existent returns 404. CHANGE 2 (Universal transcription) - All 4 tests passed. CRITICAL: Audio chunking WORKING - 40s audio processed without 'exceeds maximum limit' error. Short audio (2s) works. Photo OCR works. Empty file validation works. CHANGE 3 (Voice recipe regression) - Voice recipes still works via unified helper. REGRESSION VERIFIED: GET /api/ (health), GET /api/me, GET /api/recipes, POST /api/recipes, GET /api/stories, POST /api/stories, POST /api/invites (Resend email), POST /api/contact all working correctly. Backend production-ready."
+
+
+  - task: "Free plan limits enforcement (Family Free plan)"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "NEW FEATURE - Free plan limits enforcement. DEMO_USER has plan='free' with limits: max_families=1, max_recipes=3, max_family_members=1. POST /api/family returns 402 after 1st family. POST /api/recipes returns 402 after 3 recipes. POST /api/invites returns 402 immediately (max 1 member = demo user only). PUT /api/family/{id} NOT gated. Transcription and contact NOT gated."
+        - working: true
+          agent: "testing"
+          comment: "✅ ALL PLAN LIMIT TESTS PASSED (15/15 - 100% pass rate). FAMILY LIMIT: POST /api/family creates 1st family successfully (200 OK). 2nd POST returns 402 'Free plan allows only 1 family group. Upgrade to Plus to create more.' After DELETE, can create new family (limit reset works). RECIPE LIMIT: Current count 8 recipes (from seeding). POST /api/recipes returns 402 'Free plan allows only 3 recipes. Upgrade to Plus for unlimited recipes.' INVITE LIMIT: POST /api/invites returns 402 'Free plan doesn't allow inviting more family members. Upgrade to Plus to invite family.' REGRESSION VERIFIED: GET /api/ works. GET /api/me returns plan='free' with correct limits (max_families=1, max_recipes=3, max_family_members=1). GET /api/family (backward compat) works. GET /api/families works. PUT /api/family/{id} works (NOT gated). DELETE /api/family/{id} works. POST /api/transcribe works (NOT gated). POST /api/contact works (NOT gated). All plan limits correctly enforced with proper 402 error messages."
+
+    - agent: "main"
+      message: "NEW FEATURE - Free plan limits enforcement implemented. Demo user has plan='free' with limits: max_families=1, max_recipes=3, max_family_members=1. Please verify all three plan limits (family, recipe, invite) return 402 with correct error messages. Also verify regression on existing endpoints (GET /api/, /api/me, /api/family, /api/families, PUT /api/family/{id}, DELETE /api/family/{id}, POST /api/transcribe, POST /api/contact)."
+    - agent: "testing"
+      message: "✅ ALL PLAN LIMIT TESTS PASSED (15/15 - 100% pass rate). FREE PLAN LIMITS FULLY WORKING: (1) Family limit - 1st family creates successfully, 2nd returns 402 with correct message, limit resets after delete. (2) Recipe limit - Returns 402 when at/over 3 recipes with correct message (current count: 8 from seeding). (3) Invite limit - Returns 402 immediately with correct message (max 1 member = demo user only, no invites allowed). REGRESSION VERIFIED: All existing endpoints work correctly. GET /api/me returns plan='free' with correct limits object. PUT /api/family/{id} NOT gated (only POST is). POST /api/transcribe NOT gated. POST /api/contact NOT gated. All 402 error messages include 'Free plan', limit details, and 'Upgrade to Plus'. Backend production-ready."

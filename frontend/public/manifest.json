@@ -1,0 +1,12 @@
+{
+  "short_name": "CuminJar",
+  "name": "CuminJar — Preserve family recipes, stories & traditions",
+  "icons": [
+    { "src": "favicon-32.png", "sizes": "32x32", "type": "image/png" },
+    { "src": "favicon.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ],
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#3D5A3A",
+  "background_color": "#FBF7F1"
+}

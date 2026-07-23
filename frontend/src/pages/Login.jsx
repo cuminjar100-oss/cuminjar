@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Logo from '../components/Logo';
-import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
-import { heroImages } from '../mock';
+import { Mail, Lock, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
 
 export default function Login() {
   const [show, setShow] = useState(false);
@@ -10,11 +9,24 @@ export default function Login() {
   const submit = (e) => { e.preventDefault(); navigate('/app'); };
   return (
     <div className="min-h-screen bg-cream grid md:grid-cols-2">
-      <div className="flex flex-col justify-center px-8 md:px-16 py-10">
+      <div className="hidden md:flex flex-col justify-center px-16 py-10 bg-[#F3EBDC]">
         <Logo />
         <div className="mt-14 max-w-md">
-          <h1 className="font-serif-display text-[40px] font-semibold text-neutral-900">Welcome back</h1>
-          <p className="text-neutral-600 mt-2 text-[15px]">Log in to your family jar.</p>
+          <h2 className="font-serif-display text-[36px] font-semibold text-neutral-900 leading-tight">Welcome back to your family jar.</h2>
+          <p className="mt-4 text-neutral-700 text-[15px]">Every recipe. Every story. Every voice — kept safe in one warm place. Sign in to continue preserving your family’s heritage.</p>
+          <ul className="mt-8 space-y-3 text-neutral-700">
+            {['Private & secure family space', 'Voice recipes in 12 languages', 'Invite family in one click', 'Access from any device'].map(x => (
+              <li key={x} className="flex items-center gap-2 text-[14.5px]"><CheckCircle2 size={17} className="text-cumin-green" /> {x}</li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
+      <div className="flex flex-col justify-center px-8 md:px-16 py-10">
+        <div className="md:hidden"><Logo /></div>
+        <div className="mt-6 max-w-md w-full">
+          <h1 className="font-serif-display text-[38px] font-semibold text-neutral-900">Welcome back</h1>
+          <p className="text-neutral-600 mt-2">Log in to your family jar.</p>
 
           <form onSubmit={submit} className="mt-8 space-y-4">
             <label className="block">
@@ -46,14 +58,6 @@ export default function Login() {
               New to CuminJar? <Link to="/get-started" className="text-cumin-green font-semibold hover:underline">Create an account</Link>
             </p>
           </form>
-        </div>
-      </div>
-      <div className="hidden md:block relative">
-        <img src={heroImages.grandmaKitchen} alt="grandma" className="absolute inset-0 w-full h-full object-cover" />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#3D5A3A]/60 via-transparent to-transparent" />
-        <div className="absolute bottom-10 left-10 right-10 text-white">
-          <p className="font-serif-display text-[26px] font-semibold leading-tight">“The smell of Amma’s kitchen lives in her voice — CuminJar keeps it forever.”</p>
-          <p className="mt-2 text-[13px] opacity-80">– A CuminJar family</p>
         </div>
       </div>
     </div>

@@ -34,8 +34,6 @@ export default function MarketingFooter() {
           <h4 className="font-semibold text-neutral-900 mb-4">Company</h4>
           <ul className="space-y-2 text-[14px] text-neutral-600">
             <li><Link to="/about" className="hover:text-cumin-green">About us</Link></li>
-            <li><a href="#" className="hover:text-cumin-green">Press</a></li>
-            <li><a href="#" className="hover:text-cumin-green">Careers</a></li>
             <li><Link to="/contact" className="hover:text-cumin-green">Contact</Link></li>
           </ul>
         </div>
@@ -45,8 +43,6 @@ export default function MarketingFooter() {
           <ul className="space-y-2 text-[14px] text-neutral-600">
             <li><Link to="/privacy" className="hover:text-cumin-green">Privacy</Link></li>
             <li><Link to="/terms" className="hover:text-cumin-green">Terms</Link></li>
-            <li><Link to="/terms" className="hover:text-cumin-green">Cookies</Link></li>
-            <li><Link to="/terms" className="hover:text-cumin-green">Security</Link></li>
           </ul>
         </div>
       </div>

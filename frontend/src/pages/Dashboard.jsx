@@ -125,10 +125,18 @@ export default function Dashboard() {
             ))}
             <button
               type="button"
-              onClick={() => { setMode('create'); setActiveFamilyId(null); }}
-              className="inline-flex items-center gap-1.5 text-[13px] px-3 py-1.5 rounded-full border border-dashed border-neutral-300 text-neutral-700 hover:border-cumin-green hover:text-cumin-green transition-colors"
+              onClick={() => {
+                if (families.length >= 1) {
+                  toast({ title: 'Upgrade required', description: 'Free plan allows only 1 family group. Upgrade to Plus to create more.' });
+                  return;
+                }
+                setMode('create');
+                setActiveFamilyId(null);
+              }}
+              className="inline-flex items-center gap-1.5 text-[13px] px-3 py-1.5 rounded-full border border-dashed border-neutral-300 text-neutral-500 hover:border-terracotta hover:text-terracotta transition-colors"
+              title="Free plan is limited to 1 family group. Upgrade to Plus for unlimited."
             >
-              <Plus size={13} /> New family
+              <Plus size={13} /> New family <span className="ml-1 text-[10px] bg-terracotta text-white px-1.5 py-0.5 rounded-full">PLUS</span>
             </button>
           </div>
         )}
