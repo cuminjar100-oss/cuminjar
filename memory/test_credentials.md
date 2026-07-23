@@ -1,3 +1,6 @@
 # Test Credentials
-# Agent writes here when creating/modifying auth credentials (admin accounts, test users).
-# Testing agent reads this before auth tests. Fork/continuation agents read on startup.
+
+## CuminJar
+- **No authentication** — the app runs on a hardcoded demo user (no login flow).
+- Demo user: `Meera R.` (id: `demo-user`, email: `meera.rao@family.com`)
+- All API endpoints operate under this demo user; no tokens required.
