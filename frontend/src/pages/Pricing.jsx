@@ -15,22 +15,22 @@ const plans = [
     highlighted: false
   },
   {
-    name: 'Family Plus',
-    price: '₹299',
-    cadence: '/ month',
-    desc: 'Grow your jar. Unlock the full experience.',
-    features: ['Unlimited family groups', 'Unlimited family members', 'Unlimited voice recipes', '50 GB storage', 'Advanced AI + translation', 'Priority support'],
-    cta: 'Start 14-day trial',
-    highlighted: true
-  },
-  {
     name: 'Family Legacy',
     price: '₹3,999',
     cadence: '/ year',
-    desc: 'Preserve forever. Best value for large families.',
-    features: ['Everything in Plus', 'Unlimited family groups', 'Unlimited family members', '200 GB storage', 'Print-ready cookbook export', 'Yearly heritage backup'],
+    desc: 'Preserve forever. Every feature, unlimited, for your whole family.',
+    features: [
+      'Unlimited family groups',
+      'Unlimited family members',
+      'Unlimited voice recipes',
+      '200 GB storage',
+      'Advanced AI + translation',
+      'Priority support',
+      'Print-ready cookbook export',
+      'Yearly heritage backup',
+    ],
     cta: 'Talk to us',
-    highlighted: false
+    highlighted: true
   }
 ];
 
@@ -44,7 +44,7 @@ export default function Pricing() {
         <p className="mt-6 text-[17px] text-neutral-600 max-w-2xl mx-auto leading-relaxed">Start free. Upgrade when you want more space for your memories.</p>
       </section>
 
-      <section className="max-w-6xl mx-auto px-6 lg:px-10 py-10 grid md:grid-cols-3 gap-6">
+      <section className="max-w-4xl mx-auto px-6 lg:px-10 py-10 grid md:grid-cols-2 gap-6">
         {plans.map(p => (
           <div
             key={p.name}

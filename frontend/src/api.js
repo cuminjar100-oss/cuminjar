@@ -49,6 +49,7 @@ export const api = {
 
   listInvites: () => http.get('/invites').then(r => r.data),
   createInvite: (body) => http.post('/invites', body).then(r => r.data),
+  resendInvite: (id) => http.post(`/invites/${id}/resend`).then(r => r.data),
   deleteInvite: (id) => http.delete(`/invites/${id}`).then(r => r.data),
 
   submitContact: (body) => http.post('/contact', body).then(r => r.data),

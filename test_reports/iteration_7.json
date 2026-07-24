@@ -1,0 +1,43 @@
+{
+  "summary": "Verified the invite email-delivery fix and the Pricing plan consolidation. Backend: 6/6 pytest tests pass — POST /api/invites persists with status='email_failed', email_sent=false, and Resend error surfaced in email_error (Resend rejects @example.com in sandbox); the NEW POST /api/invites/{id}/resend endpoint updates the invite and returns fresh doc with resent_at; 404 on unknown id; 400 on invalid email; 409 on duplicate; NO 402 free-plan error anymore. Frontend: /pricing shows exactly 2 cards (Family Free + Family Legacy) in a md:grid-cols-2 layout, ₹3,999/year, and all three previously-Plus features merged into Legacy (Unlimited voice recipes, Advanced AI + translation, Priority support); zero 'Family Plus' text on the page. Dashboard '+ Invite' → InviteFamilyModal with debug-test-invite@example.com → toast reads 'Invite saved, but email delivery failed', red 'Email failed' badge visible via [data-testid=invite-status-{id}], inline red error under email via [data-testid=invite-error-{id}] with the exact Resend text, retry button [data-testid=invite-resend-{id}] visible; clicking retry updates the record and toast reads 'Email delivery still failing' (badge stays 'Email failed'). Regression: /app/settings shows 'Family Free' and NO 'Family Plus' text. All test data cleaned up (0 invites remain).",
+  "fixes_verified": [
+    {"fix": "POST /api/invites → status=email_failed + email_sent=false + email_error on Resend reject (200, not 500)", "status": "PASS", "how_verified": "pytest test_create_invite_returns_email_failed_when_resend_rejects — response has status=email_failed, email_sent=False, email_error is non-empty string, id present; GET /invites includes the id"},
+    {"fix": "Dead free-plan 402 removed", "status": "PASS", "how_verified": "pytest test_no_402_on_second_invite — 2 sequential POST /invites both return 200"},
+    {"fix": "POST /api/invites/{id}/resend exists + updates record with resent_at + returns fresh doc without _id", "status": "PASS", "how_verified": "pytest test_resend_endpoint_exists_and_updates_invite — returns 200, resent_at set, status/email_sent/email_error updated, created_at unchanged, _id stripped"},
+    {"fix": "POST /api/invites/{id}/resend with unknown id → 404", "status": "PASS", "how_verified": "pytest test_resend_nonexistent_invite_returns_404"},
+    {"fix": "Invalid email → 400; duplicate email → 409", "status": "PASS", "how_verified": "pytest test_invalid_email_returns_400 + test_duplicate_email_returns_409"},
+    {"fix": "Frontend toast: 'Invite saved, but email delivery failed' (NOT 'Invite sent!')", "status": "PASS", "how_verified": "Playwright body text contains the failure title and NOT the success title after submitting @example.com"},
+    {"fix": "Red 'Email failed' badge + inline error + retry button in Sent invitations list", "status": "PASS", "how_verified": "invite-status-{id} testid text = 'Email failed', invite-error-{id} contains Resend msg 'Invalid `to` field. Please use our testing email address instead of domains like `example.com`.', invite-resend-{id} button count = 1"},
+    {"fix": "Retry (invite-resend-{id}) triggers POST /invites/{id}/resend and shows 'Email delivery still failing' when Resend still rejects; badge stays 'Email failed'", "status": "PASS", "how_verified": "Playwright: after click, toast title 'Email delivery still failing' found in DOM, invite-status-{id} still reads 'Email failed'"},
+    {"fix": "/pricing shows only Family Free + Family Legacy (2 cards, md:grid-cols-2)", "status": "PASS", "how_verified": "Only h3s in grid section: ['Family Free', 'Family Legacy']; grid classes contain 'md:grid-cols-2'; body has zero 'Family Plus' occurrences"},
+    {"fix": "Family Legacy card includes ex-Plus features + ₹3,999/year", "status": "PASS", "how_verified": "body innerText contains 'Unlimited voice recipes', 'Advanced AI + translation', 'Priority support', and '3,999'"},
+    {"fix": "Regression: /app/settings still shows 'Family Free' plan text and no 'Family Plus'", "status": "PASS", "how_verified": "Playwright body text contains 'Family Free' and does not contain 'Family Plus'"}
+  ],
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_invite_email_flow.py",
+    "/app/test_reports/pytest/pytest_invite_email.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "InviteFamilyModal.jsx line 34: toast description directly references the internal filesystem path '/app/docs/RESEND_DOMAIN_SETUP.md' — this is developer-facing and will confuse end users. Consider linking to a public help URL or wording like 'Verify your Resend domain in settings'.",
+    "InviteFamilyModal.jsx line 47-48: The two-branch ternary in a single toast() call is fine, but if updated.email_error is falsy and email_sent is false the description reads 'Check Resend domain verification.' with no context on which invite — consider including the email address.",
+    "server.py line 1470-1472: When Resend times out, send_result may still return {'ok': False, 'error': '<long stack-y string>'} — good, this is what we want. But status='email_failed' with email_error=None (if _send_invite_email returns None for error) would render 'Email failed:' with no message on the UI. The current code (line 1428-1430) always sets 'error': str(e), so this is safe today; add a fallback `email_error = send_result.get('error') or 'Unknown delivery error'` for defense-in-depth.",
+    "server.py line 1524-1529 delete_invite: no /resend cousin returning 403/401 for cross-user access — the auth is via current_uid context, so silently 404s for other users. That's fine, but consider consistent messaging.",
+    "Pricing.jsx no data-testid on plan cards — makes it harder to write plan-specific regression tests later. Add data-testid=`plan-card-family-free` etc.",
+    "InviteFamilyModal.jsx delete button (line 137) has no data-testid — makes cleanup automation harder. Consider invite-delete-{id}."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_invite_email_flow.py (new)",
+    "/app/test_reports/pytest/pytest_invite_email.xml (new)"
+  ],
+  "success_rate": {"backend": "100% (6/6)", "frontend": "100% (invite flow + pricing + settings regression all pass)"},
+  "test_credentials": "None — anonymous demo-user path (backend current_uid default = 'demo-user'). Demo user already had one family 'Rao Family' seeded, so the '+ Invite' button was visible on Dashboard.",
+  "seed_data_creation": "No seed created. Test-run invites (@example.com with 'TEST_' or 'debug-test-invite' prefix) are cleaned up in both pytest module-scope teardown and Playwright script.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend test file at /app/backend/tests/test_invite_email_flow.py must be run with REACT_APP_BACKEND_URL set (pytest.ini in /app/backend doesn't inject it). Run: `REACT_APP_BACKEND_URL=<preview_url> pytest backend/tests/test_invite_email_flow.py -v -n 0`. The tests intentionally use @example.com to force Resend sandbox rejection — do NOT switch to a real domain or the failure-path tests will start failing. If Resend is later moved out of sandbox, update test_create_invite_returns_email_failed_when_resend_rejects to use an invalid-syntax email that Resend still rejects at API level. Preview URL: https://ui-template-build.preview.emergentagent.com. Frontend flow entry point: /app → '+ Invite' button in Family groups section (only visible when families list is non-empty).",
+  "rca_of_the_issue": "N/A — verification of a completed fix. Original issue was: (1) Resend sandbox silently rejects non-verified recipients (e.g., @example.com) but the backend was persisting the invite as status='pending' with no error surfaced, so users saw the invite forever stuck as 'pending'. Fix: backend now sets status='email_failed' + email_sent=false + email_error=<resend error string> on failure and returns the doc with a 200; frontend shows a distinct toast, red badge, inline error, and retry button. Also removed a dead free-plan 402 restriction. (2) Pricing page had 3 plan cards including 'Family Plus'; consolidated to 2 (Free + Legacy) with Plus features merged into Legacy.",
+  "mocked_apis": "None"
+}

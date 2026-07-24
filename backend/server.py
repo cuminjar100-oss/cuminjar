@@ -1443,16 +1443,6 @@ async def create_invite(payload: InviteIn):
     if not EMAIL_RE.match(email):
         raise HTTPException(400, 'Invalid email address')
 
-    # Free plan can only have 1 family member (themselves) — no invites allowed
-    limits = DEMO_USER.get('limits', {})
-    max_members = limits.get('max_family_members', 1)
-    current_invites = await db.invites.count_documents({'user_id': current_uid.get()})
-    if DEMO_USER.get('plan') == 'free' and (max_members - 1) <= current_invites:
-        raise HTTPException(
-            402,
-            "Free plan doesn't allow inviting more family members. Upgrade to Plus to invite family.",
-        )
-
     existing = await db.invites.find_one({'user_id': current_uid.get(), 'email': email})
     if existing:
         raise HTTPException(409, 'This email is already invited')
@@ -1477,7 +1467,7 @@ async def create_invite(payload: InviteIn):
         'email': email,
         'name': (payload.name or '').strip() or None,
         'relation': (payload.relation or '').strip() or None,
-        'status': 'pending',
+        'status': 'sent' if send_result.get('ok') else 'email_failed',
         'email_sent': bool(send_result.get('ok')),
         'email_error': send_result.get('error'),
         'email_provider_id': send_result.get('id'),
@@ -1501,6 +1491,34 @@ async def create_invite(payload: InviteIn):
         'created_at': now_iso(),
     })
     return _strip_id(doc)
+
+
+@api.post("/invites/{invite_id}/resend")
+async def resend_invite(invite_id: str):
+    """Re-attempt sending the invite email — useful after fixing Resend domain verification."""
+    invite = await db.invites.find_one({'id': invite_id, 'user_id': current_uid.get()})
+    if not invite:
+        raise HTTPException(404, 'Invite not found')
+    family_doc = await db.families.find_one({'user_id': current_uid.get()})
+    family_name = (family_doc or {}).get('name') or 'our family'
+    inviter_name = current_user_name.get()
+    send_result = await _send_invite_email(
+        email=invite['email'],
+        invitee_name=invite.get('name'),
+        relation=invite.get('relation'),
+        family_name=family_name,
+        inviter_name=inviter_name,
+    )
+    updates = {
+        'status': 'sent' if send_result.get('ok') else 'email_failed',
+        'email_sent': bool(send_result.get('ok')),
+        'email_error': send_result.get('error'),
+        'email_provider_id': send_result.get('id') or invite.get('email_provider_id'),
+        'resent_at': now_iso(),
+    }
+    await db.invites.update_one({'id': invite_id}, {'$set': updates})
+    fresh = await db.invites.find_one({'id': invite_id}, {'_id': 0})
+    return fresh
 
 
 @api.delete("/invites/{invite_id}")

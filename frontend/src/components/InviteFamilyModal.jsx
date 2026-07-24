@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { X, Mail, Loader2, Trash2, Send, Clock, CheckCircle2 } from 'lucide-react';
+import { X, Mail, Loader2, Trash2, Send, Clock, CheckCircle2, AlertTriangle, RefreshCw } from 'lucide-react';
 import api from '../api';
 import { useToast } from '../hooks/use-toast';
 
@@ -26,10 +26,30 @@ export default function InviteFamilyModal({ onClose }) {
       const saved = await api.createInvite(form);
       setInvites(prev => [saved, ...prev]);
       setForm({ email: '', name: '', relation: 'Mother' });
-      toast({ title: 'Invite sent!', description: `${saved.email} will get an email invitation.` });
+      if (saved.email_sent) {
+        toast({ title: 'Invite sent!', description: `${saved.email} will get an email invitation.` });
+      } else {
+        toast({
+          title: 'Invite saved, but email delivery failed',
+          description: `Resend rejected the message: ${saved.email_error || 'unknown error'}. Verify your Resend domain (see /app/docs/RESEND_DOMAIN_SETUP.md) and click Resend on the invite.`,
+        });
+      }
     } catch (err) {
       toast({ title: 'Could not send invite', description: err?.response?.data?.detail || 'Please try again.' });
     } finally { setSending(false); }
+  };
+
+  const resend = async (id) => {
+    try {
+      const updated = await api.resendInvite(id);
+      setInvites(prev => prev.map(i => i.id === id ? updated : i));
+      toast({
+        title: updated.email_sent ? 'Invite email sent!' : 'Email delivery still failing',
+        description: updated.email_sent ? `${updated.email} will get the email now.` : (updated.email_error || 'Check Resend domain verification.'),
+      });
+    } catch (err) {
+      toast({ title: 'Could not resend', description: err?.response?.data?.detail || err?.message });
+    }
   };
 
   const remove = async (id) => {
@@ -80,17 +100,40 @@ export default function InviteFamilyModal({ onClose }) {
           ) : (
             <ul className="mt-3 space-y-2">
               {invites.map(i => (
-                <li key={i.id} className="flex items-center gap-3 bg-[#FBF6EE] border border-neutral-200/70 rounded-lg px-4 py-2.5">
-                  <div className="w-9 h-9 rounded-full bg-[#F7DFCE] flex items-center justify-center text-terracotta">
-                    <Mail size={15} />
+                <li key={i.id} className={`flex items-center gap-3 border rounded-lg px-4 py-2.5 ${i.status === 'email_failed' ? 'bg-[#FDECEA] border-[#F5C6BE]' : 'bg-[#FBF6EE] border-neutral-200/70'}`}>
+                  <div className={`w-9 h-9 rounded-full flex items-center justify-center ${i.status === 'email_failed' ? 'bg-[#F7C7BE] text-red-700' : 'bg-[#F7DFCE] text-terracotta'}`}>
+                    {i.status === 'email_failed' ? <AlertTriangle size={15} /> : <Mail size={15} />}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-[14px] font-medium text-neutral-900 truncate">{i.name || i.email}</p>
                     <p className="text-[12px] text-neutral-500 truncate">{i.email}{i.relation ? ` · ${i.relation}` : ''}</p>
+                    {i.status === 'email_failed' && i.email_error && (
+                      <p className="text-[11px] text-red-700 mt-0.5 line-clamp-2" data-testid={`invite-error-${i.id}`}>Email failed: {i.email_error}</p>
+                    )}
                   </div>
-                  <span className={`text-[11px] font-medium px-2 py-1 rounded-full flex items-center gap-1 ${i.status === 'accepted' ? 'bg-[#DFEAD8] text-cumin-green' : 'bg-[#FBE3D2] text-terracotta'}`}>
-                    {i.status === 'accepted' ? <><CheckCircle2 size={11}/> Accepted</> : <><Clock size={11}/> Pending</>}
+                  <span
+                    className={`text-[11px] font-medium px-2 py-1 rounded-full flex items-center gap-1 ${
+                      i.status === 'accepted' ? 'bg-[#DFEAD8] text-cumin-green' :
+                      i.status === 'email_failed' ? 'bg-red-100 text-red-700' :
+                      i.status === 'sent' ? 'bg-[#DFEAD8] text-cumin-green' :
+                      'bg-[#FBE3D2] text-terracotta'
+                    }`}
+                    data-testid={`invite-status-${i.id}`}
+                  >
+                    {i.status === 'accepted' && <><CheckCircle2 size={11}/> Accepted</>}
+                    {i.status === 'sent' && <><CheckCircle2 size={11}/> Sent</>}
+                    {i.status === 'email_failed' && <><AlertTriangle size={11}/> Email failed</>}
+                    {(!i.status || i.status === 'pending') && <><Clock size={11}/> Pending</>}
                   </span>
+                  {i.status === 'email_failed' && (
+                    <button
+                      type="button"
+                      onClick={() => resend(i.id)}
+                      data-testid={`invite-resend-${i.id}`}
+                      title="Retry sending"
+                      className="w-8 h-8 rounded-full hover:bg-white flex items-center justify-center text-neutral-500 hover:text-cumin-green transition-colors"
+                    ><RefreshCw size={13} /></button>
+                  )}
                   <button onClick={() => remove(i.id)} className="w-8 h-8 rounded-full hover:bg-white flex items-center justify-center text-neutral-400 hover:text-terracotta transition-colors"><Trash2 size={13} /></button>
                 </li>
               ))}
