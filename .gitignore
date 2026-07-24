@@ -50,3 +50,8 @@ htmlcov/
 # Misc
 *.pem
 .eslintcache
+.env.*
+*.env
+credentials.json
+*.key
+.credentials
