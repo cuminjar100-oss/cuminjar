@@ -31,6 +31,8 @@ Pixel-perfect replica of CuminJar: mobile-friendly family memory app where users
 - **[2026-02] "?" tooltip**: HelpCircle in header now has a "Help & support" tooltip and routes to /contact.
 - **[2026-02] Recipe/Story delete + inline edit**: Both modals now support open, share (with image), delete (story), and inline edit (recipe).
 - **[2026-02] Realistic AI recipe covers via Gemini Nano Banana** with regenerate button.
+- **[2026-02-24] Landing page**: Added "Applicable when your family collects more than 40 recipes and stories." caveat under the QR-code paragraph in the Family Legacy Book section.
+- **[2026-02-24] Verified recipe → active family auto-attach**: POST `/api/recipes` without a family_id resolves via `_resolve_active_family_id`, attaches to Rao Family, and appears in both the private dashboard and the public cookbook (`/cookbook/:token`).
 - **[2026-02] Fixed double-save + empty ingredients/steps** via uploadingRef guard and non-streaming Gemini structuring.
 - **[2026-02] About page hero** now uses a custom Nano Banana portrait of a fair-skinned Indian grandmother with grandchild in a warm upper-middle-class living room.
 - Base app: pixel-perfect landing/auth pages, Sarvam STT with pydub chunking, Gemini translation & structuring, Resend invites, mobile-first bottom nav & FAB.

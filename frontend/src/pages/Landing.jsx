@@ -188,6 +188,9 @@ export default function Landing() {
                 Beside the English text on every single page there&rsquo;s a small QR code. Point any phone at it and
                 hear the original recording — Paati&rsquo;s voice reading the recipe herself, Nani telling the story in
                 the language she grew up with. English for the young ones, voice for the soul.
+                <span className="block mt-2 text-[13.5px] text-neutral-500 italic">
+                  Applicable when your family collects more than 40 recipes and stories.
+                </span>
               </p>
 
               <ul className="mt-7 space-y-3">
