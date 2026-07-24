@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import AppShell from '../components/AppShell';
-import { Users, Mic, Sparkles, Plus, Loader2, CheckCircle2, ChefHat, BookOpen, PartyPopper, Edit2, X, Image as ImageIcon, Link2, Copy, Check } from 'lucide-react';
+import { Users, Mic, Sparkles, Plus, Loader2, CheckCircle2, ChefHat, BookOpen, PartyPopper, Edit2, X, Link2, Copy, Check } from 'lucide-react';
 import { useToast } from '../hooks/use-toast';
 import api from '../api';
 import InviteFamilyModal from '../components/InviteFamilyModal';
@@ -271,22 +271,14 @@ function RecipeCardMini({ r, onOpen, onShare }) {
 function CreateFamilyModal({ onClose, onCreated }) {
   const [name, setName] = useState('');
   const [lang, setLang] = useState('English');
-  const [cover, setCover] = useState(null);
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
-
-  const handleFile = (e) => {
-    const f = e.target.files?.[0]; if (!f) return;
-    const reader = new FileReader();
-    reader.onload = () => setCover(reader.result);
-    reader.readAsDataURL(f);
-  };
 
   const submit = async (e) => {
     e.preventDefault();
     setSaving(true);
     try {
-      await api.createFamily({ name, description: '', language: lang, coverPhoto: cover });
+      await api.createFamily({ name, description: '', language: lang });
       toast({ title: 'Family created!' });
       onCreated();
     } catch (err) {
@@ -302,16 +294,11 @@ function CreateFamilyModal({ onClose, onCreated }) {
           <button type="button" onClick={onClose} className="w-9 h-9 rounded-full hover:bg-neutral-100 flex items-center justify-center"><X size={18} /></button>
         </div>
         <div className="p-5 space-y-3">
-          <input required autoFocus value={name} onChange={e => setName(e.target.value.slice(0, 50))} placeholder="Family name (e.g., Rao Family)" className="w-full border border-neutral-200 rounded-lg px-3 py-3 text-[15px] focus:outline-none focus:border-cumin-green" />
-          <select value={lang} onChange={e => setLang(e.target.value)} className="w-full border border-neutral-200 rounded-lg px-3 py-3 text-[15px] focus:outline-none focus:border-cumin-green">
+          <input required autoFocus value={name} onChange={e => setName(e.target.value.slice(0, 50))} placeholder="Family name (e.g., Rao Family)" data-testid="create-family-name" className="w-full border border-neutral-200 rounded-lg px-3 py-3 text-[15px] focus:outline-none focus:border-cumin-green" />
+          <select value={lang} onChange={e => setLang(e.target.value)} data-testid="create-family-language" className="w-full border border-neutral-200 rounded-lg px-3 py-3 text-[15px] focus:outline-none focus:border-cumin-green">
             {['English', 'Hindi', 'Tamil', 'Telugu', 'Kannada', 'Malayalam', 'Marathi', 'Bengali', 'Gujarati', 'Punjabi'].map(l => <option key={l}>{l}</option>)}
           </select>
-          <label className="flex items-center gap-3 border border-dashed border-neutral-300 rounded-lg px-3 py-3 cursor-pointer text-[13.5px] text-neutral-600">
-            {cover ? <img src={cover} alt="cover" className="w-14 h-14 rounded object-cover" /> : <div className="w-14 h-14 rounded bg-neutral-100 flex items-center justify-center"><ImageIcon size={18} className="text-neutral-400"/></div>}
-            <span>Add family cover photo</span>
-            <input type="file" accept="image/*" onChange={handleFile} className="hidden" />
-          </label>
-          <button disabled={saving} type="submit" className="w-full mt-2 bg-cumin-green text-white py-3.5 rounded-lg font-medium hover:bg-[#324A2F] transition-colors flex items-center justify-center gap-2 disabled:opacity-70">
+          <button disabled={saving} type="submit" data-testid="create-family-submit" className="w-full mt-2 bg-cumin-green text-white py-3.5 rounded-lg font-medium hover:bg-[#324A2F] transition-colors flex items-center justify-center gap-2 disabled:opacity-70">
             {saving && <Loader2 size={15} className="animate-spin" />} Create
           </button>
         </div>

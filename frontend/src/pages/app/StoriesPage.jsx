@@ -39,7 +39,7 @@ export default function StoriesPage() {
       <div className="px-4 lg:px-8 py-4 lg:py-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="font-serif-display text-[32px] font-semibold text-neutral-900">Family Stories</h1>
+            <h1 className="font-serif-display text-[32px] font-semibold text-neutral-900">Stories &amp; Traditions</h1>
             <p className="text-neutral-500 text-[14px] mt-1">Voices from your family jar.</p>
           </div>
           <button onClick={() => setShowModal(true)} className="flex items-center gap-2 bg-cumin-green text-white px-4 py-2.5 rounded-lg text-[14px] font-medium hover:bg-[#324A2F] transition-colors"><Plus size={15} /> New Story</button>

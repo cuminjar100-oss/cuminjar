@@ -71,7 +71,7 @@ export const pressLogos = ['YourStory', 'Inc42', 'INDIATODAY', 'ThePrint', 'mint
 export const sidebarLinks = [
   { key: 'home', label: 'Home', icon: 'Home', path: '/app' },
   { key: 'recipes', label: 'Recipes', icon: 'Soup', path: '/app/recipes' },
-  { key: 'stories', label: 'Stories', icon: 'BookOpen', path: '/app/stories' },
+  { key: 'stories', label: 'Stories & Traditions', icon: 'BookOpen', path: '/app/stories' },
   { key: 'search', label: 'Search', icon: 'Search', path: '/app/search' }
 ];
 
