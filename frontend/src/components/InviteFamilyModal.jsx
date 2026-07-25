@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { X, Mail, Loader2, Trash2, Send, Clock, CheckCircle2, AlertTriangle, RefreshCw } from 'lucide-react';
+import { X, Mail, Loader2, Trash2, Send, Clock, CheckCircle2, AlertTriangle, RefreshCw, QrCode, Download, Copy } from 'lucide-react';
 import api from '../api';
 import { useToast } from '../hooks/use-toast';
 
@@ -10,11 +10,20 @@ export default function InviteFamilyModal({ onClose }) {
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({ email: '', name: '', relation: 'Mother' });
   const [sending, setSending] = useState(false);
+  const [family, setFamily] = useState(null);
+  const [showQr, setShowQr] = useState(false);
   const { toast } = useToast();
 
   const load = useCallback(async () => {
     setLoading(true);
-    try { setInvites(await api.listInvites()); } catch (e) { console.error(e); }
+    try {
+      const [invitesResp, familiesResp] = await Promise.all([
+        api.listInvites(),
+        api.listFamilies().catch(() => []),
+      ]);
+      setInvites(invitesResp);
+      setFamily(familiesResp?.[0] || null);
+    } catch (e) { console.error(e); }
     setLoading(false);
   }, []);
   useEffect(() => { load(); }, [load]);
@@ -91,6 +100,29 @@ export default function InviteFamilyModal({ onClose }) {
           </button>
         </form>
 
+        {family?.id && (
+          <div className="mx-6 -mt-1 mb-4 rounded-xl bg-[#FBF6EE] border border-neutral-200/70 overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setShowQr(v => !v)}
+              data-testid="toggle-invite-qr"
+              className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-[#F5EBD8] transition-colors"
+            >
+              <div className="w-9 h-9 rounded-lg bg-white flex items-center justify-center text-terracotta">
+                <QrCode size={17} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[13.5px] font-semibold text-neutral-900">Or invite with a QR code</p>
+                <p className="text-[11.5px] text-neutral-500">Scan to join instantly &mdash; perfect for grandparents.</p>
+              </div>
+              <span className="text-[12px] text-cumin-green font-medium">{showQr ? 'Hide' : 'Show'}</span>
+            </button>
+            {showQr && (
+              <InviteQrPanel family={family} />
+            )}
+          </div>
+        )}
+
         <div className="px-6 py-4 border-t border-neutral-100">
           <h4 className="font-semibold text-[15px] text-neutral-900">Sent invitations</h4>
           {loading ? (
@@ -139,6 +171,101 @@ export default function InviteFamilyModal({ onClose }) {
               ))}
             </ul>
           )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function InviteQrPanel({ family }) {
+  const { toast } = useToast();
+  const [qrReady, setQrReady] = useState(false);
+  const [ensuring, setEnsuring] = useState(false);
+  const [shareToken, setShareToken] = useState(family.share_token || null);
+  const qrUrl = `${api.familyInviteQrUrl(family.id)}?v=${family.id}`;
+  const joinUrl = shareToken ? `${window.location.origin}/join/${shareToken}` : null;
+
+  useEffect(() => {
+    // If share_token isn't on the family object yet, trigger the share endpoint
+    // once so the join URL exists for copy/link before we render the QR.
+    (async () => {
+      if (family.share_token) { setShareToken(family.share_token); return; }
+      setEnsuring(true);
+      try {
+        const r = await api.shareFamily(family.id);
+        setShareToken(r.share_token);
+      } catch { /* noop */ } finally { setEnsuring(false); }
+    })();
+  }, [family.id, family.share_token]);
+
+  const downloadPng = async () => {
+    try {
+      const resp = await fetch(qrUrl, { credentials: 'include' });
+      const blob = await resp.blob();
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `${(family.name || 'family').replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-cuminjar-invite-qr.png`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(link.href), 5000);
+      toast({ title: 'QR code downloaded', description: 'Print it and paste on the fridge — family scans to join.' });
+    } catch {
+      toast({ title: 'Download failed', description: 'Try again in a moment.' });
+    }
+  };
+
+  const copyLink = async () => {
+    if (!joinUrl) return;
+    try {
+      await navigator.clipboard.writeText(joinUrl);
+      toast({ title: 'Join link copied', description: joinUrl });
+    } catch {
+      toast({ title: 'Copy failed', description: joinUrl });
+    }
+  };
+
+  return (
+    <div className="border-t border-neutral-200/70 px-4 py-4 flex flex-col sm:flex-row items-center gap-4" data-testid="invite-qr-panel">
+      <div className="w-40 h-40 shrink-0 bg-white rounded-xl border border-neutral-200 flex items-center justify-center overflow-hidden">
+        {ensuring || !shareToken ? (
+          <Loader2 className="animate-spin text-neutral-400" size={18} />
+        ) : (
+          <img
+            src={qrUrl}
+            alt={`Scan to join ${family.name} on CuminJar`}
+            className="w-full h-full object-contain p-2"
+            onLoad={() => setQrReady(true)}
+            data-testid="invite-qr-image"
+          />
+        )}
+      </div>
+      <div className="flex-1 min-w-0 text-center sm:text-left">
+        <p className="text-[13.5px] text-neutral-800 leading-relaxed">
+          Family scans this with any phone camera and lands on a one-tap join screen for <b>{family.name}</b>.
+        </p>
+        {joinUrl && (
+          <p className="mt-1 text-[11.5px] text-neutral-500 truncate">{joinUrl}</p>
+        )}
+        <div className="mt-3 flex flex-wrap items-center justify-center sm:justify-start gap-2">
+          <button
+            type="button"
+            onClick={downloadPng}
+            disabled={!qrReady}
+            data-testid="download-invite-qr"
+            className="inline-flex items-center gap-1.5 text-[12.5px] px-3 py-1.5 rounded-full bg-cumin-green text-white hover:bg-[#324A2F] transition-colors disabled:opacity-60"
+          >
+            <Download size={13} /> Download PNG
+          </button>
+          <button
+            type="button"
+            onClick={copyLink}
+            disabled={!joinUrl}
+            data-testid="copy-invite-link"
+            className="inline-flex items-center gap-1.5 text-[12.5px] px-3 py-1.5 rounded-full bg-white border border-neutral-200 text-neutral-800 hover:bg-neutral-50 transition-colors disabled:opacity-60"
+          >
+            <Copy size={13} /> Copy link
+          </button>
         </div>
       </div>
     </div>

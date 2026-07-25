@@ -809,6 +809,75 @@ async def enable_family_share(family_id: str):
     return {'share_token': token, 'path': f'/cookbook/{token}'}
 
 
+@api.get("/family/{family_id}/invite-qr.png")
+async def family_invite_qr(family_id: str):
+    """Return a PNG QR code that encodes a join URL for this family. Anyone
+    who scans lands on /join/<token>, signs up (or logs in) and is auto-added
+    to the family. Reuses/creates the family's share_token."""
+    from fastapi.responses import Response
+    import qrcode as _qr
+    import io as _io
+    fam = await db.families.find_one({'id': family_id, 'user_id': current_uid.get()})
+    if not fam:
+        raise HTTPException(404, 'Family not found')
+    token = fam.get('share_token') or _secrets.token_urlsafe(12)
+    if not fam.get('share_token'):
+        await db.families.update_one({'id': family_id}, {'$set': {'share_token': token, 'shared_at': now_iso()}})
+    join_url = f"{APP_BASE_URL.rstrip('/')}/join/{token}"
+    qr_img = _qr.make(join_url, box_size=12, border=2)
+    buf = _io.BytesIO()
+    qr_img.save(buf, format='PNG')
+    return Response(content=buf.getvalue(), media_type='image/png', headers={
+        'Cache-Control': 'no-store',
+        'X-Join-Url': join_url,
+    })
+
+
+@api.get("/family/join/{token}/preview")
+async def family_join_preview(token: str):
+    """Public metadata about a family available via join token — used by the
+    /join/<token> landing screen before the user signs up."""
+    fam = await db.families.find_one({'share_token': token})
+    if not fam:
+        raise HTTPException(404, 'This invite link is no longer active.')
+    recipes_count = await db.recipes.count_documents({'family_id': fam['id']})
+    stories_count = await db.stories.count_documents({'family_id': fam['id']})
+    return {
+        'family_id': fam['id'],
+        'name': fam.get('name') or 'Family',
+        'description': fam.get('description') or '',
+        'coverPhoto': fam.get('coverPhoto'),
+        'recipes_count': recipes_count,
+        'stories_count': stories_count,
+    }
+
+
+@api.post("/family/join/{token}")
+async def family_join(token: str):
+    """Add the current signed-in user to a family's members list."""
+    uid = current_uid.get()
+    if not uid or uid == 'demo-user':
+        raise HTTPException(401, 'Please sign in first to join a family.')
+    fam = await db.families.find_one({'share_token': token})
+    if not fam:
+        raise HTTPException(404, 'This invite link is no longer active.')
+    # Look up the joining user's display info
+    user_doc = await db.users.find_one({'id': uid}, {'_id': 0, 'name': 1, 'email': 1, 'picture': 1}) or {}
+    member = {
+        'user_id': uid,
+        'name': user_doc.get('name') or current_user_name.get() or 'Family member',
+        'email': user_doc.get('email'),
+        'picture': user_doc.get('picture') or current_user_picture.get(),
+        'joined_at': now_iso(),
+        'via': 'qr',
+    }
+    # Idempotent add — don't duplicate if already a member
+    members = fam.get('members') or []
+    if not any((m.get('user_id') == uid) or (m.get('email') and m.get('email') == member['email']) for m in members):
+        await db.families.update_one({'id': fam['id']}, {'$push': {'members': member}})
+    return {'ok': True, 'family_id': fam['id'], 'family_name': fam.get('name')}
+
+
 @api.post("/family/{family_id}/unshare")
 async def disable_family_share(family_id: str):
     fam = await db.families.find_one({'id': family_id, 'user_id': current_uid.get()})

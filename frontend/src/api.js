@@ -17,6 +17,10 @@ export const api = {
   unshareFamily: (id) => http.post(`/family/${id}/unshare`).then(r => r.data),
   publicCookbook: (token) => http.get(`/public/cookbook/${token}`).then(r => r.data),
 
+  familyInviteQrUrl: (id) => `${API}/family/${id}/invite-qr.png`,
+  familyJoinPreview: (token) => http.get(`/family/join/${token}/preview`).then(r => r.data),
+  familyJoin: (token) => http.post(`/family/join/${token}`).then(r => r.data),
+
   // Universal transcription (voice audio or photo of a page)
   transcribeMedia: async (file, kind, language_code = 'unknown') => {
     const fd = new FormData();

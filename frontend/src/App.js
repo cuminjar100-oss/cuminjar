@@ -22,6 +22,7 @@ import SearchPage from './pages/app/SearchPage';
 import SettingsPage from './pages/app/SettingsPage';
 import NotificationsPage from './pages/app/NotificationsPage';
 import PublicCookbook from './pages/PublicCookbook';
+import JoinFamily from './pages/JoinFamily';
 import AuthCallback from './pages/AuthCallback';
 import { Toaster } from './components/ui/toaster';
 
@@ -55,6 +56,7 @@ function AppRoutes() {
       <Route path="/app/settings" element={<SettingsPage />} />
       <Route path="/app/notifications" element={<NotificationsPage />} />
       <Route path="/cookbook/:token" element={<PublicCookbook />} />
+      <Route path="/join/:token" element={<JoinFamily />} />
     </Routes>
   );
 }

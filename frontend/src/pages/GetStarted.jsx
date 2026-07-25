@@ -24,6 +24,16 @@ export default function GetStarted() {
     return () => clearTimeout(t);
   }, [resendIn]);
 
+  // If the user arrived from a family invite QR (/join/:token → redirected here),
+  // stash the token so we can complete the join after signup/login.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const joinToken = params.get('join');
+    if (joinToken) {
+      try { window.sessionStorage.setItem('pending_join_token', joinToken); } catch { /* ignore */ }
+    }
+  }, []);
+
   const sendOtp = async () => {
     setBusy(true);
     try {
@@ -77,6 +87,13 @@ export default function GetStarted() {
       setCachedAuthUser(user);
       toast({ title: 'Welcome to CuminJar!', description: 'Your account is ready.' });
       try { localStorage.setItem('cuminjar_verified_email', form.email.toLowerCase()); } catch { /* ignore */ }
+      // Complete a pending QR-based family join if present
+      let pendingJoin = null;
+      try { pendingJoin = window.sessionStorage.getItem('pending_join_token'); } catch { /* ignore */ }
+      if (pendingJoin) {
+        try { window.sessionStorage.removeItem('pending_join_token'); } catch { /* ignore */ }
+        try { await api.familyJoin(pendingJoin); } catch { /* still land on /app */ }
+      }
       navigate('/app');
     } catch (e) {
       const msg = e?.response?.data?.detail;

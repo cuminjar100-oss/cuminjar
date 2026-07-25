@@ -29,6 +29,13 @@ export default function AuthCallback() {
         try {
           localStorage.setItem('cuminjar_user', JSON.stringify(user));
         } catch { /* ignore */ }
+        // Resume a pending QR-based family join, if one was stashed
+        let pendingJoin = null;
+        try { pendingJoin = window.sessionStorage.getItem('pending_join_token'); } catch { /* ignore */ }
+        if (pendingJoin) {
+          try { window.sessionStorage.removeItem('pending_join_token'); } catch { /* ignore */ }
+          try { await api.familyJoin(pendingJoin); } catch { /* still land on /app */ }
+        }
         navigate('/app', { replace: true, state: { user } });
       } catch (e) {
         navigate('/login', { replace: true, state: { error: 'Sign-in failed. Please try again.' } });
