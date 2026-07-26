@@ -10,7 +10,6 @@ export const api = {
 
   getFamily: () => http.get('/family').then(r => r.data),
   listFamilies: () => http.get('/families').then(r => r.data),
-  createFamily: (body) => http.post('/family', body).then(r => r.data),
   updateFamily: (id, body) => http.put(`/family/${id}`, body).then(r => r.data),
   deleteFamily: (id) => http.delete(`/family/${id}`).then(r => r.data),
   shareFamily: (id) => http.post(`/family/${id}/share`).then(r => r.data),

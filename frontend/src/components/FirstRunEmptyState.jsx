@@ -1,7 +1,10 @@
 import React from 'react';
-import { Users, Mic } from 'lucide-react';
+import { Mic, UserPlus } from 'lucide-react';
 
-export default function FirstRunEmptyState({ userName, onCreateFamily, onRecord }) {
+// Shown once, right after a user first lands on /app with an empty jar.
+// Every user is auto-provisioned a "<Name>'s Family" group on first login,
+// so onboarding is a single step: tap Record. Inviting family is optional.
+export default function FirstRunEmptyState({ userName, onRecord, onInvite }) {
   const firstName = ((userName || '').trim().split(' ')[0]) || 'there';
   return (
     <section
@@ -16,52 +19,37 @@ export default function FirstRunEmptyState({ userName, onCreateFamily, onRecord 
           🫙
         </div>
         <p className="mt-4 text-[11px] font-semibold tracking-[0.18em] text-terracotta uppercase">Welcome to CuminJar</p>
-        <h2 className="mt-1 font-serif-display text-[28px] sm:text-[36px] font-semibold text-neutral-900 leading-tight">Hi {firstName} — let’s fill your family jar.</h2>
+        <h2 className="mt-1 font-serif-display text-[28px] sm:text-[36px] font-semibold text-neutral-900 leading-tight">
+          Hi {firstName} — your family jar is ready.
+        </h2>
         <p className="mt-3 text-neutral-700 max-w-xl mx-auto text-[14.5px] leading-relaxed">
-          Every jar starts with a family circle and a first memory. Follow the two little steps below and you’ll be preserving voices in minutes.
+          We&rsquo;ve set up <b>{firstName}&rsquo;s Family</b> for you. Just tap Record and start talking — a recipe, a story,
+          or a festival memory. We&rsquo;ll transcribe, translate and preserve it forever.
         </p>
 
-        <ol className="mt-8 grid sm:grid-cols-2 gap-4 max-w-2xl mx-auto text-left">
-          <li className="bg-white rounded-2xl border border-[#E9DEC6] p-5 flex flex-col">
-            <div className="flex items-center gap-3">
-              <span className="w-10 h-10 rounded-full bg-cumin-green text-white font-semibold flex items-center justify-center">1</span>
-              <div>
-                <p className="text-[13px] uppercase tracking-wide text-neutral-500 font-semibold">Step one</p>
-                <h3 className="font-serif-display text-[20px] font-semibold text-neutral-900 leading-tight">Create your family circle</h3>
-              </div>
-            </div>
-            <p className="mt-3 text-[13.5px] text-neutral-600 leading-relaxed flex-1">Name your family, pick a language you speak at home, and (optionally) upload a photo everyone will recognise.</p>
+        <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3 max-w-md mx-auto">
+          <button
+            type="button"
+            onClick={onRecord}
+            data-testid="first-run-record"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-terracotta text-white px-6 py-3 rounded-lg font-medium hover:bg-[#A85736] transition-colors text-[14.5px]"
+          >
+            <Mic size={16} /> Tap to record
+          </button>
+          {onInvite && (
             <button
               type="button"
-              onClick={onCreateFamily}
-              data-testid="first-run-create-family"
-              className="mt-4 inline-flex items-center justify-center gap-2 bg-cumin-green text-white py-2.5 rounded-lg font-medium hover:bg-[#324A2F] transition-colors text-[13.5px]"
+              onClick={onInvite}
+              data-testid="first-run-invite"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white border border-neutral-200 text-neutral-800 px-6 py-3 rounded-lg font-medium hover:border-cumin-green hover:text-cumin-green transition-colors text-[14.5px]"
             >
-              <Users size={15} /> Create family
+              <UserPlus size={16} /> Invite family
             </button>
-          </li>
-          <li className="bg-white rounded-2xl border border-[#E9DEC6] p-5 flex flex-col">
-            <div className="flex items-center gap-3">
-              <span className="w-10 h-10 rounded-full bg-terracotta text-white font-semibold flex items-center justify-center">2</span>
-              <div>
-                <p className="text-[13px] uppercase tracking-wide text-neutral-500 font-semibold">Step two</p>
-                <h3 className="font-serif-display text-[20px] font-semibold text-neutral-900 leading-tight">Record your first memory</h3>
-              </div>
-            </div>
-            <p className="mt-3 text-[13.5px] text-neutral-600 leading-relaxed flex-1">Tap Record and simply talk — a recipe, a story, or a festival memory. We transcribe, translate and structure it into a beautiful card automatically.</p>
-            <button
-              type="button"
-              onClick={onRecord}
-              data-testid="first-run-record"
-              className="mt-4 inline-flex items-center justify-center gap-2 bg-terracotta text-white py-2.5 rounded-lg font-medium hover:bg-[#A85736] transition-colors text-[13.5px]"
-            >
-              <Mic size={15} /> Tap to record
-            </button>
-          </li>
-        </ol>
+          )}
+        </div>
 
         <p className="mt-8 text-[12px] text-neutral-500 italic max-w-md mx-auto">
-          Prefer to explore first? Scroll below to browse the demo family jar — every button works.
+          Prefer to explore first? Scroll below to see how a family jar looks once it&rsquo;s full.
         </p>
       </div>
     </section>

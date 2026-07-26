@@ -19,7 +19,6 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [showInvite, setShowInvite] = useState(false);
   const [showRecord, setShowRecord] = useState(false);
-  const [showCreateFamily, setShowCreateFamily] = useState(false);
   const [openRecipe, setOpenRecipe] = useState(null);
   const [openStory, setOpenStory] = useState(null);
   const [authUser, setAuthUser] = useState(() => getCachedAuthUser());
@@ -79,8 +78,8 @@ export default function Dashboard() {
         {isFirstRun && (
           <FirstRunEmptyState
             userName={authUser?.name}
-            onCreateFamily={() => setShowCreateFamily(true)}
             onRecord={() => setShowRecord(true)}
+            onInvite={() => setShowInvite(true)}
           />
         )}
         {!isFirstRun && (
@@ -116,18 +115,15 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Family groups */}
+        {/* Family group (auto-provisioned single "<Name>'s Family") */}
         <div className="mt-4 bg-white rounded-2xl border border-neutral-200/70 p-3.5 lg:p-4">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-[13px] font-semibold text-neutral-900 flex items-center gap-1.5"><Users size={14}/> Family groups</p>
-            <button type="button" onClick={() => setShowCreateFamily(true)} className="text-[12px] font-medium text-cumin-green flex items-center gap-1 hover:underline">
-              <Plus size={12}/> New
-            </button>
+            <p className="text-[13px] font-semibold text-neutral-900 flex items-center gap-1.5"><Users size={14}/> Family group</p>
           </div>
           {families.length === 0 ? (
             <div className="text-center py-3">
-              <p className="text-[12.5px] text-neutral-500 mb-2">Create your first family space.</p>
-              <button onClick={() => setShowCreateFamily(true)} className="bg-cumin-green text-white px-3.5 py-1.5 rounded-lg text-[12.5px] font-medium">Create Family Group</button>
+              <Loader2 className="animate-spin text-neutral-400 mx-auto" size={16} />
+              <p className="text-[12.5px] text-neutral-500 mt-1.5">Setting up your family jar…</p>
             </div>
           ) : (
             <div className="flex flex-wrap gap-1.5">
@@ -225,9 +221,6 @@ export default function Dashboard() {
         />
       )}
       {openStory && <StoryDetailModal story={openStory} onClose={() => setOpenStory(null)} />}
-      {showCreateFamily && (
-        <CreateFamilyModal onClose={() => setShowCreateFamily(false)} onCreated={async () => { setShowCreateFamily(false); await loadEverything(); }} />
-      )}
     </AppShell>
   );
 }
@@ -267,46 +260,6 @@ function RecipeCardMini({ r, onOpen, onShare }) {
     </button>
   );
 }
-
-function CreateFamilyModal({ onClose, onCreated }) {
-  const [name, setName] = useState('');
-  const [lang, setLang] = useState('English');
-  const [saving, setSaving] = useState(false);
-  const { toast } = useToast();
-
-  const submit = async (e) => {
-    e.preventDefault();
-    setSaving(true);
-    try {
-      await api.createFamily({ name, description: '', language: lang });
-      toast({ title: 'Family created!' });
-      onCreated();
-    } catch (err) {
-      toast({ title: 'Could not create', description: err?.response?.data?.detail || err?.message });
-    } finally { setSaving(false); }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center sm:p-4">
-      <form onSubmit={submit} className="bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-3xl">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100">
-          <h3 className="font-serif-display text-[22px] font-semibold">Create family group</h3>
-          <button type="button" onClick={onClose} className="w-9 h-9 rounded-full hover:bg-neutral-100 flex items-center justify-center"><X size={18} /></button>
-        </div>
-        <div className="p-5 space-y-3">
-          <input required autoFocus value={name} onChange={e => setName(e.target.value.slice(0, 50))} placeholder="Family name (e.g., Rao Family)" data-testid="create-family-name" className="w-full border border-neutral-200 rounded-lg px-3 py-3 text-[15px] focus:outline-none focus:border-cumin-green" />
-          <select value={lang} onChange={e => setLang(e.target.value)} data-testid="create-family-language" className="w-full border border-neutral-200 rounded-lg px-3 py-3 text-[15px] focus:outline-none focus:border-cumin-green">
-            {['English', 'Hindi', 'Tamil', 'Telugu', 'Kannada', 'Malayalam', 'Marathi', 'Bengali', 'Gujarati', 'Punjabi'].map(l => <option key={l}>{l}</option>)}
-          </select>
-          <button disabled={saving} type="submit" data-testid="create-family-submit" className="w-full mt-2 bg-cumin-green text-white py-3.5 rounded-lg font-medium hover:bg-[#324A2F] transition-colors flex items-center justify-center gap-2 disabled:opacity-70">
-            {saving && <Loader2 size={15} className="animate-spin" />} Create
-          </button>
-        </div>
-      </form>
-    </div>
-  );
-}
-
 
 function ShareCookbookButton({ family }) {
   const [busy, setBusy] = useState(false);

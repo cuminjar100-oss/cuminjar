@@ -225,30 +225,44 @@ async def get_family():
 
 @api.get("/families")
 async def list_families():
+    # Ensure every authenticated user has at least one family group ("<Name>'s Family").
+    await _ensure_default_family()
     items = await db.families.find({'user_id': current_uid.get()}).sort('created_at', -1).to_list(200)
     return [_strip_id(i) for i in items]
 
 
-@api.post("/family")
-async def create_family(payload: FamilyIn):
-    """Create a NEW family group. Free plan is limited to 1 family group."""
-    limits = DEMO_USER.get('limits', {})
-    max_families = limits.get('max_families', 1)
-    existing_count = await db.families.count_documents({'user_id': current_uid.get()})
-    if DEMO_USER.get('plan') == 'free' and existing_count >= max_families:
-        raise HTTPException(
-            402,
-            f"Free plan allows only {max_families} family group. Upgrade to Plus to create more.",
-        )
-    data = payload.dict()
-    data.update({
+async def _ensure_default_family() -> Optional[dict]:
+    """Auto-provision a "<Name>'s Family" group for the current authenticated user
+    if they don't have one yet. Idempotent — safe to call on every request.
+    Skips the shared demo user so we don't spam its history."""
+    uid = current_uid.get()
+    if not uid or uid == DEMO_USER_ID:
+        return None
+    existing = await db.families.find_one({'user_id': uid}, sort=[('created_at', -1)])
+    if existing:
+        return existing
+    display_name = (current_user_name.get() or '').strip()
+    first_name = display_name.split(' ')[0] if display_name else 'My'
+    family_name = f"{first_name}'s Family"
+    doc = {
         'id': str(uuid.uuid4()),
-        'user_id': current_uid.get(),
+        'user_id': uid,
+        'name': family_name,
+        'description': 'Recipes, stories and traditions from our family jar.',
+        'language': 'English',
+        'coverPhoto': None,
         'created_at': now_iso(),
         'updated_at': now_iso(),
-    })
-    await db.families.insert_one(data)
-    return _strip_id(data)
+    }
+    await db.families.insert_one(doc)
+    return doc
+
+
+@api.post("/family")
+async def create_family(payload: FamilyIn):
+    """Deprecated — every user is auto-provisioned a single "<Name>'s Family"
+    group on first login. Manual creation is no longer supported."""
+    raise HTTPException(410, "You already have a family jar. Invite loved ones or start recording instead.")
 
 
 @api.put("/family/{family_id}")
@@ -1343,14 +1357,19 @@ async def list_recipes():
 async def _resolve_active_family_id(explicit: Optional[str] = None) -> Optional[str]:
     """Pick the family_id a new recipe/story should belong to.
     Preference: (1) the explicit id if it belongs to the current user,
-    (2) the user's most recently created family, (3) None (orphan)."""
+    (2) the user's most recently created family, (3) auto-provision a default
+    family for the authenticated user, (4) None (orphan)."""
     uid = current_uid.get()
     if explicit:
         fam = await db.families.find_one({'id': explicit, 'user_id': uid}, {'_id': 0, 'id': 1})
         if fam:
             return fam['id']
     fam = await db.families.find_one({'user_id': uid}, {'_id': 0, 'id': 1}, sort=[('created_at', -1)])
-    return fam['id'] if fam else None
+    if fam:
+        return fam['id']
+    # No family yet — auto-create one for authenticated users
+    created = await _ensure_default_family()
+    return created['id'] if created else None
 
 
 @api.post("/recipes")
