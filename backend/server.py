@@ -17,6 +17,15 @@ from contextvars import ContextVar
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
+# Ensure ffmpeg/ffprobe are on PATH for pydub (chunking audio for Sarvam STT).
+# static_ffmpeg ships binaries as pip wheels so this survives container restarts,
+# unlike an apt-get install which is wiped on every rebuild.
+try:
+    import static_ffmpeg
+    static_ffmpeg.add_paths()
+except Exception:
+    logging.getLogger('server').warning('static_ffmpeg unavailable — audio chunking may fail')
+
 EMAIL_RE = re.compile(r'^[^\s@]+@[^\s@]+\.[^\s@]+$')
 
 # Per-request user context (set by AuthContextMiddleware from cookie or Bearer)
