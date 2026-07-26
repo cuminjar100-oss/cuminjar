@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import AppShell from '../../components/AppShell';
-import { Plus, Filter, Heart, Clock, Users as UsersIcon, Loader2, X } from 'lucide-react';
+import { Plus, Filter, Heart, Clock, Users as UsersIcon, Loader2 } from 'lucide-react';
 import api from '../../api';
 import { useToast } from '../../hooks/use-toast';
-import MediaTranscribeInput from '../../components/MediaTranscribeInput';
+import SmartRecordModal from '../../components/SmartRecordModal';
 import RecipeDetailModal from '../../components/RecipeDetailModal';
 import { shareWithImage, buildRecipeShareText } from '../../utils/share';
 
@@ -109,7 +109,17 @@ export default function RecipesPage() {
         )}
       </div>
 
-      {showModal && <AddRecipeModal onClose={() => setShowModal(false)} onSaved={(r) => { setRecipes(prev => [r, ...prev]); setShowModal(false); toast({ title: 'Recipe saved!' }); }} />}
+      {showModal && (
+        <SmartRecordModal
+          onClose={() => setShowModal(false)}
+          onSaved={(r) => {
+            if (r?.kind === 'recipe' && r.item) {
+              setRecipes(prev => [r.item, ...prev]);
+              toast({ title: 'Recipe saved!' });
+            }
+          }}
+        />
+      )}
       {openRecipe && (
         <RecipeDetailModal
           recipe={openRecipe}
@@ -122,84 +132,5 @@ export default function RecipesPage() {
         />
       )}
     </AppShell>
-  );
-}
-
-function AddRecipeModal({ onClose, onSaved }) {
-  const [form, setForm] = useState({ title: '', author: '', region: 'South Indian', serves: '4', time: '30 mins', tags: '', cover: '', transcript_en: '', source_kind: 'text', source_language: '' });
-  const [saving, setSaving] = useState(false);
-
-  const handleFile = (e) => {
-    const f = e.target.files?.[0]; if (!f) return;
-    const reader = new FileReader();
-    reader.onload = () => setForm(prev => ({ ...prev, cover: reader.result }));
-    reader.readAsDataURL(f);
-  };
-
-  const handleTranscribed = ({ transcript_en, language, kind }) => {
-    // Merge transcript into form; try to auto-fill title if empty
-    const firstLine = (transcript_en || '').split('\n')[0].slice(0, 60);
-    setForm(prev => ({
-      ...prev,
-      transcript_en: transcript_en || '',
-      source_kind: kind,
-      source_language: language || '',
-      title: prev.title || firstLine,
-    }));
-  };
-
-  const submit = async (e) => {
-    e.preventDefault();
-    setSaving(true);
-    try {
-      const saved = await api.createRecipe({
-        title: form.title,
-        author: form.author || 'You',
-        region: form.region,
-        serves: form.serves,
-        time: form.time,
-        tags: form.tags.split(',').map(t => t.trim()).filter(Boolean),
-        cover: form.cover || null,
-        transcript_en: form.transcript_en || null,
-        source_kind: form.source_kind || 'text',
-        source_language: form.source_language || null,
-      });
-      onSaved(saved);
-    } finally { setSaving(false); }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-4 py-6" onClick={onClose}>
-      <form onSubmit={submit} onClick={e => e.stopPropagation()} className="bg-white rounded-2xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-serif-display text-[24px] font-semibold">Add a recipe</h3>
-          <button type="button" onClick={onClose} className="w-8 h-8 rounded-full hover:bg-neutral-100 flex items-center justify-center"><X size={16} /></button>
-        </div>
-
-        <MediaTranscribeInput onTranscribed={handleTranscribed} />
-
-        <div className="space-y-3 mt-4">
-          <input required placeholder="Recipe title (e.g., Paati’s Sambar)" value={form.title} onChange={e => setForm({...form, title: e.target.value})} className="w-full border border-neutral-200 rounded-lg px-3 py-2.5 text-[14px] focus:outline-none focus:border-cumin-green" />
-          <input placeholder="Author (who taught you)" value={form.author} onChange={e => setForm({...form, author: e.target.value})} className="w-full border border-neutral-200 rounded-lg px-3 py-2.5 text-[14px] focus:outline-none focus:border-cumin-green" />
-          <div className="grid grid-cols-3 gap-2">
-            <select value={form.region} onChange={e => setForm({...form, region: e.target.value})} className="border border-neutral-200 rounded-lg px-3 py-2.5 text-[14px] focus:outline-none focus:border-cumin-green">
-              {['South Indian', 'North Indian', 'Coastal', 'Punjabi'].map(x => <option key={x}>{x}</option>)}
-            </select>
-            <input placeholder="Serves" value={form.serves} onChange={e => setForm({...form, serves: e.target.value})} className="border border-neutral-200 rounded-lg px-3 py-2.5 text-[14px] focus:outline-none focus:border-cumin-green" />
-            <input placeholder="Time" value={form.time} onChange={e => setForm({...form, time: e.target.value})} className="border border-neutral-200 rounded-lg px-3 py-2.5 text-[14px] focus:outline-none focus:border-cumin-green" />
-          </div>
-          <input placeholder="Tags (comma-separated)" value={form.tags} onChange={e => setForm({...form, tags: e.target.value})} className="w-full border border-neutral-200 rounded-lg px-3 py-2.5 text-[14px] focus:outline-none focus:border-cumin-green" />
-          <textarea placeholder="Recipe details (auto-filled from voice/photo — feel free to edit)" rows={5} value={form.transcript_en} onChange={e => setForm({...form, transcript_en: e.target.value})} className="w-full border border-neutral-200 rounded-lg px-3 py-2.5 text-[14px] focus:outline-none focus:border-cumin-green resize-none" />
-          <label className="flex items-center gap-3 border border-dashed border-neutral-300 rounded-lg px-3 py-3 cursor-pointer text-[13.5px] text-neutral-600">
-            {form.cover ? <img src={form.cover} alt="cover" className="w-14 h-14 rounded object-cover" /> : <div className="w-14 h-14 rounded bg-neutral-100" />}
-            <span>Upload cover photo</span>
-            <input type="file" accept="image/*" onChange={handleFile} className="hidden" />
-          </label>
-        </div>
-        <button disabled={saving} type="submit" className="w-full mt-5 bg-cumin-green text-white py-3 rounded-lg font-medium hover:bg-[#324A2F] transition-colors flex items-center justify-center gap-2 disabled:opacity-70">
-          {saving && <Loader2 size={15} className="animate-spin" />} Save Recipe
-        </button>
-      </form>
-    </div>
   );
 }
