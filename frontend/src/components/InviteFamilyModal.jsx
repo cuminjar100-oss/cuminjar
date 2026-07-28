@@ -157,12 +157,12 @@ export default function InviteFamilyModal({ onClose }) {
                     {i.status === 'email_failed' && <><AlertTriangle size={11}/> Email failed</>}
                     {(!i.status || i.status === 'pending') && <><Clock size={11}/> Pending</>}
                   </span>
-                  {i.status === 'email_failed' && (
+                  {i.status !== 'sent' && i.status !== 'accepted' && (
                     <button
                       type="button"
                       onClick={() => resend(i.id)}
                       data-testid={`invite-resend-${i.id}`}
-                      title="Retry sending"
+                      title="Send email now"
                       className="w-8 h-8 rounded-full hover:bg-white flex items-center justify-center text-neutral-500 hover:text-cumin-green transition-colors"
                     ><RefreshCw size={13} /></button>
                   )}

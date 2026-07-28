@@ -15,7 +15,7 @@ const plans = [
     highlighted: false
   },
   {
-    name: 'Family Legacy',
+    name: 'Family Plus',
     price: '₹3,999',
     cadence: '/ year',
     desc: 'Preserve forever. Every feature, unlimited, for your whole family.',
