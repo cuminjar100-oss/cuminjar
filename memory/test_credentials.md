@@ -14,4 +14,4 @@
 ### Email OTP signup
 - `POST /api/auth/request-otp` → sends 6-digit code via Resend (10-min expiry, max 3 requests/10 min, 5 verify attempts/code)
 - `POST /api/auth/verify-otp` → marks the OTP verified
-- Resend account is currently in sandbox → real delivery only to the account owner's verified email
+- Resend domain **cuminjar.com is VERIFIED** (as of 2026-07-28). Real delivery works to ANY recipient inbox. From-address: `CuminJar <hello@cuminjar.com>`.
