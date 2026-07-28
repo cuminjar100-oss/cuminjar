@@ -1768,7 +1768,10 @@ async def _translate_to_english(text: str, source_lang: str) -> str:
 
 
 async def _gemini_structure_recipe(text: str) -> dict:
-    """Take a raw English transcript and structure it into a recipe card via Gemini."""
+    """Take a raw English recipe transcript and structure it into a recipe card via Gemini.
+    Runs the LLM once, then does a completeness pass to ensure every ingredient
+    mentioned in the steps also appears in the ingredients array (fixes the
+    long-standing bug where spices/tempering were listed only inside steps)."""
     if not text.strip():
         return {}
     try:
@@ -1786,13 +1789,22 @@ async def _gemini_structure_recipe(text: str) -> dict:
                 '1. Return ONLY the JSON object, no prose, no code fences, no comments.\n'
                 '2. Use double quotes only. No trailing commas. No single quotes.\n'
                 '3. Escape any double-quote inside a string with a backslash.\n'
-                '4. "ingredients" MUST be an ordered list of strings where each item includes the QUANTITY + UNIT + NAME (e.g. "2 tbsp grated coconut", "1/2 tsp cumin seeds", "1 cup thick curd"). Extract quantities from the transcript; if a quantity is vague, use "to taste" or a reasonable inferred amount.\n'
-                '5. "steps" MUST be an ordered list of concise, complete instruction sentences (no numbering, no bullet points — the array position IS the number).\n'
+                '4. "ingredients" MUST be a COMPLETE, EXHAUSTIVE, ordered list of EVERY ingredient mentioned or clearly implied in the transcript — including:\n'
+                '     • spices (whole and ground: cumin seeds, cardamom, cloves, cinnamon, bay leaf, star anise, black pepper, turmeric, chilli powder, garam masala, biriyani masala, etc.)\n'
+                '     • aromatics (ginger, garlic, onion, green chillies, curry leaves, coriander leaves, mint leaves)\n'
+                '     • oils/fats (ghee, oil, butter)\n'
+                '     • dairy (curd/yogurt, milk, cream)\n'
+                '     • souring agents (lemon, tamarind, vinegar)\n'
+                '     • garnishes (saffron milk, fried onions/birista, chopped coriander)\n'
+                '     • salt, sugar, water (only if amounts matter)\n'
+                '   Each item MUST include QUANTITY + UNIT + NAME (e.g. "2 tbsp ghee", "6 green cardamom pods", "1 tsp shahi jeera"). If a quantity is vague, use "to taste" or a sensible inferred amount.\n'
+                '   CRITICAL: Every ingredient that appears in any step MUST also appear in the ingredients array. Nothing is skipped.\n'
+                '5. "steps" MUST be an ordered list of concise, complete instruction sentences (no numbering, no bullet points — the array position IS the number). Steps reference ingredients by name; they never introduce a new ingredient that is not in the ingredients array.\n'
                 '6. "time_minutes" is an integer total minutes.\n'
                 '7. "servings" is a string like "4" or "3-4".\n'
                 '8. "region" is one of: South Indian, North Indian, Coastal, Punjabi, Gujarati, Bengali, Other.\n'
                 '9. "tags" 2–4 short labels (e.g., "Lentils", "Vegan", "Comfort").\n'
-                '10. "title" is a clean recipe name (e.g., "Morkuzhambu"), NOT the transcript preamble.'
+                '10. "title" is a clean recipe name (e.g., "Hyderabadi Chicken Biriyani"), NOT the transcript preamble.'
             ),
         ).with_model('gemini', 'gemini-2.5-flash')
         try:
@@ -1820,7 +1832,10 @@ async def _gemini_structure_recipe(text: str) -> dict:
             _re.sub(r'([{,]\s*)([A-Za-z_][A-Za-z0-9_]*)\s*:', r'\1"\2":', _re.sub(r',(\s*[\]}])', r'\1', raw)),  # quote unquoted keys
         ):
             try:
-                return _json.loads(candidate)
+                parsed = _json.loads(candidate)
+                # Second pass — make sure every ingredient in the steps
+                # also appears in the ingredients array.
+                return await _ensure_ingredients_complete(parsed, text)
             except Exception:
                 continue
         logger.warning('Gemini structuring: could not parse JSON. Raw head: %s', raw[:300])
@@ -1828,6 +1843,91 @@ async def _gemini_structure_recipe(text: str) -> dict:
     except Exception:
         logger.exception('Recipe structuring failed')
         return {}
+
+
+# Common ingredient keywords we watch for in recipe steps. If a keyword shows up
+# in a step but no ingredient in the parsed list mentions it, we call Gemini
+# again to fill the gap. Kept lowercase; substring match.
+_COMMON_INGREDIENT_TOKENS = [
+    # Whole spices
+    'cumin seeds', 'shahi jeera', 'mustard seeds', 'fennel seeds', 'fenugreek', 'cardamom',
+    'black cardamom', 'clove', 'cinnamon', 'bay leaf', 'star anise', 'mace', 'peppercorn',
+    'black pepper', 'nutmeg', 'kalonji', 'nigella',
+    # Ground spices
+    'turmeric', 'chilli powder', 'chili powder', 'red chilli', 'red chili', 'coriander powder',
+    'cumin powder', 'garam masala', 'biriyani masala', 'biryani masala', 'kasuri methi',
+    # Aromatics / herbs
+    'ginger', 'garlic', 'onion', 'green chilli', 'green chili', 'curry leaves', 'coriander leaves',
+    'cilantro', 'mint leaves', 'mint',
+    # Fats & dairy
+    'ghee', ' oil', 'butter', 'curd', 'yogurt', 'yoghurt', 'milk', 'cream', 'saffron',
+    # Souring
+    'lemon', 'lime', 'tamarind', 'vinegar',
+    # Garnish
+    'fried onion', 'birista', 'cashew', 'raisin', 'rose water', 'kewra',
+    # Basics
+    ' salt', ' sugar',
+]
+
+
+async def _ensure_ingredients_complete(recipe: dict, transcript: str) -> dict:
+    """If any well-known ingredient token appears in the steps but is missing
+    from the ingredients array, ask Gemini to append the missing ones. Best-
+    effort — silently returns the original recipe if the second pass fails."""
+    try:
+        ingredients = recipe.get('ingredients') or []
+        steps = recipe.get('steps') or []
+        if not ingredients or not steps:
+            return recipe
+        ingredients_blob = ' '.join(str(i) for i in ingredients).lower()
+        steps_blob = ' '.join(str(s) for s in steps).lower()
+        missing = []
+        for token in _COMMON_INGREDIENT_TOKENS:
+            token_norm = token.strip()
+            if token_norm and token_norm in steps_blob and token_norm not in ingredients_blob:
+                missing.append(token_norm)
+        if not missing:
+            return recipe
+
+        from emergentintegrations.llm.chat import LlmChat, UserMessage
+        import json as _json
+        chat = LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            session_id=f'ingredient-patch-{uuid.uuid4()}',
+            system_message=(
+                'Return ONLY a valid JSON array of ingredient strings (no prose, no code fences).\n'
+                'Each string is "QUANTITY UNIT NAME" (e.g. "1 tsp cumin seeds", "6 green cardamom pods", '
+                '"2 tbsp ghee"). Use "to taste" when quantity is vague.'
+            ),
+        ).with_model('gemini', 'gemini-2.5-flash')
+        prompt = (
+            'Existing ingredients:\n' + '\n'.join(f'- {i}' for i in ingredients) +
+            '\n\nSteps mention these ingredients but they are missing from the list above:\n' +
+            ', '.join(missing) +
+            '\n\nOriginal transcript for context:\n' + transcript[:2000] +
+            '\n\nReturn ONLY a JSON array of the MISSING ingredient strings to append, with quantity + unit + name.'
+        )
+        try:
+            resp = (await chat.send_message(UserMessage(text=prompt))) or ''
+        except Exception:
+            return recipe
+        clean = resp.replace('```json', '').replace('```', '').strip()
+        start = clean.find('[')
+        end = clean.rfind(']')
+        if start < 0 or end <= start:
+            return recipe
+        try:
+            extras = _json.loads(clean[start:end + 1])
+        except Exception:
+            return recipe
+        if isinstance(extras, list):
+            extras_clean = [str(x).strip() for x in extras if str(x).strip()]
+            if extras_clean:
+                recipe['ingredients'] = list(ingredients) + extras_clean
+        return recipe
+    except Exception:
+        logger.exception('Ingredient completeness pass failed')
+        return recipe
 
 
 RECIPE_EMOJIS = {
