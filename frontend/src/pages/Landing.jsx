@@ -54,7 +54,7 @@ export default function Landing() {
             <div className="mt-10 flex items-center gap-3">
               <div className="flex -space-x-2">
                 {familyAvatars.slice(0, 4).map((src) => (
-                  <img key={src} src={src} alt="family member" className="w-9 h-9 rounded-full border-2 border-cream object-cover" />
+                  <img loading="lazy" decoding="async" key={src} src={src} alt="family member" className="w-9 h-9 rounded-full border-2 border-cream object-cover" />
                 ))}
               </div>
               <p className="text-[14px] text-neutral-600">Join 1,000+ families preserving their heritage</p>
@@ -159,7 +159,7 @@ export default function Landing() {
         <div className="max-w-7xl mx-auto px-6 lg:px-10 relative">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div className="relative">
-              <img
+              <img loading="lazy" decoding="async"
                 src="/legacy-book-recipe.jpg"
                 alt="Open Family Legacy Book showing Paati's Morkuzhambu recipe with a QR code that plays her voice"
                 className="w-full rounded-3xl shadow-2xl border border-neutral-200/70"
@@ -233,7 +233,7 @@ export default function Landing() {
             {testimonials.map(t => (
               <div key={t.id} className="bg-white rounded-2xl p-6 border border-neutral-200/70 text-left hover:shadow-lg transition-shadow duration-300">
                 <div className="flex items-center gap-3 mb-4">
-                  <img src={t.avatar} alt={t.name} className="w-11 h-11 rounded-full object-cover" />
+                  <img loading="lazy" decoding="async" src={t.avatar} alt={t.name} className="w-11 h-11 rounded-full object-cover" />
                   <div>
                     <p className="font-semibold text-neutral-900 text-[15px]">{t.name}</p>
                     <p className="text-[12px] text-neutral-500">{t.location}</p>
@@ -297,7 +297,7 @@ function PhoneMockup({ image }) {
           </div>
           {/* Image with play */}
           <div className="relative mx-3 rounded-xl overflow-hidden">
-            <img src={image} alt="grandma" className="w-full h-44 object-cover" style={{ objectPosition: '50% 25%' }} />
+            <img loading="lazy" decoding="async" src={image} alt="grandma" className="w-full h-44 object-cover" style={{ objectPosition: '50% 25%' }} />
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="w-14 h-14 rounded-full bg-white/85 backdrop-blur-sm flex items-center justify-center shadow-lg">
                 <Play className="text-neutral-900 ml-0.5" size={22} fill="currentColor" />

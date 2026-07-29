@@ -129,7 +129,7 @@ export default function Dashboard() {
             <div className="flex flex-wrap gap-1.5">
               {families.map(f => (
                 <button key={f.id} onClick={() => setActiveFamilyId(f.id)} className={`inline-flex items-center gap-1.5 text-[12px] px-2.5 py-1 rounded-full transition-colors ${f.id === activeFamilyId ? 'bg-cumin-green text-white' : 'bg-[#F5EDDD] text-neutral-800'}`}>
-                  {f.coverPhoto ? <img src={f.coverPhoto} alt="" className="w-4 h-4 rounded-full object-cover" /> : <Users size={11} />}
+                  {f.coverPhoto ? <img loading="lazy" decoding="async" src={f.coverPhoto} alt="" className="w-4 h-4 rounded-full object-cover" /> : <Users size={11} />}
                   {f.name}
                 </button>
               ))}
@@ -241,7 +241,7 @@ function RecipeCardMini({ r, onOpen, onShare }) {
       className="bg-white rounded-xl border border-neutral-200/70 overflow-hidden text-left w-full hover:border-cumin-green transition-colors"
     >
       <div className="aspect-square bg-neutral-100 relative">
-        {r.cover ? <img src={r.cover} alt={r.title} className="w-full h-full object-cover" /> : (
+        {r.cover ? <img loading="lazy" decoding="async" src={r.cover} alt={r.title} className="w-full h-full object-cover" /> : (
           <div className="w-full h-full flex items-center justify-center text-neutral-300"><ChefHat size={30} /></div>
         )}
         <span

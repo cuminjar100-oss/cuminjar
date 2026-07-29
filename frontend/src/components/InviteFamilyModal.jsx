@@ -231,7 +231,7 @@ function InviteQrPanel({ family }) {
         {ensuring || !shareToken ? (
           <Loader2 className="animate-spin text-neutral-400" size={18} />
         ) : (
-          <img
+          <img loading="lazy" decoding="async"
             src={qrUrl}
             alt={`Scan to join ${family.name} on CuminJar`}
             className="w-full h-full object-contain p-2"

@@ -81,7 +81,7 @@ export default function RecipeDetailModal({ recipe, onClose, onLike, onUpdated, 
         <div className="relative">
           <div className="aspect-[16/10] bg-neutral-100 w-full">
             {r.cover ? (
-              <img src={r.cover} alt={r.title} className="w-full h-full object-cover" />
+              <img loading="lazy" decoding="async" src={r.cover} alt={r.title} className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-neutral-300"><ChefHat size={64} /></div>
             )}

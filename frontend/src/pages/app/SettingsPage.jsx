@@ -118,7 +118,7 @@ export default function SettingsPage() {
             </div>
 
             <div className="flex items-center gap-4 mt-4">
-              <img
+              <img loading="lazy" decoding="async"
                 src={pickAvatar(me)}
                 alt={displayName}
                 onError={(e) => { e.currentTarget.src = currentUser.avatar; }}

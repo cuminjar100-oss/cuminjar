@@ -119,7 +119,7 @@ export default function AppShell({ children, active, onOpenRecord }) {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button data-testid="user-menu-trigger" className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-full hover:bg-neutral-100 transition-colors">
-                  <img src={authUser?.picture || currentUser.avatar} alt={authUser?.name || currentUser.name} className="w-8 h-8 rounded-full object-cover" onError={(e) => { e.currentTarget.src = currentUser.avatar; }} />
+                  <img loading="lazy" decoding="async" src={authUser?.picture || currentUser.avatar} alt={authUser?.name || currentUser.name} className="w-8 h-8 rounded-full object-cover" onError={(e) => { e.currentTarget.src = currentUser.avatar; }} />
                   <span className="hidden lg:inline text-[14px] font-medium text-neutral-800">{authUser?.name || currentUser.name}</span>
                   <ChevronDown size={15} className="hidden lg:inline text-neutral-500" />
                 </button>

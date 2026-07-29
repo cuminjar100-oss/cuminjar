@@ -65,7 +65,7 @@ export default function PublicCookbook() {
       {/* Hero */}
       <section className="max-w-5xl mx-auto px-4 sm:px-8 pt-10 pb-6 text-center">
         {family.coverPhoto ? (
-          <img src={family.coverPhoto} alt={family.name} className="w-24 h-24 mx-auto rounded-full object-cover border-4 border-white shadow-lg" />
+          <img loading="lazy" decoding="async" src={family.coverPhoto} alt={family.name} className="w-24 h-24 mx-auto rounded-full object-cover border-4 border-white shadow-lg" />
         ) : (
           <div className="w-24 h-24 mx-auto rounded-full bg-[#F5EDDD] flex items-center justify-center text-4xl">🫙</div>
         )}
@@ -96,7 +96,7 @@ export default function PublicCookbook() {
               >
                 <div className="relative aspect-[4/3] overflow-hidden bg-neutral-100">
                   {r.cover ? (
-                    <img src={r.cover} alt={r.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    <img loading="lazy" decoding="async" src={r.cover} alt={r.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-neutral-300"><ChefHat size={40} /></div>
                   )}

@@ -81,7 +81,7 @@ export default function JoinFamily() {
       <div className="w-full max-w-md bg-white rounded-3xl shadow-sm border border-neutral-200/70 overflow-hidden" data-testid="join-family-card">
         <div className="bg-[#F7EFE1] px-6 py-8 text-center">
           {preview?.coverPhoto ? (
-            <img src={preview.coverPhoto} alt="" className="w-20 h-20 rounded-2xl mx-auto object-cover" />
+            <img loading="lazy" decoding="async" src={preview.coverPhoto} alt="" className="w-20 h-20 rounded-2xl mx-auto object-cover" />
           ) : (
             <div className="w-20 h-20 rounded-2xl bg-white mx-auto flex items-center justify-center">
               <BookHeart className="text-terracotta" size={32} />

@@ -37,7 +37,7 @@ export default function SearchPage() {
                 <div className="grid md:grid-cols-2 gap-4">
                   {filteredRecipes.map(r => (
                     <div key={r.id} className="bg-white rounded-xl border border-neutral-200 p-4 flex items-center gap-4">
-                      {r.cover && <img src={r.cover} alt={r.title} className="w-14 h-14 rounded-lg object-cover" />}
+                      {r.cover && <img loading="lazy" decoding="async" src={r.cover} alt={r.title} className="w-14 h-14 rounded-lg object-cover" />}
                       <div>
                         <p className="font-semibold text-[14.5px]">{r.title}</p>
                         <p className="text-[12px] text-neutral-500">By {r.author}</p>

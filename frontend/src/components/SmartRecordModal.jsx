@@ -198,7 +198,7 @@ export default function SmartRecordModal({ onClose, familyId, onSaved }) {
             <div>
               {result.item.cover && (
                 <div className="relative">
-                  <img src={result.item.cover} alt="cover" className="w-full aspect-video object-cover rounded-xl mb-3" />
+                  <img loading="lazy" decoding="async" src={result.item.cover} alt="cover" className="w-full aspect-video object-cover rounded-xl mb-3" />
                   {kind !== 'recipe' && (
                     <StoryCoverSwap
                       story={result.item}

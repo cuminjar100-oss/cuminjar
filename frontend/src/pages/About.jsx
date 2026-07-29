@@ -20,7 +20,7 @@ export default function About() {
       </section>
 
       <section className="max-w-5xl mx-auto px-6 lg:px-10 py-6 grid md:grid-cols-2 gap-10 items-center">
-        <img
+        <img loading="lazy" decoding="async"
           src="/about-grandmother.jpg"
           alt="Black and white documentary photograph of a South Indian grandmother, seen from behind, stirring a pot at her traditional kitchen counter — the moment CuminJar was built to preserve"
           className="rounded-3xl w-full h-[380px] object-cover"

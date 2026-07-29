@@ -69,7 +69,7 @@ export default function RecipesPage() {
                 className="bg-white rounded-2xl border border-neutral-200/70 overflow-hidden hover:shadow-lg transition-shadow group text-left w-full"
               >
                 <div className="relative aspect-[4/3] overflow-hidden">
-                  {r.cover && <img src={r.cover} alt={r.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />}
+                  {r.cover && <img loading="lazy" decoding="async" src={r.cover} alt={r.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />}
                   <span
                     onClick={(e) => { e.stopPropagation(); toggleLike(r.id); }}
                     role="button"

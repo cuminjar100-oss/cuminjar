@@ -172,7 +172,7 @@ export default function MediaTranscribeInput({ onTranscribed }) {
           )}
           {photoPreview && (
             <div className="flex items-center gap-3">
-              <img src={photoPreview} alt="page" className="w-20 h-20 rounded-lg object-cover" />
+              <img loading="lazy" decoding="async" src={photoPreview} alt="page" className="w-20 h-20 rounded-lg object-cover" />
               <p className="text-[13px] text-neutral-700">Page photo ready. Add a language and transcribe.</p>
             </div>
           )}

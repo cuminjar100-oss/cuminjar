@@ -35,7 +35,7 @@ export default function AlbumsPage() {
             {albums.map(a => (
               <div key={a.id} className="bg-white rounded-2xl border border-neutral-200/70 overflow-hidden hover:shadow-lg transition-shadow group">
                 <div className="aspect-[4/3] overflow-hidden bg-neutral-100">
-                  {a.cover && <img src={a.cover} alt={a.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />}
+                  {a.cover && <img loading="lazy" decoding="async" src={a.cover} alt={a.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />}
                 </div>
                 <div className="p-5 flex items-center justify-between">
                   <div>
@@ -83,7 +83,7 @@ function NewAlbumModal({ onClose, onSaved }) {
         <div className="space-y-3">
           <input required placeholder="Album title" value={title} onChange={e => setTitle(e.target.value)} className="w-full border border-neutral-200 rounded-lg px-3 py-2.5 text-[14px] focus:outline-none focus:border-cumin-green" autoFocus />
           <label className="flex items-center gap-3 border border-dashed border-neutral-300 rounded-lg px-3 py-3 cursor-pointer text-[13.5px] text-neutral-600">
-            {cover ? <img src={cover} alt="cover" className="w-14 h-14 rounded object-cover" /> : <div className="w-14 h-14 rounded bg-neutral-100" />}
+            {cover ? <img loading="lazy" decoding="async" src={cover} alt="cover" className="w-14 h-14 rounded object-cover" /> : <div className="w-14 h-14 rounded bg-neutral-100" />}
             <span>Upload cover photo</span>
             <input type="file" accept="image/*" onChange={handleFile} className="hidden" />
           </label>

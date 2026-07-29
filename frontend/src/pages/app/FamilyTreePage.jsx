@@ -41,7 +41,7 @@ export default function FamilyTreePage() {
                   <div className="flex items-center justify-center gap-16 flex-wrap">
                     {row.members.map(m => (
                       <div key={m.id} className="flex flex-col items-center bg-white rounded-2xl border border-neutral-200/70 px-5 py-4 min-w-[180px]">
-                        <img src={m.avatar || familyAvatars[0]} alt={m.name} className="w-16 h-16 rounded-full object-cover" />
+                        <img loading="lazy" decoding="async" src={m.avatar || familyAvatars[0]} alt={m.name} className="w-16 h-16 rounded-full object-cover" />
                         <p className="font-semibold text-[14px] mt-3 text-neutral-900">{m.name}</p>
                         <p className="text-[12px] text-neutral-500">{m.role}</p>
                       </div>

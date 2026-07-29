@@ -71,7 +71,7 @@ export default function Stories() {
       <section className="max-w-6xl mx-auto px-6 lg:px-10 py-6">
         <div className="bg-white rounded-3xl border border-neutral-200/70 overflow-hidden grid md:grid-cols-2 gap-0">
           <div className="relative aspect-[4/3] md:aspect-auto">
-            <img src={featured.image} alt={featured.title} className="absolute inset-0 w-full h-full object-cover" />
+            <img loading="lazy" decoding="async" src={featured.image} alt={featured.title} className="absolute inset-0 w-full h-full object-cover" />
             <div className="absolute bottom-3 left-3 bg-white/90 backdrop-blur rounded-full px-3 py-1.5 flex items-center gap-1.5 text-[12px] text-neutral-800">
               <MapPin size={12} className="text-terracotta" /> {featured.location}
             </div>
@@ -93,7 +93,7 @@ export default function Stories() {
           {stories.map(s => (
             <article key={s.id} className="bg-white rounded-2xl border border-neutral-200/70 overflow-hidden hover:shadow-lg transition-shadow">
               <div className="relative aspect-[4/3] overflow-hidden">
-                <img src={s.image} alt={s.title} className="w-full h-full object-cover" />
+                <img loading="lazy" decoding="async" src={s.image} alt={s.title} className="w-full h-full object-cover" />
                 <div className="absolute bottom-3 left-3 bg-white/90 backdrop-blur rounded-full px-2.5 py-1 flex items-center gap-1.5 text-[11px] text-neutral-800">
                   <MapPin size={11} className="text-terracotta" /> {s.location}
                 </div>
