@@ -35,6 +35,9 @@ export const api = {
   likeRecipe: (id) => http.post(`/recipes/${id}/like`).then(r => r.data),
   updateRecipe: (id, body) => http.patch(`/recipes/${id}`, body).then(r => r.data),
   updateStory: (id, body) => http.patch(`/stories/${id}`, body).then(r => r.data),
+
+  createRazorpayOrder: () => http.post('/payments/razorpay/order').then(r => r.data),
+  verifyRazorpayPayment: (body) => http.post('/payments/razorpay/verify', body).then(r => r.data),
   regenerateRecipeCover: (id) => http.post(`/recipes/${id}/regenerate-cover`, {}, { timeout: 120000 }).then(r => r.data),
   deleteRecipe: (id) => http.delete(`/recipes/${id}`).then(r => r.data),
 

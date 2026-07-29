@@ -1703,6 +1703,153 @@ async def create_contact(payload: ContactIn):
     return {'ok': True, 'id': doc['id'], 'email_sent': doc['email_sent']}
 
 
+# --------------------- Payments (Razorpay) ---------------------
+RAZORPAY_KEY_ID = os.environ.get('RAZORPAY_KEY_ID', '')
+RAZORPAY_KEY_SECRET = os.environ.get('RAZORPAY_KEY_SECRET', '')
+RAZORPAY_WEBHOOK_SECRET = os.environ.get('RAZORPAY_WEBHOOK_SECRET', '')
+
+# Family Legacy plan pricing (INR paise). ₹2,999 = 299900 paise.
+FAMILY_LEGACY_PRICE_PAISE = 299900
+FAMILY_LEGACY_PRICE_INR = 2999
+
+_razorpay_client = None
+if RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET:
+    try:
+        import razorpay as _rzp
+        _razorpay_client = _rzp.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
+    except Exception:
+        logger.exception('Razorpay client init failed')
+
+
+class VerifyPaymentIn(BaseModel):
+    razorpay_order_id: str
+    razorpay_payment_id: str
+    razorpay_signature: str
+
+
+@api.post('/payments/razorpay/order')
+async def create_razorpay_order():
+    """Create a Razorpay order for the Family Legacy annual plan (₹2,999)."""
+    if not _razorpay_client:
+        raise HTTPException(503, 'Payments not configured — set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET.')
+    uid = current_uid.get()
+    receipt = f'legacy-{uuid.uuid4().hex[:12]}'
+    try:
+        order = _razorpay_client.order.create({
+            'amount': FAMILY_LEGACY_PRICE_PAISE,
+            'currency': 'INR',
+            'receipt': receipt,
+            'notes': {
+                'user_id': uid,
+                'plan': 'legacy',
+                'plan_name': 'Family Legacy',
+            },
+        })
+    except Exception as e:
+        logger.exception('Razorpay order create failed')
+        raise HTTPException(502, f'Could not start checkout: {str(e)[:200]}')
+    await db.payments.insert_one({
+        'id': str(uuid.uuid4()),
+        'user_id': uid,
+        'razorpay_order_id': order['id'],
+        'amount': FAMILY_LEGACY_PRICE_PAISE,
+        'currency': 'INR',
+        'plan': 'legacy',
+        'status': 'created',
+        'receipt': receipt,
+        'created_at': now_iso(),
+    })
+    return {
+        'key_id': RAZORPAY_KEY_ID,
+        'order_id': order['id'],
+        'amount': order['amount'],
+        'currency': order['currency'],
+    }
+
+
+@api.post('/payments/razorpay/verify')
+async def verify_razorpay_payment(payload: VerifyPaymentIn):
+    """Server-side HMAC verification of a Razorpay payment. Only after this
+    succeeds do we upgrade the user's plan free → legacy. Idempotent."""
+    import hmac as _hmac, hashlib as _hashlib
+    message = f'{payload.razorpay_order_id}|{payload.razorpay_payment_id}'.encode()
+    expected = _hmac.new(RAZORPAY_KEY_SECRET.encode(), message, _hashlib.sha256).hexdigest()
+    if not _hmac.compare_digest(expected, payload.razorpay_signature):
+        raise HTTPException(400, 'Invalid payment signature — payment rejected.')
+
+    payment = await db.payments.find_one({'razorpay_order_id': payload.razorpay_order_id})
+    if not payment:
+        raise HTTPException(404, 'Order not found')
+    if payment.get('status') == 'verified':
+        return {'ok': True, 'already_verified': True}
+
+    uid = payment['user_id']
+    activated = now_iso()
+    await db.payments.update_one(
+        {'razorpay_order_id': payload.razorpay_order_id},
+        {'$set': {
+            'status': 'verified',
+            'razorpay_payment_id': payload.razorpay_payment_id,
+            'razorpay_signature': payload.razorpay_signature,
+            'verified_at': activated,
+        }},
+    )
+    # Upgrade the user's plan (idempotent — only bump from free → legacy)
+    await db.users.update_one(
+        {'id': uid},
+        {'$set': {
+            'plan': 'legacy',
+            'plan_activated_at': activated,
+            'plan_renewal_at': (datetime.now(timezone.utc) + timedelta(days=365)).isoformat(),
+        }},
+    )
+
+    # Send warm confirmation email via Resend
+    try:
+        user = await db.users.find_one({'id': uid}) or {}
+        if user.get('email'):
+            import resend as _resend
+            _resend.api_key = os.environ.get('RESEND_API_KEY')
+            first = (user.get('name') or 'Friend').split(' ')[0]
+            html = f'''
+<div style="font-family: Georgia, serif; max-width: 560px; margin: 0 auto; color: #2a2620;">
+  <h2 style="color: #B45C3B; font-family: Georgia, serif; margin: 0 0 12px;">Welcome to Family Legacy 🫙</h2>
+  <p>Dear {first},</p>
+  <p>Your <b>Family Legacy plan is now active</b>. Every recipe, story and tradition your family records
+  from today onwards will live in your jar forever &mdash; and once you cross 30 memories, we&rsquo;ll print
+  your heirloom family book.</p>
+  <p>Amount: <b>&#8377;{FAMILY_LEGACY_PRICE_INR:,}</b> &middot; Valid until: {(datetime.now(timezone.utc) + timedelta(days=365)).strftime('%d %b %Y')}</p>
+  <p><a href="https://cuminjar.com/app" style="display: inline-block; background: #3D5637; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600;">Open your family jar</a></p>
+  <p style="color: #888; font-size: 12.5px; margin-top: 24px;">Questions? Just reply to this email &mdash; we&rsquo;re here for you.</p>
+  <p style="color: #888; font-size: 12.5px;">With love,<br/>The CuminJar team</p>
+</div>'''
+            _resend.Emails.send({
+                'from': os.environ.get('RESEND_FROM_EMAIL', 'CuminJar <hello@cuminjar.com>'),
+                'to': [user['email']],
+                'subject': 'Welcome to Family Legacy — your jar is upgraded 🫙',
+                'html': html,
+            })
+    except Exception:
+        logger.exception('Family Legacy confirmation email failed (payment still succeeded)')
+
+    return {'ok': True, 'plan': 'legacy'}
+
+
+@api.post('/webhooks/razorpay')
+async def razorpay_webhook(request: Request):
+    """Optional webhook receiver — enable in Razorpay Dashboard for durable
+    reconciliation. Signs the raw body with RAZORPAY_WEBHOOK_SECRET."""
+    import hmac as _hmac, hashlib as _hashlib
+    raw = await request.body()
+    received = request.headers.get('X-Razorpay-Signature', '')
+    if not RAZORPAY_WEBHOOK_SECRET:
+        raise HTTPException(400, 'Webhook secret not configured')
+    expected = _hmac.new(RAZORPAY_WEBHOOK_SECRET.encode(), raw, _hashlib.sha256).hexdigest()
+    if not _hmac.compare_digest(expected, received):
+        raise HTTPException(400, 'Invalid webhook signature')
+    return {'ok': True}
+
+
 # --------------------- Family Tree ---------------------
 @api.get("/family-tree")
 async def get_family_tree():
