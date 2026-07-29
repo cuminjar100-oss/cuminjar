@@ -43,7 +43,15 @@ export default function GetStarted() {
       toast({ title: 'Check your inbox', description: `We sent a 6-digit code to ${form.email}` });
       setTimeout(() => inputsRef.current[0]?.focus(), 100);
     } catch (e) {
-      toast({ title: 'Could not send code', description: e?.response?.data?.detail || e?.message || 'Please try again.' });
+      // Distinguish "no network" from "server returned error" so users know
+      // whether to retry or fix their input.
+      const isNetwork = !e?.response && (e?.code === 'ERR_NETWORK' || /network/i.test(e?.message || ''));
+      toast({
+        title: isNetwork ? 'Network problem' : 'Could not send code',
+        description: isNetwork
+          ? 'Please check your internet and try again. If you\u2019re inside a corporate/school Wi-Fi, an ad-blocker may also be the cause.'
+          : (e?.response?.data?.detail || e?.message || 'Please try again.'),
+      });
     } finally { setBusy(false); }
   };
 
