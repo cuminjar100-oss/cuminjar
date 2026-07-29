@@ -15,21 +15,21 @@ const plans = [
     highlighted: false
   },
   {
-    name: 'Family Plus',
+    name: 'Family Legacy',
     price: '₹3,999',
     cadence: '/ year',
-    desc: 'Preserve forever. Every feature, unlimited, for your whole family.',
+    desc: 'Unlimited recipes, stories & traditions — plus a printed heirloom family book to preserve them forever.',
     features: [
-      'Unlimited family groups',
+      'Unlimited voice recipes, stories & festivals',
       'Unlimited family members',
-      'Unlimited voice recipes',
-      '200 GB storage',
-      'Advanced AI + translation',
+      'Printed heirloom family book (hardbound, delivered)',
+      'QR code on every page — hear Paati\u2019s voice',
+      '200 GB voice & photo storage',
+      'Advanced AI + translation in every Indian language',
       'Priority support',
-      'Print-ready cookbook export',
-      'Yearly heritage backup',
+      'Yearly heritage backup — safe for generations',
     ],
-    cta: 'Talk to us',
+    cta: 'Preserve Forever',
     highlighted: true
   }
 ];
