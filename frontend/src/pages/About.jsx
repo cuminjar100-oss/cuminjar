@@ -22,7 +22,7 @@ export default function About() {
       <section className="max-w-5xl mx-auto px-6 lg:px-10 py-6 grid md:grid-cols-2 gap-10 items-center">
         <img
           src="/about-grandmother.jpg"
-          alt="Fair-skinned Indian grandmother in a soft pink saree sharing a joyful moment with her granddaughter in a warmly lit modern Indian living room"
+          alt="Black and white documentary photograph of a South Indian grandmother, seen from behind, stirring a pot at her traditional kitchen counter — the moment CuminJar was built to preserve"
           className="rounded-3xl w-full h-[380px] object-cover"
         />
         <div>
