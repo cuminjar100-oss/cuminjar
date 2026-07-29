@@ -35,8 +35,8 @@ export default function Contact() {
       </section>
 
       <section className="max-w-5xl mx-auto px-6 lg:px-10 py-10 grid md:grid-cols-3 gap-6">
-        <ContactCard icon={Mail} title="Email" desc="hello@cuminjar.com" sub="We reply within 24 hours." />
-        <ContactCard icon={MessageCircle} title="Support" desc="support@cuminjar.com" sub="For account & billing help." />
+        <ContactCard icon={Mail} title="Email" desc="admin@cuminjar.com" sub="We reply within 24 hours." />
+        <ContactCard icon={MessageCircle} title="Support" desc="admin@cuminjar.com" sub="For account & billing help." />
         <ContactCard icon={MapPin} title="Address" desc="Bengaluru, India" sub="Also San Jose & Toronto." />
       </section>
 

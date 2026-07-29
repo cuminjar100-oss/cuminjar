@@ -1645,6 +1645,9 @@ async def delete_invite(invite_id: str):
 
 
 # --------------------- Contact ---------------------
+CONTACT_ADMIN_EMAIL = os.environ.get('CONTACT_ADMIN_EMAIL', 'admin@cuminjar.com')
+
+
 @api.post("/contact")
 async def create_contact(payload: ContactIn):
     email = (payload.email or '').strip().lower()
@@ -1656,12 +1659,48 @@ async def create_contact(payload: ContactIn):
         'id': str(uuid.uuid4()),
         'name': payload.name.strip(),
         'email': email,
-        'subject': (payload.subject or '').strip(),
+        'subject': (payload.subject or '').strip() or 'General enquiry',
         'message': payload.message.strip(),
         'created_at': now_iso(),
+        'email_sent': False,
+        'email_error': None,
     }
+
+    # Deliver the message to the admin inbox via Resend
+    try:
+        import resend as _resend
+        _resend.api_key = os.environ.get('RESEND_API_KEY')
+        safe_msg = doc['message'].replace('<', '&lt;').replace('>', '&gt;').replace('\n', '<br/>')
+        html = f'''
+<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Georgia, serif; max-width: 600px; margin: 0 auto; color: #2a2620;">
+  <h2 style="color: #B45C3B; margin: 0 0 10px;">New CuminJar contact message</h2>
+  <p style="color: #666; margin: 0 0 20px; font-size: 13px;">Received {doc['created_at'][:16].replace('T', ' ')} UTC</p>
+  <table style="border-collapse: collapse; width: 100%; font-size: 14px;">
+    <tr><td style="padding: 6px 12px 6px 0; color: #888; width: 100px;">From</td><td style="padding: 6px 0;"><b>{doc['name']}</b> &lt;{doc['email']}&gt;</td></tr>
+    <tr><td style="padding: 6px 12px 6px 0; color: #888;">Subject</td><td style="padding: 6px 0;">{doc['subject']}</td></tr>
+  </table>
+  <div style="border: 1px solid #eadfc9; background: #fbf6ee; border-radius: 8px; padding: 16px; margin-top: 16px; font-size: 14.5px; line-height: 1.55;">
+    {safe_msg}
+  </div>
+  <p style="color: #888; font-size: 12px; margin-top: 20px;">
+    Reply directly to this email &mdash; it will reach <b>{doc['name']}</b>.
+  </p>
+</div>'''
+        r = _resend.Emails.send({
+            'from': os.environ.get('RESEND_FROM_EMAIL', 'CuminJar <hello@cuminjar.com>'),
+            'to': [CONTACT_ADMIN_EMAIL],
+            'reply_to': doc['email'],
+            'subject': f"[CuminJar contact] {doc['subject']} — {doc['name']}",
+            'html': html,
+        })
+        doc['email_sent'] = True
+        doc['email_provider_id'] = r.get('id')
+    except Exception as e:
+        logger.exception('Contact email delivery failed')
+        doc['email_error'] = str(e)[:300]
+
     await db.contact_messages.insert_one(doc)
-    return {'ok': True, 'id': doc['id']}
+    return {'ok': True, 'id': doc['id'], 'email_sent': doc['email_sent']}
 
 
 # --------------------- Family Tree ---------------------

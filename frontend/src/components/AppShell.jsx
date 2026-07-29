@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import Logo from './Logo';
 import {
-  Home, Soup, BookOpen, Search, HelpCircle, Settings, ChevronDown, Menu, X, Mic, LogOut, User as UserIcon
+  Home, Soup, BookOpen, Search, HelpCircle, Settings, ChevronDown, Menu, X, Mic, LogOut, User as UserIcon, Mail
 } from 'lucide-react';
 import { sidebarLinks, currentUser } from '../mock';
 import api from '../api';
@@ -159,6 +159,18 @@ export default function AppShell({ children, active, onOpenRecord }) {
         </header>
 
         <main>{children}</main>
+
+        {/* Slim in-app footer with contact link on every authenticated page */}
+        <footer className="mt-16 border-t border-neutral-200/60 py-6 px-4 lg:px-10 flex flex-col sm:flex-row items-center justify-between gap-2 text-[12px] text-neutral-500">
+          <p>© {new Date().getFullYear()} CuminJar &middot; Made with love, for families.</p>
+          <Link
+            to="/contact"
+            data-testid="app-footer-contact"
+            className="inline-flex items-center gap-1.5 hover:text-cumin-green transition-colors"
+          >
+            <Mail size={12} /> Contact us &middot; admin@cuminjar.com
+          </Link>
+        </footer>
       </div>
 
       {/* Mobile bottom nav */}

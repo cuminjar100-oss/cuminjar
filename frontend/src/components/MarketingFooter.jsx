@@ -16,8 +16,11 @@ export default function MarketingFooter() {
             <a href="#" className="hover:text-cumin-green transition-colors" aria-label="Instagram"><Instagram size={20} /></a>
             <a href="#" className="hover:text-cumin-green transition-colors" aria-label="Twitter"><Twitter size={20} /></a>
             <a href="#" className="hover:text-cumin-green transition-colors" aria-label="YouTube"><Youtube size={20} /></a>
-            <a href="#" className="hover:text-cumin-green transition-colors" aria-label="Email"><Mail size={20} /></a>
+            <a href="mailto:admin@cuminjar.com" className="hover:text-cumin-green transition-colors" aria-label="Email admin@cuminjar.com"><Mail size={20} /></a>
           </div>
+          <a href="mailto:admin@cuminjar.com" className="mt-4 inline-flex items-center gap-2 text-[13.5px] text-neutral-600 hover:text-cumin-green transition-colors">
+            <Mail size={14} /> admin@cuminjar.com
+          </a>
         </div>
 
         <div>
