@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 
 const SECTIONS = [
-  { id: 'features', label: 'Features' },
+  { id: 'easiest-way', label: 'Why CuminJar' },
   { id: 'how-it-works', label: 'How it Works' },
   { id: 'legacy-book', label: 'Legacy Book' },
   { id: 'testimonials', label: 'Testimonials' },

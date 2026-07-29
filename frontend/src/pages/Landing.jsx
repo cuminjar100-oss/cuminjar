@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import MarketingHeader from '../components/MarketingHeader';
 import MarketingFooter from '../components/MarketingFooter';
 import { Play, Mic, Sparkles, ImagePlus, Users, UserPlus, Heart, Star, ArrowRight, BookHeart, QrCode, CheckCircle2 } from 'lucide-react';
-import { features, steps, testimonials, pressLogos, heroImages, familyAvatars } from '../mock';
+import { steps, testimonials, pressLogos, heroImages, familyAvatars } from '../mock';
 import { StarAnise, Cardamom, CinnamonStick, LeafSprig } from '../components/Spices';
 import LandingSectionNav from '../components/LandingSectionNav';
 
@@ -94,21 +94,64 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* FEATURES STRIP */}
-      <section id="features" className="bg-cream-warm py-16" style={{ scrollMarginTop: '112px' }}>
-        <div className="max-w-7xl mx-auto px-6 lg:px-10 grid md:grid-cols-4 gap-8">
-          {features.map(f => {
-            const Icon = iconMap[f.icon];
-            return (
-              <div key={f.id} className="text-center group">
-                <div className={`w-16 h-16 mx-auto rounded-full ${tintBg[f.color]} flex items-center justify-center mb-4 transition-transform group-hover:-translate-y-1`}>
-                  <Icon className={tintIcon[f.color]} size={26} strokeWidth={2} />
-                </div>
-                <h3 className="font-semibold text-neutral-900 text-[16px] mb-2">{f.title}</h3>
-                <p className="text-[14px] text-neutral-600 leading-relaxed max-w-[240px] mx-auto">{f.desc}</p>
+      {/* EASIEST WAY TO PRESERVE — new hero pitch with book + QR photo */}
+      <section id="easiest-way" className="bg-cream-warm py-20 lg:py-24" style={{ scrollMarginTop: '112px' }}>
+        <div className="max-w-6xl mx-auto px-6 lg:px-10 grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+          {/* Copy */}
+          <div className="order-2 lg:order-1">
+            <span className="inline-block bg-[#F7DFCE] text-terracotta text-[11px] font-semibold tracking-[0.22em] px-4 py-1.5 rounded-full">
+              WHY CUMINJAR
+            </span>
+            <h2 className="mt-5 font-serif-display text-[34px] sm:text-[42px] lg:text-[50px] leading-[1.05] font-semibold text-neutral-900">
+              The <span className="text-terracotta italic">easiest</span> way to preserve family recipes and traditions&nbsp;— for the next generation.
+            </h2>
+            <p className="mt-6 text-[16px] leading-relaxed text-neutral-700 max-w-xl">
+              Just talk. Grandma tells the recipe in her own voice, in her own language, in her own kitchen.
+              CuminJar transcribes, translates and lovingly binds it into a printable heirloom family book&nbsp;—
+              with a QR code beside every recipe that plays her original recording.
+            </p>
+            <p className="mt-4 text-[15px] leading-relaxed text-neutral-600 max-w-xl">
+              No typing. No forms. No decisions. Your family&rsquo;s flavours, stories and rituals&nbsp;— saved forever, in a form your grandchildren will hold.
+            </p>
+            <div className="mt-8 flex flex-wrap items-center gap-3">
+              <Link
+                to="/get-started"
+                data-testid="easiest-way-cta"
+                className="inline-flex items-center gap-2 bg-cumin-green text-white px-6 py-3 rounded-lg font-medium hover:bg-[#324A2F] transition-colors text-[14.5px]"
+              >
+                Start preserving free
+              </Link>
+              <Link
+                to="#legacy-book"
+                className="text-[14px] font-medium text-cumin-green underline underline-offset-4 decoration-cumin-green/40 hover:decoration-cumin-green transition-colors"
+              >
+                See how the book looks &rarr;
+              </Link>
+            </div>
+          </div>
+
+          {/* Image */}
+          <div className="order-1 lg:order-2 relative">
+            <div className="absolute -inset-6 bg-[#F3E7D3] rounded-[42px] -z-0" aria-hidden="true" />
+            <img
+              loading="lazy"
+              decoding="async"
+              src="/legacy-book-recipe.jpg"
+              alt="An open hardbound CuminJar family book showing Paati's Morkuzhambu recipe printed in English with a QR code beside it that plays her original voice recording"
+              className="relative z-10 rounded-3xl w-full h-[380px] sm:h-[440px] object-cover shadow-xl"
+              data-testid="easiest-way-book-image"
+            />
+            {/* Small floating QR-callout badge */}
+            <div className="hidden sm:flex absolute -bottom-5 -left-5 z-20 items-center gap-3 bg-white/95 backdrop-blur px-4 py-3 rounded-2xl shadow-lg border border-neutral-200/70 max-w-[240px]">
+              <div className="w-10 h-10 rounded-lg bg-neutral-900 text-white flex items-center justify-center text-[10px] font-mono tracking-tighter" aria-hidden="true">
+                <span>[QR]</span>
               </div>
-            );
-          })}
+              <div className="text-left">
+                <p className="text-[12px] font-semibold text-neutral-900 leading-tight">Scan and hear Paati</p>
+                <p className="text-[11px] text-neutral-500 leading-tight mt-0.5">Every page. Every voice. Every language.</p>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
