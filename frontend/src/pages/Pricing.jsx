@@ -16,7 +16,7 @@ const plans = [
   },
   {
     name: 'Family Legacy',
-    price: '₹3,999',
+    price: '₹2,999',
     cadence: '/ year',
     desc: 'Unlimited recipes, stories & traditions — plus a printed heirloom family book to preserve them forever.',
     features: [
