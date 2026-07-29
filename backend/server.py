@@ -1274,11 +1274,15 @@ async def smart_record(
         return {'kind': 'recipe', 'item': _strip_id(doc)}
 
     else:
-        # Story or Festival
+        # Story or Festival — generate a warm illustrated cover via Nano Banana
         title = english.split('.')[0][:60] or ('Festival memory' if kind == 'festival' else 'Untitled Story')
         approx_mins = max(1, len(english.split()) // 130)
-        story_emoji = '🪔' if kind == 'festival' else '📖'
-        cover = _emoji_cover_svg(story_emoji, FAMILY_TINTS[(hash(title) % len(FAMILY_TINTS))])
+        try:
+            cover = await _generate_story_image(title, english, kind=kind)
+        except Exception:
+            logger.exception('Story cover generation failed; falling back to emoji cover')
+            story_emoji = '🪔' if kind == 'festival' else '📖'
+            cover = _emoji_cover_svg(story_emoji, FAMILY_TINTS[(hash(title) % len(FAMILY_TINTS))])
         audio_src = None
         if media_kind == 'audio':
             try:
@@ -1319,6 +1323,20 @@ async def update_recipe_cover(recipe_id: str, payload: dict):
     if updates:
         await db.recipes.update_one({'id': recipe_id}, {'$set': updates})
     doc = await db.recipes.find_one({'id': recipe_id, 'user_id': current_uid.get()})
+    return _strip_id(doc)
+
+
+@api.patch("/stories/{story_id}")
+async def update_story(story_id: str, payload: dict):
+    """Update a story — supports cover upload, title, excerpt tweaks."""
+    doc = await db.stories.find_one({'id': story_id, 'user_id': current_uid.get()})
+    if not doc:
+        raise HTTPException(404, 'Story not found')
+    allowed = {'cover', 'title', 'excerpt', 'transcript_en', 'kind'}
+    updates = {k: v for k, v in payload.items() if k in allowed}
+    if updates:
+        await db.stories.update_one({'id': story_id}, {'$set': updates})
+    doc = await db.stories.find_one({'id': story_id, 'user_id': current_uid.get()})
     return _strip_id(doc)
 
 
@@ -2004,6 +2022,49 @@ async def _generate_recipe_image(recipe_title: str, description: str, tags=None,
     # Fallback
     emoji = _pick_emoji(recipe_title or '', tags or [], region or '')
     tint = FAMILY_TINTS[(hash(recipe_title or '') % len(FAMILY_TINTS))]
+    return _emoji_cover_svg(emoji, tint)
+
+
+async def _generate_story_image(story_title: str, excerpt: str, kind: str = 'story') -> Optional[str]:
+    """Generate a warm, nostalgic cover image for a family story or festival memory
+    using Gemini Nano Banana. Falls back to an emoji SVG cover if generation fails."""
+    is_festival = kind == 'festival'
+    style = (
+        "warm nostalgic vintage illustration in the style of a hand-painted "
+        "family photo album — soft golden hour lighting, sepia and terracotta "
+        "palette, gentle brushstrokes, cinematic composition, evocative and "
+        "emotional. No text, no watermark, no logos, square composition."
+    )
+    scene_hint = (
+        "an Indian festival scene with diyas, marigold flowers, rangoli, warm "
+        "candlelight and family gathering"
+        if is_festival else
+        "an intimate Indian family moment — a grandmother telling a story to "
+        "grandchildren, a kitchen or courtyard setting, generational warmth"
+    )
+    prompt = (
+        f'A {style} depicting {scene_hint}. Title: "{story_title}". '
+        f'Story context: {excerpt[:300]}'
+    )
+    try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage
+        chat = LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            session_id=f'story-img-{uuid.uuid4()}',
+            system_message='You are a family-portrait illustrator producing warm, nostalgic images.',
+        )
+        chat.with_model('gemini', 'gemini-3.1-flash-image-preview').with_params(modalities=['image', 'text'])
+        _text, images = await chat.send_message_multimodal_response(UserMessage(text=prompt))
+        if images:
+            first = images[0]
+            mime = first.get('mime_type', 'image/png')
+            data = first.get('data', '')
+            if data:
+                return f"data:{mime};base64,{data}"
+    except Exception:
+        logger.exception('Story image generation failed; falling back to emoji cover')
+    emoji = '🪔' if is_festival else '📖'
+    tint = FAMILY_TINTS[(hash(story_title or '') % len(FAMILY_TINTS))]
     return _emoji_cover_svg(emoji, tint)
 
 

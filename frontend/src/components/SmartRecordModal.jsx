@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { X, Mic, Square, Loader2, Sparkles, ChefHat, BookOpen, PartyPopper, Share2 } from 'lucide-react';
+import { X, Mic, Square, Loader2, Sparkles, ChefHat, BookOpen, PartyPopper, Share2, ImagePlus } from 'lucide-react';
 import api from '../api';
 import { useToast } from '../hooks/use-toast';
 
@@ -197,7 +197,15 @@ export default function SmartRecordModal({ onClose, familyId, onSaved }) {
           {step === 'done' && result?.item && (
             <div>
               {result.item.cover && (
-                <img src={result.item.cover} alt="cover" className="w-full aspect-video object-cover rounded-xl mb-3" />
+                <div className="relative">
+                  <img src={result.item.cover} alt="cover" className="w-full aspect-video object-cover rounded-xl mb-3" />
+                  {kind !== 'recipe' && (
+                    <StoryCoverSwap
+                      story={result.item}
+                      onUpdated={(u) => setResult(prev => ({ ...prev, item: u }))}
+                    />
+                  )}
+                </div>
               )}
               <h4 className="font-serif-display text-[24px] font-semibold text-neutral-900">{result.item.title}</h4>
               {kind === 'recipe' && (
@@ -240,3 +248,56 @@ export default function SmartRecordModal({ onClose, familyId, onSaved }) {
     </div>
   );
 }
+
+// A small "Change photo" affordance shown over the AI-generated cover on the
+// story/festival success screen. Lets the user upload their own family photo;
+// falls back silently to the generated cover if they skip.
+function StoryCoverSwap({ story, onUpdated }) {
+  const [uploading, setUploading] = useState(false);
+  const { toast } = useToast();
+
+  const pick = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      if (file.size > 5 * 1024 * 1024) {
+        toast({ title: 'Photo too large', description: 'Please pick a file under 5 MB.' });
+        return;
+      }
+      setUploading(true);
+      try {
+        const dataUrl = await new Promise((res, rej) => {
+          const r = new FileReader();
+          r.onload = () => res(r.result);
+          r.onerror = () => rej(r.error);
+          r.readAsDataURL(file);
+        });
+        const updated = await api.updateStory(story.id, { cover: dataUrl });
+        onUpdated && onUpdated(updated);
+        toast({ title: 'Photo updated!' });
+      } catch (err) {
+        toast({ title: 'Upload failed', description: err?.response?.data?.detail || err?.message });
+      } finally {
+        setUploading(false);
+      }
+    };
+    input.click();
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={pick}
+      disabled={uploading}
+      data-testid="story-cover-swap"
+      className="absolute bottom-4 right-3 inline-flex items-center gap-1.5 bg-white/95 backdrop-blur px-3 py-1.5 rounded-full text-[12px] font-medium text-neutral-900 shadow-lg hover:bg-white transition-colors disabled:opacity-70"
+    >
+      {uploading ? <Loader2 size={13} className="animate-spin" /> : <ImagePlus size={13} />}
+      {uploading ? 'Uploading…' : 'Use your own photo'}
+    </button>
+  );
+}
+

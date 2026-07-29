@@ -6,21 +6,8 @@ import { currentUser } from '../../mock';
 import api from '../../api';
 import { useToast } from '../../hooks/use-toast';
 import {
-  User as UserIcon, Users, Languages, Bell, Shield, CreditCard, LogOut, Pencil, Check, X, Loader2,
+  User as UserIcon, Users, Bell, Shield, CreditCard, LogOut, Pencil, Check, X, Loader2,
 } from 'lucide-react';
-
-const LANGUAGES = [
-  { code: 'en-IN', label: 'English (India)' },
-  { code: 'hi-IN', label: 'Hindi (हिन्दी)' },
-  { code: 'ta-IN', label: 'Tamil (தமிழ்)' },
-  { code: 'te-IN', label: 'Telugu (తెలుగు)' },
-  { code: 'kn-IN', label: 'Kannada (ಕನ್ನಡ)' },
-  { code: 'ml-IN', label: 'Malayalam (മലയാളം)' },
-  { code: 'mr-IN', label: 'Marathi (मराठी)' },
-  { code: 'bn-IN', label: 'Bengali (বাংলা)' },
-  { code: 'gu-IN', label: 'Gujarati (ગુજરાતી)' },
-  { code: 'pa-IN', label: 'Punjabi (ਪੰਜਾਬੀ)' },
-];
 
 function pickAvatar(user) {
   if (user?.picture) return user.picture;
@@ -62,7 +49,6 @@ export default function SettingsPage() {
   const isSignedIn = !!me;
   const displayName = me?.name || 'Guest';
   const displayEmail = me?.email || 'You are browsing as a guest';
-  const activeLang = me?.language || localStorage.getItem('cuminjar_language') || 'en-IN';
 
   const saveName = async () => {
     if (!nameDraft.trim()) { toast({ title: 'Name cannot be empty' }); return; }
@@ -88,18 +74,6 @@ export default function SettingsPage() {
       setMe(u); setCachedAuthUser(u);
     } catch (err) {
       toast({ title: 'Could not save preference', description: err?.response?.data?.detail || err?.message });
-    }
-  };
-
-  const saveLanguage = async (code) => {
-    try { localStorage.setItem('cuminjar_language', code); } catch { /* ignore */ }
-    if (!isSignedIn) return;
-    try {
-      const u = await api.authUpdateMe({ language: code });
-      setMe(u); setCachedAuthUser(u);
-      toast({ title: 'Language updated' });
-    } catch (err) {
-      toast({ title: 'Could not update language', description: err?.response?.data?.detail || err?.message });
     }
   };
 
@@ -213,23 +187,6 @@ export default function SettingsPage() {
                 ))}
               </ul>
             )}
-          </section>
-
-          {/* Language */}
-          <section className="bg-white rounded-2xl border border-neutral-200/70 p-6" data-testid="settings-language">
-            <div className="flex items-center gap-2">
-              <Languages size={16} className="text-neutral-500" />
-              <h2 className="font-semibold text-neutral-900">Language</h2>
-            </div>
-            <p className="text-[12.5px] text-neutral-500 mt-1">The language we use to translate and structure your recordings.</p>
-            <select
-              value={activeLang}
-              onChange={(e) => saveLanguage(e.target.value)}
-              data-testid="settings-language-select"
-              className="mt-3 w-full sm:w-72 border border-neutral-200 rounded-lg px-3 py-2.5 text-[14px] bg-white focus:outline-none focus:border-cumin-green"
-            >
-              {LANGUAGES.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
-            </select>
           </section>
 
           {/* Notifications */}

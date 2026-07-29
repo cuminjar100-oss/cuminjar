@@ -189,7 +189,7 @@ export default function Landing() {
                 hear the original recording — Paati&rsquo;s voice reading the recipe herself, Nani telling the story in
                 the language she grew up with. English for the young ones, voice for the soul.
                 <span className="block mt-2 text-[13.5px] text-neutral-500 italic">
-                  Applicable when your family collects more than 40 recipes and stories.
+                  Once your jar holds 30 recipes and stories, you can order your heirloom family book.
                 </span>
               </p>
 

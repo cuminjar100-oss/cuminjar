@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 import { UserPlus, Mic, Sparkles, BookHeart, ArrowRight, CheckCircle2, QrCode, BookOpen, Volume2, Bookmark } from 'lucide-react';
 
 const steps = [
-  { n: 1, icon: UserPlus, title: 'Create Your Family Space', desc: 'Sign up and set up a private family group. Add your family’s story, choose your primary language, and add a cover photo.', tint: 'bg-[#E4DEF4]', ic: 'text-[#7A6FB0]' },
+  { n: 1, icon: UserPlus, title: 'Create Your Family Space', desc: 'Sign up and step straight into your private family jar — pre-set with your name. Invite grandparents, parents, siblings.', tint: 'bg-[#E4DEF4]', ic: 'text-[#7A6FB0]' },
   { n: 2, icon: Mic, title: 'Record & Share Voice Memories', desc: 'Elders record recipes and stories in their own voice using the app. No typing needed — just talk naturally.', tint: 'bg-[#FBE3D2]', ic: 'text-terracotta' },
   { n: 3, icon: Sparkles, title: 'AI Works Its Magic', desc: 'Our AI transcribes, structures ingredients, steps and timings into beautifully formatted recipe cards. Translation is available if needed.', tint: 'bg-[#DFEAD8]', ic: 'text-[#5D7A4E]' },
   { n: 4, icon: BookHeart, title: 'Print & Preserve as a Hardbound Book', desc: 'Choose your favourite recipes and stories. We hardbind them into a beautiful heirloom book — with a QR code on every page. Scan any page to hear the recipe or story in your loved one’s voice. Read the book. Hear their voice. Preserve both, forever.', tint: 'bg-[#F7D9DA]', ic: 'text-[#C25264]', showBookVisual: true }
