@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import './App.css';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import ScrollToTop from './components/ScrollToTop';
@@ -29,6 +29,21 @@ import { Toaster } from './components/ui/toaster';
 // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
 function AppRoutes() {
   const location = useLocation();
+
+  // Fire a Google Analytics page_view on every SPA route change. gtag's
+  // auto-tracking only sees the initial page load; React Router transitions
+  // are invisible to it, so we emit manually. Guarded so it's a no-op if
+  // gtag failed to load (adblockers, offline, etc.).
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.gtag !== 'function') return;
+    const page_path = location.pathname + location.search;
+    window.gtag('event', 'page_view', {
+      page_path,
+      page_location: window.location.href,
+      page_title: document.title,
+    });
+  }, [location.pathname, location.search]);
+
   // Detect Emergent OAuth callback SYNCHRONOUSLY during render — before routes run
   if ((location.hash || '').includes('session_id=')) {
     return <AuthCallback />;

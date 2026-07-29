@@ -6,6 +6,19 @@
         <meta name="theme-color" content="#3D5A3A" />
         <meta name="description" content="Family Recipes and Traditions. Preserved Forever. Record your loved ones. AI transcribes their voice recipes and stories into beautiful keepsakes that live on for generations." />
 
+        <!-- Google Analytics 4 (async — measurement ID G-DN3BD3CRN4).
+             `send_page_view: false` because we fire manual page_view events
+             from App.js on React Router location changes (SPA nav is invisible
+             to gtag's default auto-tracking). -->
+        <script async src="https://www.googletagmanager.com/gtag/js?id=G-DN3BD3CRN4"></script>
+        <script>
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'G-DN3BD3CRN4', { send_page_view: false });
+          window.gtag = gtag;
+        </script>
+
         <!-- Icons -->
         <link rel="icon" type="image/png" sizes="32x32" href="%PUBLIC_URL%/favicon-32.png" />
         <link rel="icon" type="image/png" sizes="512x512" href="%PUBLIC_URL%/favicon.png" />
