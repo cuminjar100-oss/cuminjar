@@ -119,6 +119,56 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* Progress streak card — motivating momentum toward heirloom book */}
+        {(() => {
+          const total = recipes.length + stories.length;
+          if (total === 0) return null;
+          const goal = 30;
+          const isUnlocked = total >= goal;
+          const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+          const withinWeek = (item) => {
+            const t = item?.created_at ? new Date(item.created_at).getTime() : 0;
+            return Number.isFinite(t) && t >= oneWeekAgo;
+          };
+          const weekCount = recipes.filter(withinWeek).length + stories.filter(withinWeek).length;
+          const remaining = Math.max(0, goal - total);
+          const pct = Math.min(100, Math.round((total / goal) * 100));
+          return (
+            <div
+              className="mt-4 lg:mt-5 bg-gradient-to-br from-[#F0EDE4] to-white border border-[#E7E0CE] rounded-2xl p-4 lg:p-5 flex items-center gap-4"
+              data-testid="progress-streak-card"
+            >
+              <div className="w-11 h-11 lg:w-12 lg:h-12 rounded-full bg-cumin-green/10 text-cumin-green flex items-center justify-center flex-shrink-0">
+                <Sparkles size={20} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-baseline justify-between gap-2">
+                  <p className="text-[13px] lg:text-[14.5px] font-semibold text-neutral-900" data-testid="streak-weekly-count">
+                    {isUnlocked
+                      ? '🎉 Your heirloom book is ready to order!'
+                      : weekCount > 0
+                        ? `You saved ${weekCount} ${weekCount === 1 ? 'memory' : 'memories'} this week`
+                        : `${total} ${total === 1 ? 'memory' : 'memories'} saved so far`}
+                  </p>
+                  <span className="text-[11px] font-medium text-neutral-500 whitespace-nowrap">{total} / {goal}</span>
+                </div>
+                <p className="text-[12px] lg:text-[12.5px] text-neutral-600 mt-0.5" data-testid="streak-remaining-copy">
+                  {isUnlocked
+                    ? 'Preview your family book from the Heirloom Book card below.'
+                    : `${remaining} more to unlock your heirloom book!`}
+                </p>
+                <div className="mt-2 h-1.5 bg-neutral-200/70 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-terracotta to-cumin-green rounded-full transition-[width] duration-500 ease-out"
+                    style={{ width: `${pct}%` }}
+                    data-testid="streak-progress-bar"
+                  />
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Hardbound book highlight */}
         <div className="mt-4 lg:mt-5 bg-gradient-to-br from-[#F5EBDA] to-[#F7DFCE] rounded-2xl p-4 lg:p-6 flex gap-4 items-center">
           <div className="w-14 h-14 lg:w-20 lg:h-20 rounded-xl bg-white/60 flex items-center justify-center flex-shrink-0 text-3xl lg:text-4xl">📕</div>
