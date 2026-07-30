@@ -2024,15 +2024,16 @@ async def submit_recipe_request(
             import resend as _resend
             _resend.api_key = os.environ.get('RESEND_API_KEY')
             first = (requester.get('name') or 'Friend').split(' ')[0]
+            responder_label = doc.get('target_name') or 'A family friend'
             _resend.Emails.send({
                 'from': os.environ.get('RESEND_FROM_EMAIL', 'CuminJar <hello@cuminjar.com>'),
                 'to': [requester['email']],
-                'subject': f"🫙 {doc['target_name']} just recorded {title} for you",
+                'subject': f"🫙 {responder_label} just recorded {title} for you",
                 'html': (
                     f"<div style=\"font-family: Georgia, serif; max-width: 560px; margin: 0 auto; color: #2a2620;\">"
                     f"<h2 style=\"color: #B45C3B;\">A new recipe just landed in your jar</h2>"
                     f"<p>Dear {first},</p>"
-                    f"<p><b>{doc['target_name']}</b> just recorded <b>{title}</b> for you on CuminJar. It\u2019s already saved to your family jar with their voice, waiting for you.</p>"
+                    f"<p><b>{responder_label}</b> just recorded <b>{title}</b> for you on CuminJar. It\u2019s already saved to your family jar with their voice, waiting for you.</p>"
                     f"<p><a href=\"https://cuminjar.com/app/recipes\" style=\"display:inline-block;background:#3D5637;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;\">Open your family jar</a></p>"
                     f"</div>"
                 ),
