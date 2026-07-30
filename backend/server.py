@@ -1861,14 +1861,17 @@ async def razorpay_webhook(request: Request):
 
 
 class RecipeRequestIn(BaseModel):
-    target_name: str
-    target_phone: Optional[str] = None
     dish_name: str
+    target_name: Optional[str] = None
+    target_phone: Optional[str] = None
 
 
 @api.post('/recipe-requests')
 async def create_recipe_request(payload: RecipeRequestIn):
-    """Create a recipe request and return the shareable wa.me link."""
+    """Create a recipe request and return the shareable wa.me link.
+    Only dish_name is required. If the user leaves target_name/phone blank,
+    the message stays generic and WhatsApp's own contact picker prompts them
+    on the next screen (best UX on both mobile & desktop)."""
     uid = current_uid.get()
     fam_id = await _resolve_active_family_id(None)
     requester = await db.users.find_one({'id': uid}) if uid and uid != DEMO_USER_ID else None
@@ -1881,7 +1884,7 @@ async def create_recipe_request(payload: RecipeRequestIn):
         'user_id': uid,
         'family_id': fam_id,
         'requester_name': requester_name,
-        'target_name': payload.target_name.strip(),
+        'target_name': (payload.target_name or '').strip(),
         'target_phone': (payload.target_phone or '').strip(),
         'dish_name': payload.dish_name.strip(),
         'status': 'pending',
@@ -1893,15 +1896,14 @@ async def create_recipe_request(payload: RecipeRequestIn):
     base = APP_BASE_URL.rstrip('/')
     record_url = f'{base}/record/{token}'
     first = requester_name.split(' ')[0] if requester_name else 'A family member'
+    greeting = f"Hi {payload.target_name}!" if payload.target_name else "Hi!"
     msg = (
-        f"Hi {payload.target_name}! {first} loves your {payload.dish_name} and would love to save your recipe forever on CuminJar 🫙\n\n"
+        f"{greeting} {first} would love to save your {payload.dish_name} recipe forever on CuminJar 🫙\n\n"
         f"Just tap this link and record it in your voice — CuminJar does the rest.\n"
         f"{record_url}"
     )
-    # Build wa.me link. Strip any leading + / spaces from phone; wa.me wants
-    # a bare E.164-style digit string. Skip the phone segment entirely if the
-    # user did not enter one — recipient can still receive the message via a
-    # generic Web Share sheet.
+    # When phone is omitted, wa.me/?text=... opens WhatsApp with the contact
+    # picker on the next screen — user picks the recipient inside WhatsApp.
     digits = ''.join(ch for ch in (payload.target_phone or '') if ch.isdigit())
     wa_link = f'https://wa.me/{digits}?text={_urlencode(msg)}' if digits else f'https://wa.me/?text={_urlencode(msg)}'
     return {
@@ -1981,7 +1983,7 @@ async def submit_recipe_request(
             'user_id': doc['user_id'],
             'family_id': doc.get('family_id'),
             'title': title,
-            'author': doc['target_name'],
+            'author': doc.get('target_name') or 'Family friend',
             'region': structured.get('region', 'Other'),
             'serves': structured.get('servings', '4'),
             'time': f"{structured.get('time_minutes', 30)} min",
