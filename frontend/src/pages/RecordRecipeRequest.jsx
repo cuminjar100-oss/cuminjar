@@ -97,13 +97,13 @@ export default function RecordRecipeRequest() {
         {/* Header */}
         <div className="bg-[#F7EFE1] px-6 py-8 text-center">
           <div className="w-14 h-14 rounded-2xl bg-white mx-auto flex items-center justify-center text-2xl">🫙</div>
-          <p className="mt-4 text-[11px] tracking-[0.14em] text-terracotta font-semibold uppercase">A recipe request</p>
+          <p className="mt-4 text-[11px] tracking-[0.14em] text-terracotta font-semibold uppercase">A voice note request</p>
           {meta ? (
             <>
               <h1 className="mt-1 font-serif-display text-[26px] font-semibold text-neutral-900 leading-snug">
-                <b>{meta.requester_name}</b> loves your <span className="text-terracotta italic">{meta.dish_name}</span>
+                <b>{meta.requester_name}</b> wants your <span className="text-terracotta italic">{meta.dish_name}</span> notes
               </h1>
-              <p className="mt-2 text-[13.5px] text-neutral-600">and would love to save it forever on CuminJar.</p>
+              <p className="mt-2 text-[13.5px] text-neutral-600">A recipe, a story, a tradition &mdash; whatever it is, they want to save it forever.</p>
             </>
           ) : (
             <div className="mt-4"><Loader2 className="animate-spin text-neutral-400 mx-auto" size={20} /></div>
@@ -129,7 +129,7 @@ export default function RecordRecipeRequest() {
               <div className="w-14 h-14 rounded-full bg-[#DFEAD8] text-cumin-green flex items-center justify-center mx-auto"><CheckCircle2 size={24} /></div>
               <p className="mt-3 font-medium text-neutral-900 text-[16px]">Thank you 💛</p>
               <p className="text-[13.5px] text-neutral-600 mt-1 leading-relaxed">
-                Your recipe is now safely in {meta?.requester_name || 'their'} family jar &mdash; with your voice, forever.
+                Your voice note is now safely in {meta?.requester_name || 'their'} family jar &mdash; forever.
               </p>
             </div>
           )}
@@ -137,7 +137,7 @@ export default function RecordRecipeRequest() {
           {phase === 'ready' && (
             <>
               <p className="text-[14px] text-neutral-700 text-center leading-relaxed">
-                Tap the mic and describe your recipe just like you&rsquo;d tell {meta?.requester_name || 'them'} &mdash; ingredients, steps, little tricks. Any language works.
+                Tap the mic and share it just like you&rsquo;d tell {meta?.requester_name || 'them'} &mdash; in any language. CuminJar handles the rest.
               </p>
               <button
                 type="button"
@@ -145,7 +145,7 @@ export default function RecordRecipeRequest() {
                 data-testid="record-start"
                 className="mt-6 w-full flex items-center justify-center gap-2 bg-terracotta text-white py-4 rounded-2xl font-medium hover:bg-[#A85736] transition-colors text-[15.5px]"
               >
-                <Mic size={18} /> Hold to record your recipe
+                <Mic size={18} /> Hold to record
               </button>
               <p className="mt-4 text-center text-[11.5px] text-neutral-500">Recording is private. Only {meta?.requester_name || 'the person who invited you'} can see it.</p>
             </>
@@ -197,7 +197,7 @@ export default function RecordRecipeRequest() {
           {phase === 'uploading' && (
             <div className="text-center py-6">
               <Loader2 className="animate-spin text-cumin-green mx-auto" size={26} />
-              <p className="mt-3 text-[14px] text-neutral-800">Saving your recipe…</p>
+              <p className="mt-3 text-[14px] text-neutral-800">Saving your voice note…</p>
               <p className="text-[12px] text-neutral-500 mt-1">Transcribing + structuring. Takes about 20 seconds.</p>
             </div>
           )}

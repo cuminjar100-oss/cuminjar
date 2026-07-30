@@ -50,21 +50,21 @@ export default function RequestRecipeModal({ onClose }) {
 
         <form onSubmit={submit} className="p-5 space-y-5">
           <p className="text-[13.5px] text-neutral-600 leading-relaxed">
-            Just tell us the dish. We&rsquo;ll open WhatsApp with the message ready &mdash; you pick the person inside WhatsApp.
+            Ask family for a recipe, a story, or a tradition &mdash; anything you want to save forever.
           </p>
 
           <div>
-            <label className="text-[12.5px] font-medium text-neutral-700">Which recipe do you want?</label>
+            <label className="text-[12.5px] font-medium text-neutral-700">What do you want a recording of?</label>
             <input
               required
               autoFocus
               value={dishName}
               onChange={e => setDishName(e.target.value.slice(0, 60))}
-              placeholder="e.g., biriyani, morkuzhambu, rasam"
+              placeholder="e.g., biriyani, our Diwali ritual, our love story"
               data-testid="request-dish-name"
               className="mt-1 w-full border border-neutral-200 rounded-lg px-3 py-3.5 text-[16px] focus:outline-none focus:border-cumin-green"
             />
-            <p className="text-[11.5px] text-neutral-500 mt-1">The recorded recipe will land in your family jar automatically.</p>
+            <p className="text-[11.5px] text-neutral-500 mt-1">The voice note lands in your family jar automatically.</p>
           </div>
 
           <button
