@@ -20,11 +20,11 @@ export default function FirstRunEmptyState({ userName, onRecord, onInvite }) {
         </div>
         <p className="mt-4 text-[11px] font-semibold tracking-[0.18em] text-terracotta uppercase">Welcome to CuminJar</p>
         <h2 className="mt-1 font-serif-display text-[28px] sm:text-[36px] font-semibold text-neutral-900 leading-tight">
-          Hi {firstName} — your family jar is ready.
+          Hi {firstName} — save your first recipe.
         </h2>
         <p className="mt-3 text-neutral-700 max-w-xl mx-auto text-[14.5px] leading-relaxed">
-          We&rsquo;ve set up <b>{firstName}&rsquo;s Family</b> for you. Just tap Record and start talking — a recipe, a story,
-          or a festival memory. We&rsquo;ll transcribe, translate and preserve it forever.
+          Your <b>{firstName}&rsquo;s Family</b> jar is empty and waiting. Just tap Record and start talking — a recipe,
+          a story, or a festival memory. We&rsquo;ll transcribe, translate and preserve it forever.
         </p>
 
         <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3 max-w-md mx-auto">
@@ -32,9 +32,9 @@ export default function FirstRunEmptyState({ userName, onRecord, onInvite }) {
             type="button"
             onClick={onRecord}
             data-testid="first-run-record"
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-terracotta text-white px-6 py-3 rounded-lg font-medium hover:bg-[#A85736] transition-colors text-[14.5px]"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-terracotta text-white px-6 py-3 rounded-lg font-medium hover:bg-[#A85736] transition-colors text-[14.5px] shadow-sm"
           >
-            <Mic size={16} /> Tap to record
+            <Mic size={16} /> Save your first recipe
           </button>
           {onInvite && (
             <button

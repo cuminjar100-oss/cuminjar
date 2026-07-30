@@ -65,7 +65,7 @@ export default function Dashboard() {
     else if (r?.item) setStories(prev => [r.item, ...prev]);
   };
 
-  const isFirstRun = !!authUser && !loading && !authLoading && families.length === 0 && recipes.length === 0 && stories.length === 0;
+  const isFirstRun = !!authUser && !loading && !authLoading && recipes.length === 0 && stories.length === 0;
   const isBootstrapping = authLoading || loading;
 
   return (
