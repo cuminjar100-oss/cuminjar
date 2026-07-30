@@ -23,7 +23,7 @@ const FAQ_ITEMS = [
   },
   {
     q: 'What languages does CuminJar understand?',
-    a: 'English, Hindi, Tamil, Telugu, Kannada, Malayalam, Marathi, Bengali, Gujarati, Punjabi — plus code-mixed conversations (like Tamil-English "tanglish"). Powered by Sarvam AI\u2019s Indic speech engine.',
+    a: 'English, Hindi, Tamil, Telugu, Kannada, Malayalam, Marathi, Bengali, Gujarati, Punjabi — plus code-mixed conversations (like Tamil-English "tanglish"). Powered by our proprietary Indic speech engine.',
   },
   {
     q: 'Who can see my family\u2019s recipes and stories?',
