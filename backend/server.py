@@ -2580,10 +2580,18 @@ async def delete_voice_recipe(vid: str):
 
 # --------------------- App wiring ---------------------
 app.include_router(api)
+# Explicit CORS whitelist — required for cookie-based auth (SameSite=None; Secure).
+# Browsers reject Access-Control-Allow-Origin: * when credentials are involved.
+# Regex covers Emergent preview subdomains (e.g. ui-template-build.preview.emergentagent.com).
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
-    allow_origins=["*"],
+    allow_origins=[
+        "https://cuminjar.com",
+        "https://www.cuminjar.com",
+        "http://localhost:3000",
+    ],
+    allow_origin_regex=r"https://.*\.preview\.emergentagent\.com",
     allow_methods=["*"],
     allow_headers=["*"],
 )

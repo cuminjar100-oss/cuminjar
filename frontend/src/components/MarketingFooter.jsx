@@ -37,6 +37,7 @@ export default function MarketingFooter() {
           <h4 className="font-semibold text-neutral-900 mb-4">Company</h4>
           <ul className="space-y-2 text-[14px] text-neutral-600">
             <li><Link to="/about" className="hover:text-cumin-green">About us</Link></li>
+            <li><Link to="/faq" className="hover:text-cumin-green" data-testid="footer-faq-link">FAQ</Link></li>
             <li><Link to="/contact" className="hover:text-cumin-green">Contact</Link></li>
           </ul>
         </div>
