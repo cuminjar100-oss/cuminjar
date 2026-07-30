@@ -126,6 +126,7 @@ export default function Dashboard() {
             <p className="text-[10px] font-semibold text-terracotta tracking-[0.15em] uppercase">Heirloom Book</p>
             <h3 className="font-serif-display text-[16px] lg:text-[20px] font-semibold text-neutral-900 leading-tight mt-0.5">Print your best memories as a hardbound family book</h3>
             <p className="text-[12px] lg:text-[13.5px] text-neutral-700 mt-1 leading-snug">Every page has a QR code — scan it and hear your loved one’s voice reading the recipe or story to you. English on paper, their voice forever.</p>
+            <p className="text-[10.5px] lg:text-[11px] text-neutral-500 mt-1.5 italic leading-snug" data-testid="heirloom-book-eligibility">Unlocked once your jar has 30 entries.</p>
           </div>
         </div>
 
