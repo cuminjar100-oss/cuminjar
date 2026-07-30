@@ -130,26 +130,46 @@ export default function Landing() {
             </div>
           </div>
 
-          {/* Image */}
+          {/* 4-step process flow — replaces the previous book photo */}
           <div className="order-1 lg:order-2 relative">
             <div className="absolute -inset-6 bg-[#F3E7D3] rounded-[42px] -z-0" aria-hidden="true" />
-            <img
-              loading="lazy"
-              decoding="async"
-              src="/legacy-book-recipe.jpg"
-              alt="An open hardbound CuminJar family book showing Paati's Morkuzhambu recipe printed in English with a QR code beside it that plays her original voice recording"
-              className="relative z-10 rounded-3xl w-full h-[380px] sm:h-[440px] object-cover shadow-xl"
-              data-testid="easiest-way-book-image"
-            />
-            {/* Small floating QR-callout badge */}
-            <div className="hidden sm:flex absolute -bottom-5 -left-5 z-20 items-center gap-3 bg-white/95 backdrop-blur px-4 py-3 rounded-2xl shadow-lg border border-neutral-200/70 max-w-[240px]">
-              <div className="w-10 h-10 rounded-lg bg-neutral-900 text-white flex items-center justify-center text-[10px] font-mono tracking-tighter" aria-hidden="true">
-                <span>[QR]</span>
-              </div>
-              <div className="text-left">
-                <p className="text-[12px] font-semibold text-neutral-900 leading-tight">Scan and hear Paati</p>
-                <p className="text-[11px] text-neutral-500 leading-tight mt-0.5">Every page. Every voice. Every language.</p>
-              </div>
+            <div className="relative z-10 bg-white rounded-3xl p-6 sm:p-7 shadow-xl border border-neutral-200/70" data-testid="easiest-way-flow">
+              <p className="text-[10.5px] font-semibold tracking-[0.22em] text-terracotta uppercase text-center">How it flows</p>
+
+              <ol className="mt-5 space-y-4">
+                <ProcessStep
+                  n={1}
+                  color="#7A6FB0"
+                  bg="#E4DEF4"
+                  title="Create your family jar"
+                  desc="Sign up in 30 seconds. Your jar is instantly ready."
+                  emoji="👤"
+                />
+                <ProcessStep
+                  n={2}
+                  color="#128C7E"
+                  bg="#DFF5E1"
+                  title="Ask family on WhatsApp"
+                  desc="Type the dish. We open WhatsApp with a warm message."
+                  emoji="💬"
+                />
+                <ProcessStep
+                  n={3}
+                  color="#B45C3B"
+                  bg="#F7DFCE"
+                  title="Grandma records a voice note"
+                  desc="She just taps the link and talks. No app to install."
+                  emoji="🎙️"
+                />
+                <ProcessStep
+                  n={4}
+                  color="#3D5637"
+                  bg="#DFEAD8"
+                  title="CuminJar saves it — forever"
+                  desc="Voice, ingredients, steps, cover art. In your jar in seconds."
+                  emoji="🫙"
+                />
+              </ol>
             </div>
           </div>
         </div>
@@ -385,3 +405,33 @@ function PhoneMockup({ image }) {
     </div>
   );
 }
+
+// Single row of the "How it flows" 4-step process visual. Colored tile with
+// emoji + numbered step chip + title + one-line desc. Kept as a small local
+// component (not a named export) so it stays close to the section using it.
+function ProcessStep({ n, color, bg, title, desc, emoji }) {
+  return (
+    <li className="flex items-center gap-4">
+      <div
+        className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center text-2xl sm:text-3xl shrink-0 shadow-sm"
+        style={{ backgroundColor: bg }}
+        aria-hidden="true"
+      >
+        {emoji}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <span
+            className="inline-flex items-center justify-center text-[10px] font-bold w-5 h-5 rounded-full text-white"
+            style={{ backgroundColor: color }}
+          >
+            {n}
+          </span>
+          <p className="font-semibold text-neutral-900 text-[14.5px] leading-tight">{title}</p>
+        </div>
+        <p className="mt-1 text-[12.5px] text-neutral-600 leading-snug">{desc}</p>
+      </div>
+    </li>
+  );
+}
+
