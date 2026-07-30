@@ -1899,7 +1899,7 @@ async def create_recipe_request(payload: RecipeRequestIn):
     greeting = f"Hey {payload.target_name}!" if payload.target_name else "Hey 👋"
     msg = (
         f"{greeting}\n\n"
-        f"Random ask — I\u2019m *obsessed* with your {payload.dish_name} 😋 and I want to save your recipe forever so my kids can make it one day too.\n\n"
+        f"Random ask — I\u2019m *obsessed* with your {payload.dish_name} 😋 and I want to save your recipe forever.\n\n"
         f"CuminJar is a little app that turns your voice into a proper recipe. No typing. No forms. Just talk 🎙️\n\n"
         f"Tap this and record for me? 🫙\n"
         f"{record_url}\n\n"
