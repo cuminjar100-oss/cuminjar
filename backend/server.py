@@ -1960,8 +1960,14 @@ async def submit_recipe_request(
     # jar (not the responder's, since responders don't have accounts).
     uid_token = current_uid.set(doc['user_id'])
     try:
-        transcription = await transcribe_media(audio_bytes, language_hint or 'unknown', audio.filename or 'note.ogg')
-        english = transcription.get('transcript', '')
+        transcription = await transcribe_media(
+            'audio',
+            audio_bytes,
+            audio.filename or 'note.ogg',
+            audio.content_type or 'audio/webm',
+            language_hint or 'unknown',
+        )
+        english = transcription.get('transcript_en') or transcription.get('transcript', '')
         if not english:
             raise HTTPException(422, 'We couldn\'t hear the recipe clearly — please try recording again.')
 
