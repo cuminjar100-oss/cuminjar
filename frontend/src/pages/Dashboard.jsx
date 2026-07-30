@@ -101,14 +101,14 @@ export default function Dashboard() {
           </button>
 
           {/* Secondary CTA — ask family to record on WhatsApp instead */}
-          <div className="mt-4 flex justify-center">
+          <div className="mt-5 flex justify-center">
             <button
               type="button"
               onClick={() => setShowRequest(true)}
               data-testid="request-whatsapp-cta"
-              className="inline-flex items-center gap-2 bg-white border border-neutral-200 hover:border-[#128C7E] text-neutral-800 hover:text-[#128C7E] transition-colors px-4 py-2 rounded-full text-[13px] font-medium"
+              className="inline-flex items-center gap-2.5 bg-white border-2 border-[#128C7E] text-[#128C7E] hover:bg-[#128C7E] hover:text-white transition-colors px-7 py-3.5 rounded-full text-[16px] font-semibold shadow-sm"
             >
-              <MessageCircle size={14} className="text-[#128C7E]" /> Ask family via WhatsApp
+              <MessageCircle size={20} /> Ask via WhatsApp
             </button>
           </div>
 
