@@ -17,6 +17,7 @@ const Pricing        = lazy(() => import('./pages/Pricing'));
 const About          = lazy(() => import('./pages/About'));
 const Terms          = lazy(() => import('./pages/Terms'));
 const Contact        = lazy(() => import('./pages/Contact'));
+const FAQ            = lazy(() => import('./pages/FAQ'));
 const Login          = lazy(() => import('./pages/Login'));
 const GetStarted     = lazy(() => import('./pages/GetStarted'));
 const Dashboard      = lazy(() => import('./pages/Dashboard'));
