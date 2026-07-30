@@ -121,12 +121,13 @@ export default function Landing() {
               >
                 Start preserving free
               </Link>
-              <Link
-                to="#legacy-book"
+              <a
+                href="#legacy-book"
+                data-testid="easiest-way-see-book"
                 className="text-[14px] font-medium text-cumin-green underline underline-offset-4 decoration-cumin-green/40 hover:decoration-cumin-green transition-colors"
               >
                 See how the book looks &rarr;
-              </Link>
+              </a>
             </div>
           </div>
 
