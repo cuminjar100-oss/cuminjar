@@ -1,5 +1,5 @@
 // Tiny synchronous cache for the signed-in user so the header/greeting never
-// flash the demo fallback ("Meera") between /app/* route changes. On successful
+// flash the demo fallback ("Sameera") between /app/* route changes. On successful
 // api.authMe() we write to localStorage; on mount, components hydrate from it
 // synchronously before triggering a background refresh.
 

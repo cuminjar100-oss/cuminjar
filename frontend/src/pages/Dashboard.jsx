@@ -89,7 +89,7 @@ export default function Dashboard() {
         {/* Compact welcome + big Record button */}
         <div className="bg-gradient-to-br from-[#F7DFCE]/70 to-[#F1E8D8] rounded-2xl p-4 lg:p-8 text-center">
           <h1 className="font-serif-display text-[22px] lg:text-[34px] font-semibold text-neutral-900 leading-tight" data-testid="dashboard-greeting">
-            Hi {((authUser?.name || 'Meera').trim().split(' ')[0]) || 'there'}! Preserve a memory today.
+            Hi {((authUser?.name || 'Sameera').trim().split(' ')[0]) || 'there'}! Preserve a memory today.
           </h1>
           <p className="mt-1 text-[13px] lg:text-[15px] text-neutral-700 max-w-md mx-auto">Tap Record and just talk. We do the rest.</p>
 

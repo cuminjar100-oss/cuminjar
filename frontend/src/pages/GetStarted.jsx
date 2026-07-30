@@ -162,7 +162,7 @@ export default function GetStarted() {
                 <span className="text-[13px] font-semibold text-neutral-800">Your Name</span>
                 <div className="relative mt-1.5">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" size={17} />
-                  <input data-testid="signup-name" type="text" required value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full bg-white border border-neutral-200 rounded-lg pl-10 pr-3 py-3 text-[14px] focus:outline-none focus:border-cumin-green focus:ring-2 focus:ring-cumin-green/10" placeholder="Meera Rao" />
+                  <input data-testid="signup-name" type="text" required value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full bg-white border border-neutral-200 rounded-lg pl-10 pr-3 py-3 text-[14px] focus:outline-none focus:border-cumin-green focus:ring-2 focus:ring-cumin-green/10" placeholder="Sameera Rao" />
                 </div>
               </label>
               <label className="block">

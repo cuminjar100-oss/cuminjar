@@ -127,7 +127,7 @@ export default function AppShell({ children, active, onOpenRecord }) {
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>
                   <div className="text-[13px] font-semibold text-neutral-900">{authUser?.name || currentUser.name}</div>
-                  <div className="text-[11.5px] text-neutral-500 font-normal">{authUser?.email || currentUser.email || 'meera.rao@family.com'}</div>
+                  <div className="text-[11.5px] text-neutral-500 font-normal">{authUser?.email || currentUser.email || 'sameera.rao@family.com'}</div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => navigate('/app/settings')} data-testid="user-menu-account">

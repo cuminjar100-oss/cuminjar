@@ -55,7 +55,7 @@ export default function Contact() {
               <div className="grid md:grid-cols-2 gap-4">
                 <label className="block">
                   <span className="text-[13px] font-semibold text-neutral-800">Your name</span>
-                  <input required value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="Meera Rao" className="mt-1.5 w-full border border-neutral-200 rounded-lg px-3 py-2.5 text-[14px] focus:outline-none focus:border-cumin-green focus:ring-2 focus:ring-cumin-green/10" />
+                  <input required value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="Sameera Rao" className="mt-1.5 w-full border border-neutral-200 rounded-lg px-3 py-2.5 text-[14px] focus:outline-none focus:border-cumin-green focus:ring-2 focus:ring-cumin-green/10" />
                 </label>
                 <label className="block">
                   <span className="text-[13px] font-semibold text-neutral-800">Email</span>

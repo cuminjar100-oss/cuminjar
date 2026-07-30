@@ -45,7 +45,7 @@ export const steps = [
 export const testimonials = [
   {
     id: 't1',
-    name: 'Meera R.',
+    name: 'Sameera R.',
     location: 'Bengaluru, India',
     quote: 'My grandmother\u2019s recipes are more than just cooking \u2014 they\u2019re our family\u2019s memories. CuminJar helped us save her voice forever.',
     avatar: 'https://images.unsplash.com/photo-1489278353717-f64c6ee8a4d2?w=200&auto=format&fit=crop&q=60'
@@ -55,14 +55,14 @@ export const testimonials = [
     name: 'Arjun K.',
     location: 'San Jose, USA',
     quote: 'Hearing Appa\u2019s voice in the recipe brings me right back home. This app is a blessing for every family.',
-    avatar: 'https://images.unsplash.com/photo-1662850886700-4ec19bd30d11?w=200&auto=format&fit=crop&q=60'
+    avatar: 'https://images.unsplash.com/photo-1595152772835-219674b2a8a6?w=200&auto=format&fit=crop&q=60'
   },
   {
     id: 't3',
     name: 'Priya S.',
     location: 'Toronto, Canada',
     quote: 'We live in different cities now, but our traditions stay alive. CuminJar keeps our culture close to our kids.',
-    avatar: 'https://images.pexels.com/photos/32995728/pexels-photo-32995728.jpeg?w=200&auto=format&fit=crop&q=60'
+    avatar: 'https://images.unsplash.com/photo-1592621385612-4d7129426394?w=200&auto=format&fit=crop&q=60'
   }
 ];
 
@@ -76,8 +76,8 @@ export const sidebarLinks = [
 ];
 
 export const currentUser = {
-  name: 'Meera R.',
-  firstName: 'Meera',
+  name: 'Sameera R.',
+  firstName: 'Sameera',
   avatar: 'https://images.unsplash.com/photo-1489278353717-f64c6ee8a4d2?w=100&auto=format&fit=crop&q=60'
 };
 

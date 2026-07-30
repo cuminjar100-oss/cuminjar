@@ -30,7 +30,7 @@ EMAIL_RE = re.compile(r'^[^\s@]+@[^\s@]+\.[^\s@]+$')
 
 # Per-request user context (set by AuthContextMiddleware from cookie or Bearer)
 current_uid: ContextVar[str] = ContextVar('current_uid', default='demo-user')
-current_user_name: ContextVar[str] = ContextVar('current_user_name', default='Meera R.')
+current_user_name: ContextVar[str] = ContextVar('current_user_name', default='Sameera R.')
 current_user_picture: ContextVar[Optional[str]] = ContextVar('current_user_picture', default=None)
 
 # MongoDB connection
@@ -48,9 +48,9 @@ APP_BASE_URL = os.environ.get('APP_BASE_URL', 'https://cuminjar.com')
 DEMO_USER_ID = 'demo-user'
 DEMO_USER = {
     'id': DEMO_USER_ID,
-    'name': 'Meera R.',
-    'firstName': 'Meera',
-    'email': 'meera.rao@family.com',
+    'name': 'Sameera R.',
+    'firstName': 'Sameera',
+    'email': 'sameera.rao@family.com',
     'avatar': 'https://images.unsplash.com/photo-1489278353717-f64c6ee8a4d2?w=100&auto=format&fit=crop&q=60',
     'plan': 'unlimited',
     'limits': {
@@ -184,7 +184,7 @@ async def _seed_if_empty():
             {'name': 'Lakshmi Paati', 'role': 'Grandmother', 'level': 0, 'avatar': avatars[2]},
             {'name': 'Suresh Rao', 'role': 'Father', 'level': 1, 'avatar': avatars[1]},
             {'name': 'Kavita Rao', 'role': 'Mother', 'level': 1, 'avatar': avatars[3]},
-            {'name': 'Meera R.', 'role': 'You', 'level': 2, 'avatar': avatars[2]},
+            {'name': 'Sameera R.', 'role': 'You', 'level': 2, 'avatar': avatars[2]},
             {'name': 'Arjun R.', 'role': 'Brother', 'level': 2, 'avatar': avatars[1]},
         ]
         for m in seed_tree:

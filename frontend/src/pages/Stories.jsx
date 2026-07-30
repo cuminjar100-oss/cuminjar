@@ -18,10 +18,10 @@ const stories = [
     id: 's1',
     image: '/stories/mother-daughter-boston.jpg',
     location: 'Bengaluru → Boston',
-    who: 'Meera, mother of Priya',
+    who: 'Sameera, mother of Priya',
     title: 'Sending idli batter across oceans.',
     body:
-      'Priya moved to Boston for grad school and missed her mother\'s idli. Meera now records the batter ratios, the resting time, and the little Kannada whispers of "wait, wait, let it puff up" — Priya presses play in her tiny Cambridge kitchen and cooks along. Sunday breakfast, seven thousand miles apart.',
+      'Priya moved to Boston for grad school and missed her mother\'s idli. Sameera now records the batter ratios, the resting time, and the little Kannada whispers of "wait, wait, let it puff up" — Priya presses play in her tiny Cambridge kitchen and cooks along. Sunday breakfast, seven thousand miles apart.',
   },
   {
     id: 's2',
