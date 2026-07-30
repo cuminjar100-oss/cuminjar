@@ -38,6 +38,11 @@ export const api = {
 
   createRazorpayOrder: () => http.post('/payments/razorpay/order').then(r => r.data),
   verifyRazorpayPayment: (body) => http.post('/payments/razorpay/verify', body).then(r => r.data),
+
+  createRecipeRequest: (body) => http.post('/recipe-requests', body).then(r => r.data),
+  listRecipeRequests: () => http.get('/recipe-requests').then(r => r.data),
+  getRecipeRequestPublic: (token) => http.get(`/public/recipe-request/${token}`).then(r => r.data),
+  submitRecipeRequest: (token, formData) => http.post(`/public/recipe-request/${token}/record`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data),
   regenerateRecipeCover: (id) => http.post(`/recipes/${id}/regenerate-cover`, {}, { timeout: 120000 }).then(r => r.data),
   deleteRecipe: (id) => http.delete(`/recipes/${id}`).then(r => r.data),
 

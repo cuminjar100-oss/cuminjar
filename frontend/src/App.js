@@ -30,6 +30,7 @@ const SettingsPage   = lazy(() => import('./pages/app/SettingsPage'));
 const NotificationsPage = lazy(() => import('./pages/app/NotificationsPage'));
 const PublicCookbook = lazy(() => import('./pages/PublicCookbook'));
 const JoinFamily     = lazy(() => import('./pages/JoinFamily'));
+const RecordRecipeRequest = lazy(() => import('./pages/RecordRecipeRequest'));
 
 function RouteFallback() {
   // Warm cream backdrop matching the app so lazy chunks never flash white.
@@ -87,6 +88,7 @@ function AppRoutes() {
         <Route path="/app/notifications" element={<NotificationsPage />} />
         <Route path="/cookbook/:token" element={<PublicCookbook />} />
         <Route path="/join/:token" element={<JoinFamily />} />
+        <Route path="/record/:token" element={<RecordRecipeRequest />} />
       </Routes>
     </Suspense>
   );

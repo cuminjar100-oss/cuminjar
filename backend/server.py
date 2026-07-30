@@ -287,6 +287,8 @@ async def delete_family(family_id: str):
 
 # --------------------- Public cookbook sharing ---------------------
 import secrets as _secrets
+from urllib.parse import quote as _urlencode
+import base64 as _b64_stdlib
 import hashlib as _hashlib
 import random as _random
 
@@ -1848,6 +1850,189 @@ async def razorpay_webhook(request: Request):
     if not _hmac.compare_digest(expected, received):
         raise HTTPException(400, 'Invalid webhook signature')
     return {'ok': True}
+
+
+# --------------------- Family Tree ---------------------
+# --- Recipe requests via WhatsApp deep link ---
+# Zero-cost path (no WhatsApp Business API): user shares a wa.me link that
+# opens WhatsApp with a pre-filled message. Recipient taps the /record/<token>
+# link and records their voice on the public page, which then flows through
+# the same Sarvam + Gemini pipeline as authenticated smart-record.
+
+
+class RecipeRequestIn(BaseModel):
+    target_name: str
+    target_phone: Optional[str] = None
+    dish_name: str
+
+
+@api.post('/recipe-requests')
+async def create_recipe_request(payload: RecipeRequestIn):
+    """Create a recipe request and return the shareable wa.me link."""
+    uid = current_uid.get()
+    fam_id = await _resolve_active_family_id(None)
+    requester = await db.users.find_one({'id': uid}) if uid and uid != DEMO_USER_ID else None
+    requester_name = (requester or {}).get('name') if requester else (current_user_name.get() or 'A family member')
+
+    token = _secrets.token_urlsafe(12)
+    doc = {
+        'id': str(uuid.uuid4()),
+        'token': token,
+        'user_id': uid,
+        'family_id': fam_id,
+        'requester_name': requester_name,
+        'target_name': payload.target_name.strip(),
+        'target_phone': (payload.target_phone or '').strip(),
+        'dish_name': payload.dish_name.strip(),
+        'status': 'pending',
+        'created_at': now_iso(),
+        'recipe_id': None,
+    }
+    await db.recipe_requests.insert_one(doc)
+
+    base = APP_BASE_URL.rstrip('/')
+    record_url = f'{base}/record/{token}'
+    first = requester_name.split(' ')[0] if requester_name else 'A family member'
+    msg = (
+        f"Hi {payload.target_name}! {first} loves your {payload.dish_name} and would love to save your recipe forever on CuminJar 🫙\n\n"
+        f"Just tap this link and record it in your voice — CuminJar does the rest.\n"
+        f"{record_url}"
+    )
+    # Build wa.me link. Strip any leading + / spaces from phone; wa.me wants
+    # a bare E.164-style digit string. Skip the phone segment entirely if the
+    # user did not enter one — recipient can still receive the message via a
+    # generic Web Share sheet.
+    digits = ''.join(ch for ch in (payload.target_phone or '') if ch.isdigit())
+    wa_link = f'https://wa.me/{digits}?text={_urlencode(msg)}' if digits else f'https://wa.me/?text={_urlencode(msg)}'
+    return {
+        'id': doc['id'],
+        'token': token,
+        'record_url': record_url,
+        'wa_link': wa_link,
+        'message_text': msg,
+    }
+
+
+@api.get('/recipe-requests')
+async def list_recipe_requests():
+    items = await db.recipe_requests.find({'user_id': current_uid.get()}).sort('created_at', -1).to_list(100)
+    return [_strip_id(i) for i in items]
+
+
+@api.get('/public/recipe-request/{token}')
+async def get_recipe_request_public(token: str):
+    """Public metadata rendered on /record/<token> so the target sees who
+    asked for what before they hit record. No auth."""
+    doc = await db.recipe_requests.find_one({'token': token})
+    if not doc:
+        raise HTTPException(404, 'This recipe request is no longer active.')
+    return {
+        'requester_name': doc.get('requester_name'),
+        'target_name': doc.get('target_name'),
+        'dish_name': doc.get('dish_name'),
+        'status': doc.get('status'),
+    }
+
+
+@api.post('/public/recipe-request/{token}/record')
+async def submit_recipe_request(
+    token: str,
+    audio: UploadFile = File(...),
+    language_hint: Optional[str] = Form(None),
+):
+    """Receive the voice note from the responder (unauthenticated public
+    page), transcribe + structure with the existing smart-record pipeline,
+    and save the resulting recipe to the requester's family jar."""
+    doc = await db.recipe_requests.find_one({'token': token})
+    if not doc:
+        raise HTTPException(404, 'This recipe request is no longer active.')
+    if doc.get('status') == 'completed':
+        raise HTTPException(409, 'This recipe has already been recorded — thank you!')
+
+    audio_bytes = await audio.read()
+    if not audio_bytes:
+        raise HTTPException(400, 'No audio received')
+
+    # Run through the shared voice → recipe pipeline. We temporarily hop
+    # into the requester's identity so the recipe lands in *their* family
+    # jar (not the responder's, since responders don't have accounts).
+    uid_token = current_uid.set(doc['user_id'])
+    try:
+        transcription = await transcribe_media(audio_bytes, language_hint or 'unknown', audio.filename or 'note.ogg')
+        english = transcription.get('transcript', '')
+        if not english:
+            raise HTTPException(422, 'We couldn\'t hear the recipe clearly — please try recording again.')
+
+        structured = await _gemini_structure_recipe(english) or {}
+        title = structured.get('title') or doc['dish_name'].title()
+        cover = None
+        try:
+            cover = await _generate_recipe_image(
+                title,
+                (english or '')[:250],
+                structured.get('tags', []),
+                structured.get('region', ''),
+            )
+        except Exception:
+            logger.exception('Cover generation failed for WhatsApp recipe')
+
+        recipe_doc = {
+            'id': str(uuid.uuid4()),
+            'user_id': doc['user_id'],
+            'family_id': doc.get('family_id'),
+            'title': title,
+            'author': doc['target_name'],
+            'region': structured.get('region', 'Other'),
+            'serves': structured.get('servings', '4'),
+            'time': f"{structured.get('time_minutes', 30)} min",
+            'tags': structured.get('tags', []) + ['WhatsApp'],
+            'ingredients': structured.get('ingredients', []),
+            'steps': structured.get('steps', []),
+            'cover': cover,
+            'transcript_en': english,
+            'source_kind': 'voice',
+            'source_language': transcription.get('language') or 'unknown',
+            'via': 'whatsapp_request',
+            'audio_src': f"data:{audio.content_type or 'audio/webm'};base64,{_b64_stdlib.b64encode(audio_bytes).decode('ascii')}",
+            'created_at': now_iso(),
+            'likes': 0,
+        }
+        await db.recipes.insert_one(recipe_doc)
+        await db.recipe_requests.update_one(
+            {'token': token},
+            {'$set': {
+                'status': 'completed',
+                'recipe_id': recipe_doc['id'],
+                'recorded_at': now_iso(),
+            }},
+        )
+    finally:
+        current_uid.reset(uid_token)
+
+    # Notify the requester via Resend (best-effort)
+    try:
+        requester = await db.users.find_one({'id': doc['user_id']}) or {}
+        if requester.get('email'):
+            import resend as _resend
+            _resend.api_key = os.environ.get('RESEND_API_KEY')
+            first = (requester.get('name') or 'Friend').split(' ')[0]
+            _resend.Emails.send({
+                'from': os.environ.get('RESEND_FROM_EMAIL', 'CuminJar <hello@cuminjar.com>'),
+                'to': [requester['email']],
+                'subject': f"🫙 {doc['target_name']} just recorded {title} for you",
+                'html': (
+                    f"<div style=\"font-family: Georgia, serif; max-width: 560px; margin: 0 auto; color: #2a2620;\">"
+                    f"<h2 style=\"color: #B45C3B;\">A new recipe just landed in your jar</h2>"
+                    f"<p>Dear {first},</p>"
+                    f"<p><b>{doc['target_name']}</b> just recorded <b>{title}</b> for you on CuminJar. It\u2019s already saved to your family jar with their voice, waiting for you.</p>"
+                    f"<p><a href=\"https://cuminjar.com/app/recipes\" style=\"display:inline-block;background:#3D5637;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;\">Open your family jar</a></p>"
+                    f"</div>"
+                ),
+            })
+    except Exception:
+        logger.exception('Recipe request notification email failed')
+
+    return {'ok': True, 'recipe_id': recipe_doc['id'], 'title': title}
 
 
 # --------------------- Family Tree ---------------------

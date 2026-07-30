@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import AppShell from '../components/AppShell';
-import { Users, Mic, Sparkles, Plus, Loader2, CheckCircle2, ChefHat, BookOpen, PartyPopper, Edit2, X, Link2, Copy, Check } from 'lucide-react';
+import { Users, Mic, Sparkles, Plus, Loader2, CheckCircle2, ChefHat, BookOpen, PartyPopper, Edit2, X, Link2, Copy, Check, MessageCircle } from 'lucide-react';
 import { useToast } from '../hooks/use-toast';
 import api from '../api';
 import InviteFamilyModal from '../components/InviteFamilyModal';
+import RequestRecipeModal from '../components/RequestRecipeModal';
 import SmartRecordModal from '../components/SmartRecordModal';
 import RecipeDetailModal from '../components/RecipeDetailModal';
 import StoryDetailModal from '../components/StoryDetailModal';
@@ -19,6 +20,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [showInvite, setShowInvite] = useState(false);
   const [showRecord, setShowRecord] = useState(false);
+  const [showRequest, setShowRequest] = useState(false);
   const [openRecipe, setOpenRecipe] = useState(null);
   const [openStory, setOpenStory] = useState(null);
   const [authUser, setAuthUser] = useState(() => getCachedAuthUser());
@@ -97,6 +99,18 @@ export default function Dashboard() {
             </span>
             <span className="text-cumin-green font-semibold text-[13.5px]">Tap to Record</span>
           </button>
+
+          {/* Secondary CTA — ask family to record on WhatsApp instead */}
+          <div className="mt-4 flex justify-center">
+            <button
+              type="button"
+              onClick={() => setShowRequest(true)}
+              data-testid="request-whatsapp-cta"
+              className="inline-flex items-center gap-2 bg-white border border-neutral-200 hover:border-[#128C7E] text-neutral-800 hover:text-[#128C7E] transition-colors px-4 py-2 rounded-full text-[13px] font-medium"
+            >
+              <MessageCircle size={14} className="text-[#128C7E]" /> Ask family via WhatsApp
+            </button>
+          </div>
 
           <div className="mt-3 flex items-center justify-center gap-3 text-[11px] text-neutral-600">
             <span className="flex items-center gap-1"><ChefHat size={12} className="text-terracotta"/> Recipe</span>
@@ -210,6 +224,7 @@ export default function Dashboard() {
 
       {showInvite && <InviteFamilyModal onClose={() => setShowInvite(false)} />}
       {showRecord && <SmartRecordModal onClose={() => setShowRecord(false)} familyId={active?.id} onSaved={handleRecordSaved} />}
+      {showRequest && <RequestRecipeModal onClose={() => setShowRequest(false)} />}
       {openRecipe && (
         <RecipeDetailModal
           recipe={openRecipe}
