@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { X, Send, Loader2, MessageCircle, Copy, CheckCircle2 } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { X, Send, Loader2, MessageCircle, Copy, CheckCircle2, UserPlus, BookUser } from 'lucide-react';
 import api from '../api';
 import { useToast } from '../hooks/use-toast';
 
@@ -13,11 +13,48 @@ export default function RequestRecipeModal({ onClose }) {
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [contactsSupported, setContactsSupported] = useState(false);
+  const [familyInvites, setFamilyInvites] = useState([]);
+
+  useEffect(() => {
+    // Feature-detect the Contact Picker API. Works on Android Chrome + Samsung
+    // Internet; falls back to manual entry on iOS Safari + desktop Firefox.
+    setContactsSupported(
+      typeof navigator !== 'undefined' &&
+      'contacts' in navigator &&
+      typeof navigator.contacts?.select === 'function'
+    );
+    // Pull existing family invites so the user can one-tap pick someone they
+    // already invited (name pre-fills; phone still typed since email invites
+    // don't collect phones — future upgrade).
+    api.listInvites().then(setFamilyInvites).catch(() => setFamilyInvites([]));
+  }, []);
 
   const canSubmit = useMemo(
     () => form.target_name.trim().length > 0 && form.dish_name.trim().length > 0,
     [form],
   );
+
+  const pickFromContacts = async () => {
+    if (!contactsSupported) return;
+    try {
+      const contacts = await navigator.contacts.select(['name', 'tel'], { multiple: false });
+      const c = contacts?.[0];
+      if (!c) return;
+      const name = Array.isArray(c.name) ? c.name[0] : (c.name || '');
+      const phone = Array.isArray(c.tel) ? c.tel[0] : (c.tel || '');
+      setForm(f => ({ ...f, target_name: name || f.target_name, target_phone: phone || f.target_phone }));
+    } catch (err) {
+      // User cancelled or permission denied — silent no-op
+      if (err?.name !== 'AbortError') {
+        toast({ title: 'Could not open contacts', description: 'Please type the WhatsApp number instead.' });
+      }
+    }
+  };
+
+  const pickFromFamily = (invite) => {
+    setForm(f => ({ ...f, target_name: invite.name || f.target_name }));
+  };
 
   const submit = async (e) => {
     e.preventDefault();
@@ -66,7 +103,39 @@ export default function RequestRecipeModal({ onClose }) {
 
         {!result ? (
           <form onSubmit={submit} className="p-5 space-y-4 overflow-y-auto">
-            <p className="text-[13.5px] text-neutral-600">Ask a family member to record their recipe — they just tap the link, hold the mic, and CuminJar saves it in your jar.</p>
+            <p className="text-[13.5px] text-neutral-600">Ask a family member to record their recipe &mdash; they just tap the link, hold the mic, and CuminJar saves it in your jar.</p>
+
+            {/* Quick pickers — top row */}
+            {(contactsSupported || familyInvites.length > 0) && (
+              <div className="flex flex-wrap gap-2">
+                {contactsSupported && (
+                  <button
+                    type="button"
+                    onClick={pickFromContacts}
+                    data-testid="request-pick-contact"
+                    className="inline-flex items-center gap-1.5 bg-[#DFF5E1] text-[#128C7E] hover:bg-[#c8ecca] px-3 py-2 rounded-full text-[12.5px] font-medium transition-colors"
+                  >
+                    <BookUser size={13} /> Pick from contacts
+                  </button>
+                )}
+                {familyInvites.slice(0, 3).map(inv => (
+                  <button
+                    key={inv.id}
+                    type="button"
+                    onClick={() => pickFromFamily(inv)}
+                    data-testid={`request-quick-family-${inv.id}`}
+                    className="inline-flex items-center gap-1.5 bg-[#F5EDDD] text-neutral-800 hover:bg-[#EFE3CB] px-3 py-2 rounded-full text-[12.5px] font-medium transition-colors"
+                  >
+                    <UserPlus size={12} /> {inv.name || inv.email}
+                  </button>
+                ))}
+              </div>
+            )}
+            {!contactsSupported && (
+              <p className="text-[11.5px] text-neutral-500 leading-relaxed bg-[#FFF8E9] border border-[#F0E4C9] rounded-lg px-3 py-2">
+                💡 On <b>Android Chrome</b>, tap &ldquo;Pick from contacts&rdquo; to open your phonebook. On iPhone Safari &amp; desktop, type the number below.
+              </p>
+            )}
 
             <div>
               <label className="text-[12.5px] font-medium text-neutral-700">Whose recipe do you want?</label>
