@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import AppShell from '../components/AppShell';
-import { Users, Mic, Sparkles, Plus, Loader2, CheckCircle2, ChefHat, BookOpen, PartyPopper, Edit2, X, Link2, Copy, Check, MessageCircle, Upload } from 'lucide-react';
+import { Users, Mic, Sparkles, Plus, Loader2, CheckCircle2, ChefHat, BookOpen, PartyPopper, Edit2, X, Link2, Copy, Check, MessageCircle } from 'lucide-react';
 import { useToast } from '../hooks/use-toast';
 import api from '../api';
 import InviteFamilyModal from '../components/InviteFamilyModal';
@@ -96,7 +96,7 @@ export default function Dashboard() {
 
           <p className="mt-5 lg:mt-6 text-[14px] lg:text-[15px] font-semibold text-neutral-900">What would you like to preserve today?</p>
 
-          <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {/* Card 1: Record a Recipe */}
             <div className="bg-white border border-neutral-200/70 rounded-2xl p-4 flex flex-col hover:border-cumin-green/40 hover:shadow-sm transition-all">
               <div className="flex items-start gap-3">
@@ -139,28 +139,7 @@ export default function Dashboard() {
               </button>
             </div>
 
-            {/* Card 3: Upload an Existing Recording */}
-            <div className="bg-white border border-neutral-200/70 rounded-2xl p-4 flex flex-col hover:border-[#7A6FB0]/40 hover:shadow-sm transition-all">
-              <div className="flex items-start gap-3">
-                <div className="w-11 h-11 rounded-full bg-[#E4DEF4] flex items-center justify-center flex-shrink-0">
-                  <Upload size={20} className="text-[#7A6FB0]" />
-                </div>
-                <div>
-                  <p className="text-[14.5px] font-semibold text-neutral-900 leading-tight">Upload an Existing Recording</p>
-                  <p className="text-[12px] text-neutral-500 mt-1 leading-snug">Upload audio or video you already have.</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => { setRecordKind(null); setShowRecord(true); }}
-                data-testid="action-upload-recording"
-                className="mt-4 bg-[#7A6FB0] text-white py-2.5 rounded-lg text-[13.5px] font-semibold hover:bg-[#665A9F] transition-colors"
-              >
-                Upload Recording
-              </button>
-            </div>
-
-            {/* Card 4: Invite on WhatsApp */}
+            {/* Card 3: Invite on WhatsApp */}
             <div className="bg-white border border-neutral-200/70 rounded-2xl p-4 flex flex-col hover:border-[#128C7E]/40 hover:shadow-sm transition-all">
               <div className="flex items-start gap-3">
                 <div className="w-11 h-11 rounded-full bg-[#D8ECEA] flex items-center justify-center flex-shrink-0">
