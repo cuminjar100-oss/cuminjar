@@ -196,7 +196,7 @@ export default function SmartRecordModal({ onClose, familyId, onSaved, initialKi
               <p className="text-[13px] text-neutral-500 mt-2">
                 {mrRef.current?.state === 'recording'
                   ? 'Recording… speak in any Indian language. Tap to stop.'
-                  : `Tap the mic and start telling your ${kind}. Say it in your natural language — we understand Hindi, Tamil, Telugu, Kannada, Malayalam, Marathi, Bengali, Gujarati, Punjabi and English.`}
+                  : `Tap the mic and start telling your ${kind}. Say it in your natural language — our tech is specially trained on all Asian languages.`}
               </p>
               <p className="text-[12px] text-neutral-400 mt-4">Speak in any Indian language — our proprietary AI transcribes, translates.</p>
 
