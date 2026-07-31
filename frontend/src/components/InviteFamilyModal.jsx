@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { X, Mail, Loader2, Trash2, Send, Clock, CheckCircle2, AlertTriangle, RefreshCw, QrCode, Download, Copy } from 'lucide-react';
+import { X, Mail, Loader2, Trash2, Send, Clock, CheckCircle2, AlertTriangle, RefreshCw, QrCode, Download, Copy, MessageCircle } from 'lucide-react';
 import api from '../api';
 import { useToast } from '../hooks/use-toast';
 
@@ -10,6 +10,7 @@ export default function InviteFamilyModal({ onClose }) {
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({ email: '', name: '', relation: 'Mother' });
   const [sending, setSending] = useState(false);
+  const [preparingWa, setPreparingWa] = useState(false);
   const [family, setFamily] = useState(null);
   const [showQr, setShowQr] = useState(false);
   const { toast } = useToast();
@@ -66,6 +67,39 @@ export default function InviteFamilyModal({ onClose }) {
     try { await api.deleteInvite(id); } catch { load(); }
   };
 
+  // Opens WhatsApp with a pre-filled invitation message + family join link.
+  // Ensures the family has a share_token first so the /join/:token URL is live.
+  const sendViaWhatsApp = async () => {
+    if (!family?.id) {
+      toast({ title: 'Family not ready', description: 'Try again in a moment.' });
+      return;
+    }
+    setPreparingWa(true);
+    try {
+      let token = family.share_token;
+      if (!token) {
+        const r = await api.shareFamily(family.id);
+        token = r.share_token;
+        setFamily(f => ({ ...f, share_token: token }));
+      }
+      const joinUrl = `${window.location.origin}/join/${token}`;
+      const relationLine = form.name
+        ? `Hi ${form.name}, `
+        : 'Hi, ';
+      const message =
+        `${relationLine}I've started a family jar on CuminJar to save our favourite recipes, stories and festival traditions — in our own voices, forever.\n\n` +
+        `Tap to join ${family.name || 'our family'}: ${joinUrl}\n\n` +
+        `Whatever you record stays private to just our family. ❤️`;
+      const waUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+      window.open(waUrl, '_blank', 'noopener');
+      toast({ title: 'WhatsApp opened', description: 'Pick the family member you want to invite and hit send.' });
+    } catch (err) {
+      toast({ title: 'Could not open WhatsApp', description: err?.response?.data?.detail || err?.message || 'Please try again.' });
+    } finally {
+      setPreparingWa(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-4 py-6" onClick={onClose}>
       <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -78,6 +112,9 @@ export default function InviteFamilyModal({ onClose }) {
         </div>
 
         <form onSubmit={send} className="px-6 py-5 grid md:grid-cols-2 gap-3">
+          <div className="md:col-span-2">
+            <p className="text-[12.5px] text-neutral-500 leading-relaxed">Send your family an invitation via email or open WhatsApp with a ready-to-send message.</p>
+          </div>
           <label className="block md:col-span-2">
             <span className="text-[13px] font-semibold text-neutral-800">Email address</span>
             <div className="relative mt-1.5">
@@ -96,7 +133,16 @@ export default function InviteFamilyModal({ onClose }) {
             </select>
           </label>
           <button disabled={sending} type="submit" className="md:col-span-2 mt-2 bg-cumin-green text-white py-3 rounded-lg text-[14px] font-medium hover:bg-[#324A2F] transition-colors flex items-center justify-center gap-2 disabled:opacity-70">
-            {sending ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />} Send invitation
+            {sending ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />} Send email invitation
+          </button>
+          <button
+            type="button"
+            onClick={sendViaWhatsApp}
+            disabled={preparingWa}
+            data-testid="invite-whatsapp-cta"
+            className="md:col-span-2 -mt-1 bg-white border-2 border-[#128C7E] text-[#128C7E] py-3 rounded-lg text-[14px] font-semibold hover:bg-[#128C7E] hover:text-white transition-colors flex items-center justify-center gap-2 disabled:opacity-70"
+          >
+            {preparingWa ? <Loader2 size={15} className="animate-spin" /> : <MessageCircle size={15} />} Or send via WhatsApp
           </button>
         </form>
 
