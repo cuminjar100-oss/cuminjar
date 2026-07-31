@@ -99,7 +99,7 @@ export default function Dashboard() {
           <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {/* Card 1: Record a Recipe */}
             <div className="bg-white border border-neutral-200/70 rounded-2xl p-4 flex flex-col hover:border-cumin-green/40 hover:shadow-sm transition-all">
-              <div className="flex items-start gap-3">
+              <div className="flex items-start gap-3 flex-1">
                 <div className="w-11 h-11 rounded-full bg-[#DFEAD8] flex items-center justify-center flex-shrink-0">
                   <Mic size={20} className="text-cumin-green" />
                 </div>
@@ -120,7 +120,7 @@ export default function Dashboard() {
 
             {/* Card 2: Record a Story or Tradition */}
             <div className="bg-white border border-neutral-200/70 rounded-2xl p-4 flex flex-col hover:border-terracotta/40 hover:shadow-sm transition-all">
-              <div className="flex items-start gap-3">
+              <div className="flex items-start gap-3 flex-1">
                 <div className="w-11 h-11 rounded-full bg-[#FBE3D2] flex items-center justify-center flex-shrink-0">
                   <BookOpen size={20} className="text-terracotta" />
                 </div>
@@ -141,7 +141,7 @@ export default function Dashboard() {
 
             {/* Card 3: Invite on WhatsApp */}
             <div className="bg-white border border-neutral-200/70 rounded-2xl p-4 flex flex-col hover:border-[#128C7E]/40 hover:shadow-sm transition-all">
-              <div className="flex items-start gap-3">
+              <div className="flex items-start gap-3 flex-1">
                 <div className="w-11 h-11 rounded-full bg-[#D8ECEA] flex items-center justify-center flex-shrink-0">
                   <MessageCircle size={20} className="text-[#128C7E]" />
                 </div>
