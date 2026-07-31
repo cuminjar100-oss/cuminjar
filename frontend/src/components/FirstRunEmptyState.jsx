@@ -47,10 +47,6 @@ export default function FirstRunEmptyState({ userName, onRecord, onInvite }) {
             </button>
           )}
         </div>
-
-        <p className="mt-8 text-[12px] text-neutral-500 italic max-w-md mx-auto">
-          Prefer to explore first? Scroll below to see how a family jar looks once it&rsquo;s full.
-        </p>
       </div>
     </section>
   );
