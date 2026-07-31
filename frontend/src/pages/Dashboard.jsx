@@ -98,9 +98,9 @@ export default function Dashboard() {
 
           <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {/* Card 1: Record a Recipe */}
-            <div className="bg-white border border-neutral-200/70 rounded-2xl p-4 flex flex-col hover:border-cumin-green/40 hover:shadow-sm transition-all">
+            <div className="group bg-white border border-neutral-200/70 rounded-2xl p-4 flex flex-col cursor-pointer transform-gpu transition-all duration-300 ease-out hover:-translate-y-1 hover:border-cumin-green/40 hover:shadow-[0_20px_40px_-20px_rgba(60,86,54,0.35)]">
               <div className="flex items-start gap-3 flex-1">
-                <div className="w-11 h-11 rounded-full bg-[#DFEAD8] flex items-center justify-center flex-shrink-0">
+                <div className="w-11 h-11 rounded-full bg-[#DFEAD8] flex items-center justify-center flex-shrink-0 transition-transform duration-300 group-hover:scale-110">
                   <Mic size={20} className="text-cumin-green" />
                 </div>
                 <div>
@@ -119,9 +119,9 @@ export default function Dashboard() {
             </div>
 
             {/* Card 2: Record a Story or Tradition */}
-            <div className="bg-white border border-neutral-200/70 rounded-2xl p-4 flex flex-col hover:border-terracotta/40 hover:shadow-sm transition-all">
+            <div className="group bg-white border border-neutral-200/70 rounded-2xl p-4 flex flex-col cursor-pointer transform-gpu transition-all duration-300 ease-out hover:-translate-y-1 hover:border-terracotta/40 hover:shadow-[0_20px_40px_-20px_rgba(196,101,74,0.4)]">
               <div className="flex items-start gap-3 flex-1">
-                <div className="w-11 h-11 rounded-full bg-[#FBE3D2] flex items-center justify-center flex-shrink-0">
+                <div className="w-11 h-11 rounded-full bg-[#FBE3D2] flex items-center justify-center flex-shrink-0 transition-transform duration-300 group-hover:scale-110">
                   <BookOpen size={20} className="text-terracotta" />
                 </div>
                 <div>
