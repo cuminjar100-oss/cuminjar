@@ -1,5 +1,5 @@
-import React, { useState, useRef } from 'react';
-import { X, Mic, Square, Loader2, Sparkles, ChefHat, BookOpen, PartyPopper, Share2, ImagePlus } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { X, Mic, Square, Loader2, Sparkles, ChefHat, BookOpen, PartyPopper, Share2, ImagePlus, Upload } from 'lucide-react';
 import api from '../api';
 import { useToast } from '../hooks/use-toast';
 
@@ -52,9 +52,9 @@ function ProcessingView({ kind }) {
   );
 }
 
-export default function SmartRecordModal({ onClose, familyId, onSaved }) {
-  const [step, setStep] = useState('choose'); // choose | record | processing | done
-  const [kind, setKind] = useState(null);
+export default function SmartRecordModal({ onClose, familyId, onSaved, initialKind = null }) {
+  const [step, setStep] = useState(initialKind ? 'record' : 'choose'); // choose | record | processing | done
+  const [kind, setKind] = useState(initialKind);
   const [seconds, setSeconds] = useState(0);
   const [result, setResult] = useState(null);
   const mrRef = useRef(null);
@@ -63,7 +63,15 @@ export default function SmartRecordModal({ onClose, familyId, onSaved }) {
   const startedAtRef = useRef(0);
   const streamRef = useRef(null);
   const uploadingRef = useRef(false);
+  const uploadInputRef = useRef(null);
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (initialKind) {
+      setKind(initialKind);
+      setStep('record');
+    }
+  }, [initialKind]);
 
   const fmt = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(Math.floor(s) % 60).padStart(2, '0')}`;
 
@@ -175,20 +183,52 @@ export default function SmartRecordModal({ onClose, familyId, onSaved }) {
             <div className="text-center py-6">
               <div className={`w-32 h-32 mx-auto rounded-full flex items-center justify-center transition-all ${mrRef.current?.state === 'recording' ? 'bg-[#FBE3D2] animate-soft-pulse' : 'bg-[#F5EDDD]'}`}>
                 {mrRef.current?.state === 'recording' ? (
-                  <button onClick={stopRecording} className="w-20 h-20 rounded-full bg-terracotta flex items-center justify-center shadow-xl">
+                  <button onClick={stopRecording} data-testid="record-stop-btn" className="w-20 h-20 rounded-full bg-terracotta flex items-center justify-center shadow-xl">
                     <Square size={26} className="text-white" fill="currentColor" />
                   </button>
                 ) : (
-                  <button onClick={startRecording} className="w-20 h-20 rounded-full bg-cumin-green flex items-center justify-center shadow-xl">
+                  <button onClick={startRecording} data-testid="record-start-btn" className="w-20 h-20 rounded-full bg-cumin-green flex items-center justify-center shadow-xl">
                     <Mic size={30} className="text-white" />
                   </button>
                 )}
               </div>
               <p className="font-serif-display text-[36px] font-semibold text-neutral-900 mt-6">{fmt(seconds)}</p>
               <p className="text-[13px] text-neutral-500 mt-2">
-                {mrRef.current?.state === 'recording' ? 'Recording… tap to stop.' : `Tap the mic and start telling your ${kind}.`}
+                {mrRef.current?.state === 'recording'
+                  ? 'Recording… speak in any Indian language. Tap to stop.'
+                  : `Tap the mic and start telling your ${kind}. Say it in your natural language — we understand Hindi, Tamil, Telugu, Kannada, Malayalam, Marathi, Bengali, Gujarati, Punjabi and English.`}
               </p>
               <p className="text-[12px] text-neutral-400 mt-4">Speak in any Indian language — our proprietary AI transcribes, translates.</p>
+
+              {mrRef.current?.state !== 'recording' && (
+                <>
+                  <div className="mt-6 flex items-center gap-2 justify-center text-[11px] text-neutral-400">
+                    <span className="h-px w-10 bg-neutral-200" />
+                    <span>or</span>
+                    <span className="h-px w-10 bg-neutral-200" />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => uploadInputRef.current?.click()}
+                    data-testid="record-upload-btn"
+                    className="mt-3 inline-flex items-center gap-2 text-[13.5px] font-semibold text-cumin-green hover:text-[#324A2F] transition-colors"
+                  >
+                    <Upload size={15} /> Upload an existing audio or video
+                  </button>
+                  <input
+                    ref={uploadInputRef}
+                    type="file"
+                    accept="audio/*,video/*"
+                    className="hidden"
+                    data-testid="record-upload-input"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) upload(f);
+                      e.target.value = '';
+                    }}
+                  />
+                </>
+              )}
             </div>
           )}
 

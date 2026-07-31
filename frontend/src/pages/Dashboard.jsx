@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import AppShell from '../components/AppShell';
-import { Users, Mic, Sparkles, Plus, Loader2, CheckCircle2, ChefHat, BookOpen, PartyPopper, Edit2, X, Link2, Copy, Check, MessageCircle } from 'lucide-react';
+import { Users, Mic, Sparkles, Plus, Loader2, CheckCircle2, ChefHat, BookOpen, PartyPopper, Edit2, X, Link2, Copy, Check, MessageCircle, Upload } from 'lucide-react';
 import { useToast } from '../hooks/use-toast';
 import api from '../api';
 import InviteFamilyModal from '../components/InviteFamilyModal';
@@ -20,6 +20,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [showInvite, setShowInvite] = useState(false);
   const [showRecord, setShowRecord] = useState(false);
+  const [recordKind, setRecordKind] = useState(null); // pre-select recipe/story/festival
   const [showRequest, setShowRequest] = useState(false);
   const [openRecipe, setOpenRecipe] = useState(null);
   const [openStory, setOpenStory] = useState(null);
@@ -86,36 +87,99 @@ export default function Dashboard() {
         )}
         {!isFirstRun && (
         <>
-        {/* Compact welcome + big Record button */}
-        <div className="bg-gradient-to-br from-[#F7DFCE]/70 to-[#F1E8D8] rounded-2xl p-4 lg:p-8 text-center">
-          <h1 className="font-serif-display text-[22px] lg:text-[34px] font-semibold text-neutral-900 leading-tight" data-testid="dashboard-greeting">
-            Hi {((authUser?.name || 'Sameera').trim().split(' ')[0]) || 'there'}! Preserve a memory today.
+        {/* Welcome header + 4 action cards */}
+        <div>
+          <h1 className="font-serif-display text-[24px] lg:text-[32px] font-semibold text-neutral-900 leading-tight flex items-center gap-2" data-testid="dashboard-greeting">
+            Welcome back, {((authUser?.name || 'Sameera').trim().split(' ')[0]) || 'there'}! <span className="text-[26px]">👋</span>
           </h1>
-          <p className="mt-1 text-[13px] lg:text-[15px] text-neutral-700 max-w-md mx-auto">Tap Record and just talk. We do the rest.</p>
+          <p className="mt-1 text-[13px] lg:text-[14.5px] text-neutral-600">Every voice holds a memory. Every memory lives forever.</p>
 
-          <button onClick={() => setShowRecord(true)} className="mt-4 lg:mt-6 inline-flex flex-col items-center gap-1.5 group">
-            <span className="w-24 h-24 lg:w-28 lg:h-28 rounded-full bg-cumin-green text-white flex items-center justify-center shadow-2xl group-hover:scale-105 transition-transform">
-              <Mic size={36} />
-            </span>
-            <span className="text-cumin-green font-semibold text-[13.5px]">Tap to Record</span>
-          </button>
+          <p className="mt-5 lg:mt-6 text-[14px] lg:text-[15px] font-semibold text-neutral-900">What would you like to preserve today?</p>
 
-          {/* Secondary CTA — ask family to record on WhatsApp instead */}
-          <div className="mt-5 flex justify-center">
-            <button
-              type="button"
-              onClick={() => setShowRequest(true)}
-              data-testid="request-whatsapp-cta"
-              className="inline-flex items-center gap-2.5 bg-white border-2 border-[#128C7E] text-[#128C7E] hover:bg-[#128C7E] hover:text-white transition-colors px-7 py-3.5 rounded-full text-[16px] font-semibold shadow-sm"
-            >
-              <MessageCircle size={20} /> Ask via WhatsApp
-            </button>
-          </div>
+          <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {/* Card 1: Record a Recipe */}
+            <div className="bg-white border border-neutral-200/70 rounded-2xl p-4 flex flex-col hover:border-cumin-green/40 hover:shadow-sm transition-all">
+              <div className="flex items-start gap-3">
+                <div className="w-11 h-11 rounded-full bg-[#DFEAD8] flex items-center justify-center flex-shrink-0">
+                  <Mic size={20} className="text-cumin-green" />
+                </div>
+                <div>
+                  <p className="text-[14.5px] font-semibold text-neutral-900 leading-tight">Record a Recipe</p>
+                  <p className="text-[12px] text-neutral-500 mt-1 leading-snug">Record your loved one&rsquo;s recipe in their own voice.</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setRecordKind('recipe'); setShowRecord(true); }}
+                data-testid="action-record-recipe"
+                className="mt-4 bg-cumin-green text-white py-2.5 rounded-lg text-[13.5px] font-semibold hover:bg-[#324A2F] transition-colors"
+              >
+                Record Recipe
+              </button>
+            </div>
 
-          <div className="mt-3 flex items-center justify-center gap-3 text-[11px] text-neutral-600">
-            <span className="flex items-center gap-1"><ChefHat size={12} className="text-terracotta"/> Recipe</span>
-            <span className="flex items-center gap-1"><BookOpen size={12} className="text-[#5D7A4E]"/> Story</span>
-            <span className="flex items-center gap-1"><PartyPopper size={12} className="text-[#7A6FB0]"/> Festival</span>
+            {/* Card 2: Record a Story or Tradition */}
+            <div className="bg-white border border-neutral-200/70 rounded-2xl p-4 flex flex-col hover:border-terracotta/40 hover:shadow-sm transition-all">
+              <div className="flex items-start gap-3">
+                <div className="w-11 h-11 rounded-full bg-[#FBE3D2] flex items-center justify-center flex-shrink-0">
+                  <BookOpen size={20} className="text-terracotta" />
+                </div>
+                <div>
+                  <p className="text-[14.5px] font-semibold text-neutral-900 leading-tight">Record a Story or Tradition</p>
+                  <p className="text-[12px] text-neutral-500 mt-1 leading-snug">Capture stories, traditions and special memories.</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setRecordKind('story'); setShowRecord(true); }}
+                data-testid="action-record-story"
+                className="mt-4 bg-terracotta text-white py-2.5 rounded-lg text-[13.5px] font-semibold hover:bg-[#A85736] transition-colors"
+              >
+                Record Story
+              </button>
+            </div>
+
+            {/* Card 3: Upload an Existing Recording */}
+            <div className="bg-white border border-neutral-200/70 rounded-2xl p-4 flex flex-col hover:border-[#7A6FB0]/40 hover:shadow-sm transition-all">
+              <div className="flex items-start gap-3">
+                <div className="w-11 h-11 rounded-full bg-[#E4DEF4] flex items-center justify-center flex-shrink-0">
+                  <Upload size={20} className="text-[#7A6FB0]" />
+                </div>
+                <div>
+                  <p className="text-[14.5px] font-semibold text-neutral-900 leading-tight">Upload an Existing Recording</p>
+                  <p className="text-[12px] text-neutral-500 mt-1 leading-snug">Upload audio or video you already have.</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setRecordKind(null); setShowRecord(true); }}
+                data-testid="action-upload-recording"
+                className="mt-4 bg-[#7A6FB0] text-white py-2.5 rounded-lg text-[13.5px] font-semibold hover:bg-[#665A9F] transition-colors"
+              >
+                Upload Recording
+              </button>
+            </div>
+
+            {/* Card 4: Invite on WhatsApp */}
+            <div className="bg-white border border-neutral-200/70 rounded-2xl p-4 flex flex-col hover:border-[#128C7E]/40 hover:shadow-sm transition-all">
+              <div className="flex items-start gap-3">
+                <div className="w-11 h-11 rounded-full bg-[#D8ECEA] flex items-center justify-center flex-shrink-0">
+                  <MessageCircle size={20} className="text-[#128C7E]" />
+                </div>
+                <div>
+                  <p className="text-[14.5px] font-semibold text-neutral-900 leading-tight">Invite on WhatsApp</p>
+                  <p className="text-[12px] text-neutral-500 mt-1 leading-snug">Invite family members to record and share memories.</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowInvite(true)}
+                data-testid="action-invite-whatsapp"
+                className="mt-4 bg-white border-2 border-[#128C7E] text-[#128C7E] py-2 rounded-lg text-[13.5px] font-semibold hover:bg-[#128C7E] hover:text-white transition-colors"
+              >
+                Invite via WhatsApp
+              </button>
+            </div>
           </div>
         </div>
 
@@ -194,7 +258,19 @@ export default function Dashboard() {
             <div className="flex flex-wrap gap-1.5">
               {families.map(f => (
                 <button key={f.id} onClick={() => setActiveFamilyId(f.id)} className={`inline-flex items-center gap-1.5 text-[12px] px-2.5 py-1 rounded-full transition-colors ${f.id === activeFamilyId ? 'bg-cumin-green text-white' : 'bg-[#F5EDDD] text-neutral-800'}`}>
-                  {f.coverPhoto ? <img loading="lazy" decoding="async" src={f.coverPhoto} alt="" className="w-4 h-4 rounded-full object-cover" /> : <Users size={11} />}
+                  {(f.coverPhoto || authUser?.picture) ? (
+                    <img
+                      loading="lazy"
+                      decoding="async"
+                      src={f.coverPhoto || authUser.picture}
+                      alt=""
+                      className="w-4 h-4 rounded-full object-cover"
+                      data-testid={`family-chip-avatar-${f.id}`}
+                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                    />
+                  ) : (
+                    <Users size={11} />
+                  )}
                   {f.name}
                 </button>
               ))}
@@ -274,7 +350,7 @@ export default function Dashboard() {
       </div>
 
       {showInvite && <InviteFamilyModal onClose={() => setShowInvite(false)} />}
-      {showRecord && <SmartRecordModal onClose={() => setShowRecord(false)} familyId={active?.id} onSaved={handleRecordSaved} />}
+      {showRecord && <SmartRecordModal onClose={() => { setShowRecord(false); setRecordKind(null); }} familyId={active?.id} onSaved={handleRecordSaved} initialKind={recordKind} />}
       {showRequest && <RequestRecipeModal onClose={() => setShowRequest(false)} />}
       {openRecipe && (
         <RecipeDetailModal

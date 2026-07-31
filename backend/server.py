@@ -1235,9 +1235,11 @@ async def smart_record(
         region = structured.get('region') or ''
         tags = structured.get('tags') or []
 
-        cover = None
-        if generate_image:
-            cover = await _generate_recipe_image(title, english[:200], tags, region)
+        # Use an instant emoji-based placeholder cover so the recipe returns in
+        # ~10s instead of waiting for the ~15s Nano Banana image call.
+        # The real cover is generated in the background and swapped into the doc.
+        cover = _emoji_cover_svg(_pick_emoji(title, tags, region), FAMILY_TINTS[0])
+        cover_pending = bool(generate_image)
 
         # Store the original audio as a data URL so we can play it back later
         audio_src = None
@@ -1270,9 +1272,41 @@ async def smart_record(
             'source_language': detected_lang,
             'audio_src': audio_src,
             'liked': False,
+            'cover_pending': cover_pending,
             'created_at': now_iso(),
         }
         await db.recipes.insert_one(doc)
+
+        # Kick off real cover generation in the background so we can return NOW.
+        # The frontend will see the emoji placeholder immediately and pick up
+        # the AI cover on the next fetch (or via optional polling).
+        if cover_pending:
+            recipe_id_for_bg = doc['id']
+            _title, _english, _tags, _region = title, english[:200], list(tags), region
+
+            async def _bg_generate_cover():
+                try:
+                    real = await _generate_recipe_image(_title, _english, _tags, _region)
+                    if real:
+                        await db.recipes.update_one(
+                            {'id': recipe_id_for_bg},
+                            {'$set': {'cover': real, 'cover_pending': False}}
+                        )
+                    else:
+                        await db.recipes.update_one(
+                            {'id': recipe_id_for_bg}, {'$set': {'cover_pending': False}}
+                        )
+                except Exception:
+                    logger.exception('Background cover generation failed for %s', recipe_id_for_bg)
+                    try:
+                        await db.recipes.update_one(
+                            {'id': recipe_id_for_bg}, {'$set': {'cover_pending': False}}
+                        )
+                    except Exception:
+                        pass
+
+            asyncio.create_task(_bg_generate_cover())
+
         return {'kind': 'recipe', 'item': _strip_id(doc)}
 
     else:
@@ -2077,7 +2111,8 @@ async def mark_read():
 
 
 # --------------------- Voice Recipes (Sarvam STT + Gemini translate) ---------------------
-SARVAM_MAX_CHUNK_S = 25  # keep under Sarvam's 30-second real-time limit
+SARVAM_MAX_CHUNK_S = 28  # keep under Sarvam's 30-second real-time limit
+SARVAM_PARALLEL_LIMIT = 4  # concurrent STT calls per recording (rate-limit safety)
 
 
 def _split_audio_bytes(audio_bytes: bytes) -> list[bytes]:
@@ -2114,28 +2149,41 @@ def _sarvam_transcribe_sync(audio_bytes: bytes, language_code: str, filename: st
 
 
 async def _sarvam_transcribe(audio_bytes: bytes, language_code: str, filename: str) -> dict:
-    """Chunk audio if needed and transcribe each chunk, then concatenate."""
-    def _run():
-        try:
-            chunks = _split_audio_bytes(audio_bytes)
-        except Exception as e:
-            logger.exception('Audio chunking failed')
-            # Fall back to a single call with the raw bytes
-            return _sarvam_transcribe_sync(audio_bytes, language_code, filename)
-        parts: list[str] = []
-        detected = language_code
-        last_error = None
-        for idx, chunk_bytes in enumerate(chunks):
-            r = _sarvam_transcribe_sync(chunk_bytes, language_code, f'chunk_{idx}.wav')
-            if r.get('error'):
-                last_error = r['error']
-            if r.get('transcript'):
-                parts.append(r['transcript'].strip())
-            if r.get('language'):
-                detected = r['language']
-        transcript = ' '.join(p for p in parts if p).strip()
-        return {'transcript': transcript, 'language': detected, 'error': last_error if not transcript else None}
-    return await asyncio.to_thread(_run)
+    """Chunk audio if needed and transcribe each chunk in PARALLEL (semaphore-limited)."""
+    try:
+        chunks = await asyncio.to_thread(_split_audio_bytes, audio_bytes)
+    except Exception:
+        logger.exception('Audio chunking failed')
+        # Fall back to a single call with the raw bytes
+        return await asyncio.to_thread(_sarvam_transcribe_sync, audio_bytes, language_code, filename)
+
+    if not chunks:
+        return {'transcript': '', 'language': language_code, 'error': 'No audio chunks produced'}
+
+    # Fire all chunk transcriptions concurrently, capped by a semaphore so we
+    # never exceed Sarvam's rate limits. Cuts wall time roughly N×.
+    sem = asyncio.Semaphore(SARVAM_PARALLEL_LIMIT)
+
+    async def _one(idx: int, chunk_bytes: bytes) -> dict:
+        async with sem:
+            return await asyncio.to_thread(
+                _sarvam_transcribe_sync, chunk_bytes, language_code, f'chunk_{idx}.wav'
+            )
+
+    results = await asyncio.gather(*(_one(i, c) for i, c in enumerate(chunks)))
+
+    parts: list[str] = []
+    detected = language_code
+    last_error = None
+    for r in results:
+        if r.get('error'):
+            last_error = r['error']
+        if r.get('transcript'):
+            parts.append(r['transcript'].strip())
+        if r.get('language'):
+            detected = r['language']
+    transcript = ' '.join(p for p in parts if p).strip()
+    return {'transcript': transcript, 'language': detected, 'error': last_error if not transcript else None}
 
 
 async def _translate_to_english(text: str, source_lang: str) -> str:
