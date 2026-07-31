@@ -188,7 +188,7 @@ export default function SmartRecordModal({ onClose, familyId, onSaved }) {
               <p className="text-[13px] text-neutral-500 mt-2">
                 {mrRef.current?.state === 'recording' ? 'Recording… tap to stop.' : `Tap the mic and start telling your ${kind}.`}
               </p>
-              <p className="text-[12px] text-neutral-400 mt-4">Speak in any Indian language — our AI transcribes, Google translates.</p>
+              <p className="text-[12px] text-neutral-400 mt-4">Speak in any Indian language — our proprietary AI transcribes, translates.</p>
             </div>
           )}
 
