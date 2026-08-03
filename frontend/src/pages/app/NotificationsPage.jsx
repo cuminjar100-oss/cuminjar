@@ -31,7 +31,7 @@ export default function NotificationsPage() {
 
   return (
     <AppShell active="">
-      <div className="px-8 py-6 max-w-3xl">
+      <div className="px-8 py-6 max-w-5xl mx-auto">
         <h1 className="font-serif-display text-[32px] font-semibold text-neutral-900">Notifications</h1>
         <p className="text-neutral-500 text-[14px] mt-1">Everything happening in your family jar.</p>
 

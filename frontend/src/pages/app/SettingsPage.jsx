@@ -101,7 +101,7 @@ export default function SettingsPage() {
 
   return (
     <AppShell active="">
-      <div className="px-4 lg:px-8 py-4 lg:py-6 max-w-3xl">
+      <div className="px-4 lg:px-8 py-4 lg:py-6 max-w-5xl mx-auto">
         <h1 className="font-serif-display text-[32px] font-semibold text-neutral-900">Settings</h1>
         <p className="text-neutral-500 text-[14px] mt-1">Manage your account and family preferences.</p>
 

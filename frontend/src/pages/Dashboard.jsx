@@ -71,7 +71,7 @@ export default function Dashboard() {
 
   return (
     <AppShell active="home" onOpenRecord={() => setShowRecord(true)}>
-      <div className="px-3 lg:px-8 py-3 lg:py-6 max-w-4xl mx-auto">
+      <div className="px-3 lg:px-8 py-3 lg:py-6 max-w-6xl mx-auto">
         {isBootstrapping ? (
           <div className="py-24 flex items-center justify-center text-neutral-400" data-testid="dashboard-bootstrapping">
             <Loader2 size={22} className="animate-spin" />
