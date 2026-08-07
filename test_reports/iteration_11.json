@@ -1,0 +1,43 @@
+{
+  "summary": "Exhaustive end-to-end testing of the CuminJar auth stack (email+password + Google + OTP + password reset). Executed 19 new pytest cases in /app/backend/tests/test_auth_flow_full.py (100% pass) plus the existing test_email_password_auth.py (9/10 pass — 1 unrelated non-auth failure). Frontend Playwright covered /login (correct+wrong password), session persistence across refresh, logout via user dropdown, forgot-password flow (email → 6-digit code entry step), Google Sign-In redirect to auth.emergentagent.com, and /get-started signup page render. All critical auth behaviour works. Cookie flags verified: HttpOnly, Secure, SameSite=None, Path=/, Max-Age=604800. password_hash never leaked in /auth/login, /auth/register, or /auth/me responses. Brute-force lockout at 5 attempts (429) confirmed. OTP wrong-code increments attempts and locks at 5 (429). Expired OTP → 400. /auth/me returns 401 without cookie, with fake cookie, and after logout. PATCH /auth/me updates name+language and ignores non-whitelisted fields. logout-all-devices removes ALL user sessions.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "PATCH /api/auth/me", "issue": "Review request lists field name 'preferred_language' but backend whitelist is 'language'. Not a bug — the frontend/api uses 'language' — just a doc mismatch in the review request. Both tested, only 'language' is honoured."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/get-started signup page", "issues": ["Inputs and 'Send verification code' button are missing data-testid attributes (signup-email-input, signup-name-input, signup-send-code-btn not present). Recommended to add for future automated testing."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_auth_flow_full.py",
+    "/app/backend/tests/test_email_password_auth.py",
+    "/app/test_reports/pytest/iteration_11.xml"
+  ],
+  "action_items": [
+    "Optional: Add data-testid attributes on /get-started inputs (signup-email-input, signup-name-input, signup-password-input, signup-send-code-btn) and Google button (signup-google-btn) for symmetry with /login testids.",
+    "Note (from regression run of test_email_password_auth.py::TestFirstRunEmptyScoping::test_new_user_has_empty_collections): A newly-registered user auto-gets a default family (Test's Family) so /api/families is not empty. Test is stale — the current behaviour is intentional (backend auto-provisions the first family and the frontend routes new users into FirstRunEmptyState based on recipes+stories being empty). Suggest updating that specific assertion in the older test file. Not in the scope of the current auth review."
+  ],
+  "critical_code_review_comments": [
+    "All auth endpoints correctly exclude MongoDB '_id' and 'password_hash' from responses (find_one projection {'_id': 0, 'password_hash': 0}).",
+    "_check_brute_force uses ip+email AND email-only counters which is robust behind a load-balancer that rotates IPs.",
+    "Cookie is set with SameSite=None + Secure + HttpOnly — correct for cross-origin usage.",
+    "OTP + reset-OTP code_hash is SHA256 (fine for one-time codes with 5-attempt lockout).",
+    "Session token uses secrets.token_urlsafe(32) — cryptographically secure.",
+    "forgot-password returns 200 for nonexistent emails (no user enumeration) — implemented correctly.",
+    "Minor: /auth/logout deletes only the current session (correct); /auth/logout-all-devices deletes every session for the user (correct)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_auth_flow_full.py (new)"
+  ],
+  "success_rate": {"backend": "100% (19/19 new + 9/10 existing regression)", "frontend": "100% of tested flows"},
+  "test_credentials": "testuser2@example.com / TestPass123 (pre-seeded, works). Additional per-test users seeded on-the-fly via db.email_otps + POST /auth/register with cleanup fixtures.",
+  "seed_data_creation": "Created transient test emails matching /test_epw_*@cuminjar.test/ and /test_flow_*@cuminjar.test/ — all cleaned up by pytest fixtures. login_attempts / user_sessions / email_otps / password_reset_otps rows are purged after each test.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "test_auth_flow_full.py is the canonical auth regression suite for iteration 11 (19 cases across OTP, login, /auth/me GET+PATCH, logout, logout-all-devices, forgot-password, reset-password edge cases). Run with: `python -m pytest backend/tests/test_auth_flow_full.py -o addopts=''` (the -o override is needed because /app/backend/pytest.ini adds -n auto which errors on empty selection). Frontend flows validated: login, wrong password toast, session persistence via cookie reload, logout via 'Log out' menu item under [data-testid='user-menu-trigger'], forgot-password 2-step flow (email → 6-digit code), Google redirect to auth.emergentagent.com/oauth/?redirect=<origin>/app. Existing test_email_password_auth.py has one stale FirstRunEmptyScoping assertion (families collection is not empty because backend auto-creates a default family on register). Not an auth bug."
+}
