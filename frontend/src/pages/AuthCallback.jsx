@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import api from '../api';
-import { setCachedAuthUser } from '../utils/authCache';
+import { setCachedAuthUser, rememberRecentAccount } from '../utils/authCache';
 
 // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
 export default function AuthCallback() {
@@ -26,6 +26,7 @@ export default function AuthCallback() {
       try {
         const { user } = await api.authSession(sessionId);
         setCachedAuthUser(user);
+        rememberRecentAccount(user);
         try {
           localStorage.setItem('cuminjar_user', JSON.stringify(user));
         } catch { /* ignore */ }

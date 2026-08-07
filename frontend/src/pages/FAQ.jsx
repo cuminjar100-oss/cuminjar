@@ -49,6 +49,50 @@ const FAQ_ITEMS = [
     q: 'How do I get help or share feedback?',
     a: 'Email admin@cuminjar.com or use the Contact form. We\u2019re a small team — replies usually go out within 24 hours.',
   },
+  {
+    q: 'Our family shares one laptop — can multiple people log in without stepping on each other?',
+    a: 'Yes. When two or more people log in on the same browser, the login screen shows a chip row of "Recent on this device" — Sameera, Amma, Kapil — with each person\u2019s picture. Tap your chip to pre-fill your email, type your password, and you\u2019re in. Only your account\u2019s jar is loaded; the others stay signed out until they tap their own chip. Passwords are never saved — only your name, email and profile picture, purely on this device.',
+  },
+  {
+    q: 'What if someone in the family shouldn\u2019t appear on the login chips anymore?',
+    a: 'Every chip on the login screen has a small × icon. Tap it to remove that person from this device instantly. Their account and family jar are completely untouched — this only clears the local shortcut. Handy after guests use your laptop, or when a family member gets their own device.',
+  },
+  {
+    q: 'Will CuminJar remember me if I sign in with Google?',
+    a: 'Yes. Both email/password sign-in and "Continue with Google" write the same warm "Welcome back, Sameera 👋" cache. Next time you open cuminjar.com on that browser, whichever way you signed in last shows up as a friendly greeting — no extra setup.',
+  },
+  {
+    q: 'Is my password ever stored on my device?',
+    a: 'Never. We only store your first name, email and profile picture in your browser\u2019s local storage so we can greet you by name. Passwords stay encrypted server-side (bcrypt) and are never written to any device.',
+  },
+  {
+    q: 'How does the "Welcome back" greeting work under the hood?',
+    a: 'When you log in successfully we save {email, firstName, picture} to your browser\u2019s localStorage. On your next visit to /login, we hydrate that value synchronously — before the page even paints — so you never see a generic form. Click "Not you?" or the × on a chip to clear it. If you use CuminJar in a private/incognito window, the greeting simply doesn\u2019t appear (localStorage is disabled there by design).',
+  },
+  {
+    q: 'Can my grandmother\u2019s WhatsApp-only recording still make it into the jar?',
+    a: 'Absolutely. Tap "Invite via WhatsApp" from your dashboard, and we open WhatsApp with a pre-filled invite carrying a private link. She taps the link on her phone, presses the mic, tells the recipe or story in her natural language — no account, no app install, no login. Her voice + the auto-transcribed recipe lands straight in your family jar.',
+  },
+  {
+    q: 'What happens to the AI cover image if I record in the middle of poor internet?',
+    a: 'Your recipe still saves instantly with a beautiful emoji-based placeholder cover, and returns to you in about 10 seconds. The AI-generated cover image is quietly generated in the background over the next 10-15 seconds and swaps in when ready. You never have to wait for it.',
+  },
+  {
+    q: 'Which languages does the recording engine handle best?',
+    a: 'Our proprietary AI is specially trained on all major Asian languages — Hindi, Tamil, Telugu, Kannada, Malayalam, Marathi, Bengali, Gujarati, Punjabi, plus English and natural code-mixed conversations ("tanglish", "hinglish"). If a family member switches from Tamil to English mid-sentence, we still keep up.',
+  },
+  {
+    q: 'Can I record a really long story — say, 30 minutes about grandma\u2019s wedding?',
+    a: 'Yes. There\u2019s no hard cap. Long recordings are automatically split into 28-second chunks and transcribed in parallel, then stitched back together. A 30-minute story usually completes in 30-60 seconds thanks to the parallel pipeline.',
+  },
+  {
+    q: 'What if I already have an old audio file — can I upload it instead of recording?',
+    a: 'Yes. On the Record Recipe or Record Story screen, tap "Upload an existing audio or video". You can share MP3, WAV, M4A, MP4 — anything your device supports. The same transcription + translation + AI cover flow runs on the upload.',
+  },
+  {
+    q: 'Does CuminJar work offline?',
+    a: 'The recording UI works offline (you can hold the mic and speak without a signal) but transcription needs internet since it uses AI. Your audio is queued locally and processed the moment you\u2019re back online. You never lose a recording.',
+  },
 ];
 
 export default function FAQ() {

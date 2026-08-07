@@ -2,9 +2,9 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Logo from '../components/Logo';
 import GoogleSignInButton from '../components/GoogleSignInButton';
-import { Mail, Lock, Eye, EyeOff, CheckCircle2, Loader2, ArrowLeft } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, CheckCircle2, Loader2, ArrowLeft, X } from 'lucide-react';
 import api from '../api';
-import { setCachedAuthUser } from '../utils/authCache';
+import { setCachedAuthUser, getRecentAccounts, rememberRecentAccount, forgetRecentAccount } from '../utils/authCache';
 import { useToast } from '../hooks/use-toast';
 
 function formatDetail(detail, fallback) {
@@ -26,6 +26,7 @@ export default function Login() {
   const [newPassword, setNewPassword] = useState('');
   const [resendIn, setResendIn] = useState(0);
   const [returningName, setReturningName] = useState(''); // populated from localStorage on mount
+  const [recentAccounts, setRecentAccounts] = useState([]);
   const inputsRef = useRef([]);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -34,29 +35,39 @@ export default function Login() {
   // a warm greeting and pre-filled email. Wrapped in try/catch since
   // localStorage may be unavailable in incognito/strict-privacy modes.
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem('cuminjar_last_login');
-      if (!raw) return;
-      const parsed = JSON.parse(raw);
-      if (parsed?.email) setEmail(parsed.email);
-      if (parsed?.firstName) setReturningName(parsed.firstName);
-    } catch {
-      /* ignore */
+    const list = getRecentAccounts();
+    setRecentAccounts(list);
+    if (list.length > 0) {
+      setEmail(list[0].email);
+      setReturningName(list[0].firstName || '');
     }
   }, []);
 
-  const rememberLogin = (user) => {
-    try {
-      const firstName = (user?.name || '').trim().split(' ')[0] || '';
-      if (user?.email) {
-        localStorage.setItem('cuminjar_last_login', JSON.stringify({
-          email: user.email,
-          firstName,
-        }));
+  const pickAccount = (acc) => {
+    setEmail(acc.email);
+    setReturningName(acc.firstName || '');
+  };
+
+  const removeAccount = (e, targetEmail) => {
+    e.stopPropagation();
+    forgetRecentAccount(targetEmail);
+    const remaining = getRecentAccounts();
+    setRecentAccounts(remaining);
+    if (email === targetEmail) {
+      // Fall back to the next-most-recent, or clear
+      if (remaining.length > 0) {
+        setEmail(remaining[0].email);
+        setReturningName(remaining[0].firstName || '');
+      } else {
+        setEmail('');
+        setReturningName('');
       }
-    } catch {
-      /* ignore */
     }
+  };
+
+  const rememberLogin = (user) => {
+    rememberRecentAccount(user);
+    setRecentAccounts(getRecentAccounts());
   };
 
   useEffect(() => {
@@ -169,13 +180,73 @@ export default function Login() {
                 <h1 className="font-serif-display text-[38px] font-semibold text-neutral-900 flex items-center gap-2" data-testid="returning-greeting">
                   Welcome back, {returningName} <span aria-hidden="true">👋</span>
                 </h1>
-                <p className="text-neutral-600 mt-2">Your family jar has been waiting. <button type="button" onClick={() => { setEmail(''); setReturningName(''); try { localStorage.removeItem('cuminjar_last_login'); } catch { /* ignore */ } }} className="text-cumin-green font-medium hover:underline text-[13.5px]" data-testid="not-you-link">Not you?</button></p>
+                <p className="text-neutral-600 mt-2">
+                  Your family jar has been waiting.{' '}
+                  <button
+                    type="button"
+                    onClick={() => { setEmail(''); setReturningName(''); }}
+                    className="text-cumin-green font-medium hover:underline text-[13.5px]"
+                    data-testid="not-you-link"
+                  >Not you?</button>
+                </p>
               </>
             ) : (
               <>
                 <h1 className="font-serif-display text-[38px] font-semibold text-neutral-900">Welcome back</h1>
                 <p className="text-neutral-600 mt-2">Log in to your family jar.</p>
               </>
+            )}
+
+            {recentAccounts.length >= 2 && (
+              <div className="mt-5" data-testid="recent-accounts-row">
+                <p className="text-[12px] font-semibold text-neutral-500 uppercase tracking-wider">Recent on this device</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {recentAccounts.map((acc) => {
+                    const isActive = acc.email === email;
+                    const label = acc.firstName || acc.email.split('@')[0];
+                    return (
+                      <button
+                        type="button"
+                        key={acc.email}
+                        onClick={() => pickAccount(acc)}
+                        data-testid={`recent-account-${acc.email}`}
+                        className={`group inline-flex items-center gap-2 pl-1 pr-1 py-1 rounded-full border transition-all ${
+                          isActive
+                            ? 'bg-cumin-green/10 border-cumin-green text-cumin-green'
+                            : 'bg-white border-neutral-200 text-neutral-800 hover:border-cumin-green/40 hover:bg-[#FBF6EE]'
+                        }`}
+                      >
+                        {acc.picture ? (
+                          <img
+                            src={acc.picture}
+                            alt=""
+                            className="w-6 h-6 rounded-full object-cover"
+                            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                          />
+                        ) : (
+                          <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-semibold ${
+                            isActive ? 'bg-cumin-green text-white' : 'bg-[#F5EDDD] text-neutral-700'
+                          }`}>
+                            {label.charAt(0).toUpperCase()}
+                          </span>
+                        )}
+                        <span className="text-[13px] font-medium pr-1.5">{label}</span>
+                        <span
+                          onClick={(e) => removeAccount(e, acc.email)}
+                          role="button"
+                          tabIndex={0}
+                          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); removeAccount(e, acc.email); } }}
+                          data-testid={`recent-account-remove-${acc.email}`}
+                          aria-label={`Remove ${label}`}
+                          className="w-5 h-5 rounded-full flex items-center justify-center text-neutral-400 hover:bg-neutral-200 hover:text-neutral-700 transition-colors"
+                        >
+                          <X size={12} />
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             )}
 
             <div className="mt-6">
