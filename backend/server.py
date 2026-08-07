@@ -821,6 +821,210 @@ async def auth_reset_password(payload: dict):
     return _cookie_response({'user': user_doc}, session_token)
 
 
+# --------------------- WhatsApp OTP Login (Meta Cloud API) ---------------------
+# Send an OTP via WhatsApp using an approved Authentication template on Meta
+# Cloud API. Requires the following env vars — placeholders until Meta approves:
+#   WA_GRAPH_API_VERSION  (default v25.0)
+#   WA_PHONE_NUMBER_ID    (from Meta Developer → WhatsApp → API Setup)
+#   WA_TOKEN              (permanent System User token)
+#   WA_TEMPLATE_NAME      (e.g. cuminjar_login_otp)
+#   WA_TEMPLATE_LANGUAGE  (e.g. en_US)
+
+WA_GRAPH_API_VERSION = os.environ.get('WA_GRAPH_API_VERSION', 'v25.0')
+WA_PHONE_NUMBER_ID = os.environ.get('WA_PHONE_NUMBER_ID', '')
+WA_TOKEN = os.environ.get('WA_TOKEN', '')
+WA_TEMPLATE_NAME = os.environ.get('WA_TEMPLATE_NAME', 'cuminjar_login_otp')
+WA_TEMPLATE_LANGUAGE = os.environ.get('WA_TEMPLATE_LANGUAGE', 'en_US')
+
+
+def _wa_configured() -> bool:
+    return bool(WA_PHONE_NUMBER_ID and WA_TOKEN)
+
+
+def _normalize_phone(raw: str) -> str:
+    """Normalise a raw phone string to E.164 with leading +.
+    Assumes India (+91) if no country code and length is 10 digits."""
+    if not raw:
+        return ''
+    s = ''.join(ch for ch in raw if ch.isdigit() or ch == '+')
+    if s.startswith('+'):
+        digits = s[1:]
+    else:
+        digits = s
+    if not digits.isdigit():
+        return ''
+    if len(digits) == 10:
+        digits = '91' + digits
+    if not (8 <= len(digits) <= 15):
+        return ''
+    return '+' + digits
+
+
+async def _wa_send_otp(phone_e164: str, code: str) -> dict:
+    """Send an Authentication template message via Meta Cloud API.
+    Returns Meta's response dict on success, raises HTTPException on failure."""
+    if not _wa_configured():
+        raise HTTPException(503, 'WhatsApp OTP is not configured yet. Please contact support.')
+    import httpx as _httpx
+    url = f'https://graph.facebook.com/{WA_GRAPH_API_VERSION}/{WA_PHONE_NUMBER_ID}/messages'
+    body = {
+        'messaging_product': 'whatsapp',
+        'recipient_type': 'individual',
+        'to': phone_e164,
+        'type': 'template',
+        'template': {
+            'name': WA_TEMPLATE_NAME,
+            'language': {'code': WA_TEMPLATE_LANGUAGE},
+            'components': [
+                {'type': 'body', 'parameters': [{'type': 'text', 'text': code}]},
+                {
+                    'type': 'button', 'sub_type': 'url', 'index': '0',
+                    'parameters': [{'type': 'text', 'text': code}],
+                },
+            ],
+        },
+    }
+    async with _httpx.AsyncClient(timeout=15) as client:
+        r = await client.post(
+            url,
+            headers={
+                'Authorization': f'Bearer {WA_TOKEN}',
+                'Content-Type': 'application/json',
+            },
+            json=body,
+        )
+    if r.status_code >= 400:
+        logger.warning('WhatsApp OTP send failed: %s %s', r.status_code, r.text[:400])
+        raise HTTPException(502, 'Could not send WhatsApp code. Please try again.')
+    return r.json()
+
+
+@api.post('/auth/wa/request-otp')
+async def auth_wa_request_otp(payload: dict, request: Request):
+    """Send a 6-digit WhatsApp OTP to the given phone number."""
+    raw_phone = (payload.get('phone') or '').strip()
+    phone = _normalize_phone(raw_phone)
+    if not phone:
+        raise HTTPException(400, 'Enter a valid mobile number.')
+
+    now = datetime.now(timezone.utc)
+    ip = _client_ip(request)
+
+    # Rate limit: max 3 sends per 15 min per phone
+    fifteen_min_ago = (now - timedelta(minutes=15)).isoformat()
+    recent_sends = await db.wa_otps.count_documents({'phone': phone, 'created_at': {'$gt': fifteen_min_ago}})
+    if recent_sends >= 3:
+        raise HTTPException(429, 'Too many attempts. Please wait 15 minutes.')
+
+    # Cooldown: 60 seconds between sends
+    latest = await db.wa_otps.find_one({'phone': phone}, sort=[('created_at', -1)])
+    if latest:
+        try:
+            last_dt = datetime.fromisoformat(latest['created_at'].replace('Z', '+00:00'))
+            if (now - last_dt).total_seconds() < 60:
+                raise HTTPException(429, 'Please wait a minute before requesting another code.')
+        except (ValueError, KeyError):
+            pass
+
+    code = f'{_secrets.randbelow(1_000_000):06d}'
+    code_hash = _hashlib.sha256(code.encode()).hexdigest()
+    otp_doc = {
+        'id': str(uuid.uuid4()),
+        'phone': phone,
+        'code_hash': code_hash,
+        'attempts': 0,
+        'used': False,
+        'created_at': now.isoformat(),
+        'expires_at': (now + timedelta(minutes=10)).isoformat(),
+        'ip': ip,
+    }
+    await db.wa_otps.insert_one(otp_doc)
+
+    try:
+        await _wa_send_otp(phone, code)
+    except HTTPException:
+        # Roll back the OTP row so the user can retry immediately
+        await db.wa_otps.delete_one({'id': otp_doc['id']})
+        raise
+
+    return {'ok': True, 'phone': phone, 'ttl_seconds': 600}
+
+
+@api.post('/auth/wa/verify-otp')
+async def auth_wa_verify_otp(payload: dict, request: Request):
+    """Verify the OTP and either log in an existing user or create one."""
+    raw_phone = (payload.get('phone') or '').strip()
+    code = (payload.get('code') or '').strip()
+    phone = _normalize_phone(raw_phone)
+    if not phone:
+        raise HTTPException(400, 'Enter a valid mobile number.')
+    if not code.isdigit() or len(code) != 6:
+        raise HTTPException(400, 'Enter the 6-digit code from WhatsApp.')
+
+    now = datetime.now(timezone.utc)
+    otp = await db.wa_otps.find_one(
+        {'phone': phone, 'used': False, 'expires_at': {'$gt': now.isoformat()}},
+        sort=[('created_at', -1)],
+    )
+    if not otp:
+        raise HTTPException(400, 'Code expired. Please request a new one.')
+    if otp.get('attempts', 0) >= 5:
+        await db.wa_otps.update_one({'id': otp['id']}, {'$set': {'expires_at': now.isoformat()}})
+        raise HTTPException(429, 'Too many wrong attempts. Please request a new code.')
+    if _hashlib.sha256(code.encode()).hexdigest() != otp['code_hash']:
+        await db.wa_otps.update_one({'id': otp['id']}, {'$inc': {'attempts': 1}})
+        raise HTTPException(400, 'Incorrect code.')
+
+    # Mark OTP used (single-use)
+    await db.wa_otps.update_one({'id': otp['id']}, {'$set': {'used': True, 'used_at': now.isoformat()}})
+
+    # Find or create user by phone
+    user = await db.users.find_one({'phone': phone}, {'_id': 0})
+    if not user:
+        # Auto-link: if currently authenticated (unlikely here but safe), attach phone to that account
+        user_id = f'user_{uuid.uuid4().hex[:12]}'
+        display_name = phone.replace('+', '')
+        await db.users.insert_one({
+            'user_id': user_id,
+            'email': None,
+            'phone': phone,
+            'name': display_name,
+            'picture': None,
+            'password_hash': None,
+            'phone_verified': True,
+            'created_at': now.isoformat(),
+            'last_login_at': now.isoformat(),
+        })
+    else:
+        user_id = user['user_id']
+        await db.users.update_one(
+            {'user_id': user_id},
+            {'$set': {'last_login_at': now.isoformat(), 'phone_verified': True}},
+        )
+
+    # Ensure a family jar exists for this user (same auto-provisioning as email signup)
+    fam = await db.families.find_one({'user_id': user_id}, {'_id': 0, 'id': 1})
+    if not fam:
+        fam_id = f'fam_{uuid.uuid4().hex[:12]}'
+        fresh = await db.users.find_one({'user_id': user_id}, {'_id': 0})
+        default_name = (fresh.get('name') or 'My').split(' ')[0] + "'s Family"
+        await db.families.insert_one({
+            'id': fam_id,
+            'user_id': user_id,
+            'name': default_name,
+            'members': [],
+            'created_at': now.isoformat(),
+        })
+
+    session_token, _ = await _issue_session(user_id)
+    user_doc = await db.users.find_one({'user_id': user_id}, {'_id': 0, 'password_hash': 0})
+    return _cookie_response({'user': user_doc}, session_token)
+
+
+@api.get('/auth/wa/status')
+async def auth_wa_status():
+    """Public: tells the frontend whether WhatsApp OTP login is enabled."""
+    return {'enabled': _wa_configured()}
 
 
 @api.post("/family/{family_id}/share")
