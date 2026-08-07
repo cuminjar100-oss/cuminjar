@@ -25,9 +25,39 @@ export default function Login() {
   const [resetCode, setResetCode] = useState(['', '', '', '', '', '']);
   const [newPassword, setNewPassword] = useState('');
   const [resendIn, setResendIn] = useState(0);
+  const [returningName, setReturningName] = useState(''); // populated from localStorage on mount
   const inputsRef = useRef([]);
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  // Hydrate from the last successful login (if any) so returning users see
+  // a warm greeting and pre-filled email. Wrapped in try/catch since
+  // localStorage may be unavailable in incognito/strict-privacy modes.
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('cuminjar_last_login');
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (parsed?.email) setEmail(parsed.email);
+      if (parsed?.firstName) setReturningName(parsed.firstName);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const rememberLogin = (user) => {
+    try {
+      const firstName = (user?.name || '').trim().split(' ')[0] || '';
+      if (user?.email) {
+        localStorage.setItem('cuminjar_last_login', JSON.stringify({
+          email: user.email,
+          firstName,
+        }));
+      }
+    } catch {
+      /* ignore */
+    }
+  };
 
   useEffect(() => {
     if (resendIn <= 0) return;
@@ -42,6 +72,7 @@ export default function Login() {
     try {
       const { user } = await api.authLogin({ email: email.trim().toLowerCase(), password });
       setCachedAuthUser(user);
+      rememberLogin(user);
       toast({ title: 'Welcome back!' });
       navigate('/app');
     } catch (err) {
@@ -92,6 +123,7 @@ export default function Login() {
     try {
       const { user } = await api.authResetPassword({ email: resetEmail.trim().toLowerCase(), code: codeStr, password: newPassword });
       setCachedAuthUser(user);
+      rememberLogin(user);
       toast({ title: 'Password updated', description: 'You are now signed in.' });
       navigate('/app');
     } catch (err) {
@@ -132,8 +164,19 @@ export default function Login() {
 
         {stage === 'login' && (
           <div className="mt-6 max-w-md w-full">
-            <h1 className="font-serif-display text-[38px] font-semibold text-neutral-900">Welcome back</h1>
-            <p className="text-neutral-600 mt-2">Log in to your family jar.</p>
+            {returningName ? (
+              <>
+                <h1 className="font-serif-display text-[38px] font-semibold text-neutral-900 flex items-center gap-2" data-testid="returning-greeting">
+                  Welcome back, {returningName} <span aria-hidden="true">👋</span>
+                </h1>
+                <p className="text-neutral-600 mt-2">Your family jar has been waiting. <button type="button" onClick={() => { setEmail(''); setReturningName(''); try { localStorage.removeItem('cuminjar_last_login'); } catch { /* ignore */ } }} className="text-cumin-green font-medium hover:underline text-[13.5px]" data-testid="not-you-link">Not you?</button></p>
+              </>
+            ) : (
+              <>
+                <h1 className="font-serif-display text-[38px] font-semibold text-neutral-900">Welcome back</h1>
+                <p className="text-neutral-600 mt-2">Log in to your family jar.</p>
+              </>
+            )}
 
             <div className="mt-6">
               <GoogleSignInButton label="Continue with Google" />
